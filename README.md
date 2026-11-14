@@ -20,7 +20,7 @@ cp .env.example .env.local   # then fill in the values
 npm run dev
 ```
 
-Checks: `npm run lint` and `npm run build`.
+Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`.
 
 ## Setup
 
@@ -30,8 +30,9 @@ Checks: `npm run lint` and `npm run build`.
    add `https://<project-ref>.supabase.co/auth/v1/callback` as an authorized redirect URI, then
    enable the Google provider in *Authentication → Sign In / Providers* with that client ID and
    secret.
-3. **Run the migration.** Paste `supabase/migrations/*_members.sql` into the Supabase SQL editor
-   and run it.
+3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
+   and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
+   private `event-files` Storage bucket).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
@@ -44,7 +45,10 @@ Checks: `npm run lint` and `npm run build`.
 
 ## Access model
 
-- Signed-out users are redirected to `/login` by `src/proxy.ts`.
+- The member panel lives under `/panel`. `/` is a public placeholder for the future landing page.
+- Signed-out users visiting `/panel/*` are redirected to `/login` by `src/proxy.ts`; every other
+  path (`/`, `/login`, `/auth/*`, `/no-access`, future `/noticias*` and `/checkin/*`) is public.
+- After sign-in (and when a signed-in user opens `/login`) users land on `/panel`.
 - Signed-in users whose email is not in `public.members` are redirected to `/no-access`.
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
 - `/checkin/*` is reserved for a future public QR check-in page and is excluded from the login
