@@ -32,7 +32,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    secret.
 3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
    and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
-   private `event-files` Storage bucket, then `*_checkin.sql`).
+   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_calendars.sql`).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
@@ -40,7 +40,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY` (server-only secret key from *Project Settings → API Keys*; used only by
-     the public check-in flow; never prefix it with `NEXT_PUBLIC_`)
+     the public check-in flow and the calendar feeds; never prefix it with `NEXT_PUBLIC_`)
    - `CHECKIN_IP_SALT` (server-only random string used to hash client IPs for rate limiting)
    - `NEXT_PUBLIC_SITE_URL` (optional; base URL for check-in QR links, defaults to the request
      origin)
@@ -61,3 +61,9 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
   outside the gate. Check-in writes attendees with the server-only secret key
   (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute). The privacy notice
   contains placeholders that must be reviewed before the first real event.
+- Calendars (`/panel/perfil`): members paste the Google Calendar *secret address in iCal format*
+  of up to 5 calendars. Only `https://calendar.google.com/calendar/ical/…` URLs are fetched
+  (8 s timeout, 5 MB cap, no off-host redirects). The server stores only busy intervals
+  (`calendar_busy_blocks`, readable by all members, refreshed when older than 15 minutes); the
+  secret URLs are readable only by their owner. `/api/calendario.ics?token=…` is a public,
+  per-member token feed of the team events for Google Calendar subscriptions.
