@@ -2,15 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-// Routes reachable without a session.
-const PUBLIC_PATHS = ["/login", "/auth/"];
-
-function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+// Only the member panel requires a session. Everything else (`/`, `/login`,
+// `/auth/*`, `/no-access`, and the future `/noticias*` and `/checkin/*`) is public.
+function requiresLogin(pathname: string) {
+  return pathname === "/panel" || pathname.startsWith("/panel/");
 }
 
-// Refreshes the Supabase session cookies and sends signed-out users to /login.
-// This is an optimistic check only; the (app) layout enforces membership.
+// Refreshes the Supabase session cookies and sends signed-out users on /panel/*
+// to /login. This is an optimistic check only; the /panel layout enforces membership.
 export async function updateSession(request: NextRequest) {
   const { url, publishableKey } = getSupabaseEnv();
   let response = NextResponse.next({ request });
@@ -41,11 +40,11 @@ export async function updateSession(request: NextRequest) {
   const signedIn = Boolean(data?.claims);
   const { pathname } = request.nextUrl;
 
-  if (!signedIn && !isPublicPath(pathname)) {
+  if (!signedIn && requiresLogin(pathname)) {
     return redirectKeepingCookies(request, response, "/login");
   }
   if (signedIn && pathname === "/login") {
-    return redirectKeepingCookies(request, response, "/");
+    return redirectKeepingCookies(request, response, "/panel");
   }
 
   return response;

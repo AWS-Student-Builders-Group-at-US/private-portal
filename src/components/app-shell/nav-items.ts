@@ -13,27 +13,32 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
+// Root of the member-only area.
+export const PANEL_HOME = "/panel";
+
 // Primary navigation: sidebar on desktop, bottom bar on mobile.
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Inicio", icon: House },
-  { href: "/calendario", label: "Calendario", icon: CalendarDays },
-  { href: "/tareas", label: "Tareas", icon: ListTodo },
-  { href: "/eventos", label: "Eventos", icon: Megaphone },
-  { href: "/mas", label: "Más", icon: Ellipsis },
+  { href: PANEL_HOME, label: "Inicio", icon: House },
+  { href: "/panel/calendario", label: "Calendario", icon: CalendarDays },
+  { href: "/panel/tareas", label: "Tareas", icon: ListTodo },
+  { href: "/panel/eventos", label: "Eventos", icon: Megaphone },
+  { href: "/panel/mas", label: "Más", icon: Ellipsis },
 ];
 
-// Secondary sections, listed on /mas.
+// Secondary sections, listed on /panel/mas.
 export const MORE_ITEMS = [
-  { href: "/recursos", label: "Recursos" },
-  { href: "/sugerencias", label: "Sugerencias" },
-  { href: "/boveda", label: "Bóveda" },
-  { href: "/perfil", label: "Mi perfil" },
+  { href: "/panel/recursos", label: "Recursos" },
+  { href: "/panel/sugerencias", label: "Sugerencias" },
+  { href: "/panel/boveda", label: "Bóveda" },
+  { href: "/panel/perfil", label: "Mi perfil" },
 ];
 
-const MORE_PATHS = ["/mas", ...MORE_ITEMS.map((item) => item.href)];
+const MORE_PATHS = ["/panel/mas", ...MORE_ITEMS.map((item) => item.href)];
 
 export function isActive(href: string, pathname: string) {
-  if (href === "/") return pathname === "/";
-  if (href === "/mas") return MORE_PATHS.some((p) => pathname.startsWith(p));
+  if (href === PANEL_HOME) return pathname === PANEL_HOME;
+  if (href === "/panel/mas") {
+    return MORE_PATHS.some((p) => pathname.startsWith(p));
+  }
   return pathname.startsWith(href);
 }

@@ -16,8 +16,10 @@ Guidance for humans and coding agents working on this repository.
 
 ## Folder conventions
 
-- `src/app/(app)/` — member-only routes behind the access gate (`src/lib/auth/member.ts`).
-- `src/app/login`, `src/app/no-access`, `src/app/auth/callback` — outside the gate.
+- `src/app/panel/` — member-only routes (`/panel/*`) behind the access gate
+  (`src/lib/auth/member.ts`). Only `/panel/*` requires login (`src/lib/supabase/proxy.ts`).
+- `src/app/page.tsx` (`/`), `src/app/login`, `src/app/no-access`, `src/app/auth/callback` — public,
+  outside the gate. Future public routes (`/noticias*`, `/checkin/*`) also stay outside it.
 - `src/features/<feature>/` — code for each future feature (components, server actions, queries).
 - `src/components/ui/` — generated shadcn/ui components; `src/components/` — shared app components.
 - `supabase/migrations/` — one plain SQL migration per feature, named `<timestamp>_<feature>.sql`.

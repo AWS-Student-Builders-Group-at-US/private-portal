@@ -5,7 +5,7 @@ import { getCurrentMember } from "@/lib/auth/member";
 // Protected area: only Core Team members get past MemberGate.
 // The session read is request-time data, so with Cache Components it must
 // sit behind a Suspense boundary.
-export default function AppLayout({ children }: LayoutProps<"/">) {
+export default function PanelLayout({ children }: LayoutProps<"/panel">) {
   return (
     <Suspense
       fallback={<p className="p-8 text-sm text-muted-foreground">Cargando…</p>}
