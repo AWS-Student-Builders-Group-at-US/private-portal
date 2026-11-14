@@ -1,12 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ActionResult } from "@/features/events/types";
 import { getCurrentMember } from "@/lib/auth/member";
 import { withStatus } from "@/lib/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { NEWS_TAG } from "@/features/site/queries";
 import { PUBLIC_MEDIA_BUCKET } from "./media";
 import { IMAGE_PATH_PATTERN, postFormSchema, postStatusSchema, type PostStatus } from "./schema";
 import type { PostFormState } from "./types";
@@ -17,6 +18,8 @@ import { checkTransition } from "./workflow";
 // (including approval by another member) even if these checks are bypassed.
 
 const POSTS_PATH = "/panel/publicaciones";
+// Public news pages are cached; mark them stale after any change.
+const refreshNews = () => revalidateTag(NEWS_TAG, "max");
 const postPath = (id: string) => `${POSTS_PATH}/${id}`;
 const idSchema = z.uuid();
 
@@ -100,6 +103,7 @@ export async function updatePost(
   if (before.image_path && before.image_path !== parsed.row.image_path) {
     await removeImage(before.image_path);
   }
+  refreshNews();
   revalidatePath(POSTS_PATH);
   revalidatePath(postPath(id));
   redirect(withStatus(postPath(id), "guardada"));
@@ -135,6 +139,7 @@ export async function changePostStatus(id: string, to: string): Promise<ActionRe
   if (error || !data?.length) {
     return { ok: false, message: "No se pudo cambiar el estado. Recarga e inténtalo de nuevo." };
   }
+  refreshNews();
   revalidatePath(POSTS_PATH);
   revalidatePath(postPath(id));
   return { ok: true };
@@ -150,6 +155,7 @@ export async function deletePost(id: string): Promise<ActionResult> {
     .select("image_path");
   if (error || !data?.length) return { ok: false, message: "No se pudo eliminar la publicación." };
   await removeImage(data[0].image_path as string | null);
+  refreshNews();
   revalidatePath(POSTS_PATH);
   redirect(withStatus(POSTS_PATH, "eliminada"));
 }

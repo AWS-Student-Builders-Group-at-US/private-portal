@@ -1,9 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { EVENTS_TAG } from "@/features/site/queries";
 import { EVENT_FILES_BUCKET } from "./files";
 import { MAX_EVENT_FILE_BYTES, eventFormSchema } from "./schema";
 import type { ActionResult, EventFormState } from "./types";
@@ -56,6 +57,7 @@ export async function createEvent(
     };
   }
 
+  revalidateTag(EVENTS_TAG, "max");
   revalidatePath(EVENTS_PATH);
   redirect(`${eventPath(data.id)}?estado=creado`);
 }
@@ -84,6 +86,7 @@ export async function updateEvent(
     };
   }
 
+  revalidateTag(EVENTS_TAG, "max");
   revalidatePath(EVENTS_PATH);
   revalidatePath(eventPath(id));
   redirect(`${eventPath(id)}?estado=guardado`);
@@ -133,6 +136,7 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
     return { ok: false, message: "No se pudo eliminar el evento." };
   }
 
+  revalidateTag(EVENTS_TAG, "max");
   revalidatePath(EVENTS_PATH);
   redirect(`${EVENTS_PATH}?estado=eliminado`);
 }
