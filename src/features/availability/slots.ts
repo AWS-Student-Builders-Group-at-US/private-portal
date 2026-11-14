@@ -22,8 +22,8 @@ export type OverrideRange = {
 };
 // Busy time already converted to a Madrid day (see busyBlocksToRanges).
 export type DayRange = { date: string; start: number; end: number };
-// Busy block as returned by getBusyBlocks (UTC instants).
-export type BusyBlock = { start: string; end: string };
+// Busy block as returned by getBusyBlocks (Date objects; ISO strings also accepted).
+export type BusyBlock = { start: Date | string; end: Date | string };
 
 // "09:30" or "09:30:00" -> 570.
 export function timeToMinutes(time: string) {

@@ -198,3 +198,13 @@ describe("template cells", () => {
     expect(templateToCells(ranges)).toEqual(cells);
   });
 });
+
+describe("busyBlocksToRanges with Date objects", () => {
+  it("accepts the Date blocks returned by getBusyBlocks", () => {
+    expect(
+      busyBlocksToRanges([
+        { start: new Date("2026-11-16T09:00:00Z"), end: new Date("2026-11-16T10:00:00Z") },
+      ]),
+    ).toEqual([{ date: "2026-11-16", start: 600, end: 660 }]);
+  });
+});
