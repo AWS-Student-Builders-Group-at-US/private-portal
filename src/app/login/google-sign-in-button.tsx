@@ -24,7 +24,12 @@ export function GoogleSignInButton() {
 
   return (
     <div className="flex flex-col gap-3">
-      <Button size="lg" onClick={signIn} disabled={pending}>
+      <Button
+        size="lg"
+        onClick={signIn}
+        disabled={pending}
+        className="bg-[var(--aws-orange)] font-semibold text-[var(--aws-ink)] hover:bg-[var(--aws-orange-strong)]"
+      >
         {pending ? "Redirigiendo…" : "Entrar con Google"}
       </Button>
       {error && (
