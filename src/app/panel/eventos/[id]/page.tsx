@@ -9,6 +9,7 @@ import { EventFiles } from "@/features/events/components/event-files";
 import { StatusMessage } from "@/features/events/components/status-message";
 import { getEvent, listEventFiles } from "@/features/events/queries";
 import { formatMadridDateTime } from "@/features/events/time";
+import { EventTasks } from "@/features/tasks/components/event-tasks";
 
 export default async function EventDetailPage({
   params,
@@ -80,6 +81,11 @@ export default async function EventDetailPage({
         fallback={<p className="text-sm text-muted-foreground">Cargando asistencia…</p>}
       >
         <AttendanceSection eventId={event.id} />
+      </Suspense>
+      <Suspense
+        fallback={<p className="text-sm text-muted-foreground">Cargando tareas…</p>}
+      >
+        <EventTasks eventId={event.id} />
       </Suspense>
       <EventFiles eventId={event.id} files={files} />
       <DeleteEventButton eventId={event.id} />
