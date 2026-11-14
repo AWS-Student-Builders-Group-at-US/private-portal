@@ -122,6 +122,18 @@ Workflow for two people:
   version with a safe text renderer. RED observed, GREEN `npm test` 60/60 (parent spot check);
   lint, tsc and placeholder build pass (writer). Parent reviewed the migration grants and RLS.
   Migration `20261118000000_checkin_forms.sql` must run in Supabase after the first three.
+- Parallel run (2026-11-14), one writer per branch, separate worktrees:
+  - Vault on `feat/vault`: Web Crypto only (PBKDF2-SHA-256 600k → AES-GCM-256, random IV, AAD per
+    row, verifier), `rotate_vault` security definer. Parent read `crypto.ts` line by line: correct.
+    Vault tests 13/13 (parent spot check).
+  - Calendars on `feat/calendars`: Google iCal allowlist (SSRF guard + DB check), busy blocks only
+    (no titles), `getBusyBlocks(email, from, to)` for T5, team export feed with per-member token.
+    Tests 29/29 (parent spot check); parent read the URL guard.
+  - Emails on `feat/emails`: Gmail SMTP via Nodemailer, consent from latest check-in, one-click
+    unsubscribe (POST only), 25 per call, 450/day cap, at-most-once deliveries. Tests 24/24
+    (parent spot check); parent checked grants and the unsubscribe route.
+  - All three: lint and placeholder build pass (writers). Not run against real Supabase/Gmail.
+  - Follow-up: `src/lib/supabase/admin.ts` comment still names only check-in as admin user.
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step
