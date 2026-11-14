@@ -4,8 +4,9 @@ Locator: `odd/tasks/plataforma-core-team.md` · Engram mirror: `odd/plataforma-c
 
 ## Objective
 
-Internal web app for the AWS Student Builder Group (US, Reina Mercedes) Core Team: events with QR
-check-in, tasks, availability, links, suggestions and a shared credentials vault.
+Web app for the AWS Student Builder Group (US, Reina Mercedes): an internal panel for the Core Team
+(events with QR check-in, tasks, availability, links, suggestions, posts control, shared credentials
+vault) and a public landing page with news.
 
 ## Problem and why
 
@@ -36,7 +37,16 @@ talk needs a QR attendance flow with consent. Five users, one organization.
 - [ ] T5 (2026-11-19) Availability: weekly template, overrides, team view.
 - [ ] T6 (2026-11-20) Links, suggestions, home dashboard.
 - [ ] T7 (2026-11-21) Team test, fixes, RLS review with a non-member account.
+- [ ] T1b (before T2) Move the member panel from `/` to `/panel` so `/` can host the public landing.
+      Reason: new requirement (public landing page) added 2026-11-14.
+- [ ] P1 Posts control: `posts` table, draft → in review → approved → published, approval by a
+      different member, targets web/LinkedIn/Instagram, public `public-media` bucket.
+- [ ] P1 Public landing (`/`) + news (`/noticias`, `/noticias/[slug]`) from approved web posts whose
+      date has passed (anon RLS read); public events via `events.is_public`. Structure inspired by
+      asociacioniacus.es; visual identity from the AWS assets generator.
 - [ ] P1/P2 (later) Vault, Google iCal calendars, Gmail emails.
+- [ ] P2 Auto-publish approved posts to LinkedIn/Instagram via GetLate (server-only API key;
+      Instagram must be a professional account; free plan ~10–20 posts/month).
 
 ### T1 acceptance criteria
 
