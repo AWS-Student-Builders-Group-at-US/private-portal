@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { getCurrentMember } from "@/lib/auth/member";
+
+// Member area: keep it out of search engines.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 // Protected area: only Core Team members get past MemberGate.
 // The session read is request-time data, so with Cache Components it must

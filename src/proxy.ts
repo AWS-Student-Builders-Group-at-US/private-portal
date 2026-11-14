@@ -16,7 +16,8 @@ export const config = {
      *   RFC 8058 one-click endpoint; same rule as check-in.
      * - api/calendario.ics : the token-authenticated iCal feed polled by
      *   Google Calendar, which has no session cookies.
+     * - api/cron/... : Vercel Cron jobs, authenticated by CRON_SECRET only.
      */
-    "/((?!_next/static|_next/image|favicon.ico|checkin/|baja/|api/baja/|api/calendario\\.ics|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|checkin/|baja/|api/baja/|api/calendario\\.ics|api/cron/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
