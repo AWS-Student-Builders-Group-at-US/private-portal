@@ -3,25 +3,19 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormFields } from "@/features/checkin-forms/components/form-fields";
+import type { PublicCheckinForm } from "@/features/checkin-forms/types";
 import type { CheckinFormState } from "../types";
 
-const fieldClass =
-  "w-full rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
-
 type Props = {
+  form: PublicCheckinForm;
   action: (state: CheckinFormState, formData: FormData) => Promise<CheckinFormState>;
 };
 
-function Errors({ id, errors }: { id: string; errors?: string[] }) {
-  return errors?.map((error) => (
-    <p key={error} id={id} className="text-sm text-destructive">
-      {error}
-    </p>
-  ));
-}
-
-export function CheckinForm({ action }: Props) {
+export function CheckinForm({ form: initialForm, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
+  // The server sends the new active version when it changed since render.
+  const form = state.form ?? initialForm;
 
   if (state.status === "success") {
     return (
@@ -31,70 +25,27 @@ export function CheckinForm({ action }: Props) {
     );
   }
 
-  const errors = state.fieldErrors ?? {};
   return (
     <form action={formAction} className="flex flex-col gap-4" noValidate>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="name" className="text-sm font-medium">
-          Nombre
-        </label>
-        <input
-          id="name"
-          name="name"
-          autoComplete="name"
-          required
-          minLength={2}
-          maxLength={100}
-          defaultValue={state.values?.name}
-          aria-invalid={Boolean(errors.name)}
-          aria-describedby={errors.name ? "name-error" : undefined}
-          className={fieldClass}
-        />
-        <Errors id="name-error" errors={errors.name} />
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-medium">{form.title}</h2>
+        {form.intro && (
+          <p className="whitespace-pre-line text-sm text-muted-foreground">{form.intro}</p>
+        )}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-sm font-medium">
-          Correo electrónico
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          required
-          maxLength={254}
-          defaultValue={state.values?.email}
-          aria-invalid={Boolean(errors.email)}
-          aria-describedby={errors.email ? "email-error" : undefined}
-          className={fieldClass}
-        />
-        <Errors id="email-error" errors={errors.email} />
-      </div>
-      <label className="flex items-start gap-3 text-sm">
-        <input
-          type="checkbox"
-          name="photo_consent"
-          defaultChecked={state.values?.photo_consent === "on"}
-          className="mt-0.5 size-5 shrink-0"
-        />
-        Acepto aparecer en fotos y vídeos del evento
-      </label>
-      <label className="flex items-start gap-3 text-sm">
-        <input
-          type="checkbox"
-          name="email_consent"
-          defaultChecked={state.values?.email_consent === "on"}
-          className="mt-0.5 size-5 shrink-0"
-        />
-        Quiero recibir correos sobre próximos eventos
-      </label>
+      <input type="hidden" name="form_version_id" value={form.id} />
+      <FormFields
+        key={form.id}
+        fields={form.fields}
+        values={state.values}
+        errors={state.fieldErrors}
+      />
       <p className="text-sm text-muted-foreground">
         Consulta cómo tratamos tus datos en la{" "}
         <Link href="/privacidad" className="underline underline-offset-4">
           política de privacidad
-        </Link>
-        .
+        </Link>{" "}
+        (versión {form.version}).
       </p>
       {state.message && (
         <p role="alert" className="text-sm text-destructive">

@@ -39,7 +39,7 @@ work stays local on `feat/t1-base`.
       access gate (no-access page), app shell (sidebar desktop / bottom bar mobile), Vercel-ready.
 - [x] T2 (2026-11-16) Events CRUD + private Storage files.
 - [x] T3 (2026-11-17) Public QR check-in with consents + attendee count + QR PNG.
-- [ ] T3b Editable, versioned check-in form from the panel (user decision 2026-11-14): labels for
+- [x] T3b Editable, versioned check-in form from the panel (user decision 2026-11-14): labels for
       name and email (fixed keys, needed for dedupe), extra fields not decided yet (text, email,
       select, checkbox), consent checkboxes (photo/email keys + custom), intro text and privacy
       notice. Each save creates a new version; attendees store the version id and extra answers
@@ -114,6 +114,14 @@ Workflow for two people:
   select/delete only, insert/update revoked) and `checkin_attempts` (no access). Follow-ups:
   `checkin_attempts` retention cleanup; review `/privacidad` text and controller before the first
   event; `npm audit` reports 16 findings (mostly vitest 3 dev deps).
+- T3: committed by the user as `7235728`; `main` now points there and is the default branch.
+- T3b: implemented on `feat/t3b-checkin-form` (writer). `checkin_forms` immutable versions
+  (members select only; writes through `publish_checkin_form` / `activate_checkin_form`, security
+  definer, member check, table lock), version 1 seeded; attendees store `form_version_id` and
+  `answers`; editor at `/panel/mas/formulario-qr`; `/privacidad` renders the active (or `?v=N`)
+  version with a safe text renderer. RED observed, GREEN `npm test` 60/60 (parent spot check);
+  lint, tsc and placeholder build pass (writer). Parent reviewed the migration grants and RLS.
+  Migration `20261118000000_checkin_forms.sql` must run in Supabase after the first three.
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step

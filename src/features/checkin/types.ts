@@ -1,3 +1,5 @@
+import type { PublicCheckinForm } from "@/features/checkin-forms/types";
+
 export type Attendee = {
   id: string;
   name: string;
@@ -5,6 +7,8 @@ export type Attendee = {
   photo_consent: boolean;
   email_consent: boolean;
   checked_in_at: string;
+  form_version_id: string | null;
+  answers: Record<string, unknown>;
 };
 
 // What the public check-in page may know about an event. Nothing else.
@@ -28,4 +32,6 @@ export type CheckinFormState = {
   message?: string;
   fieldErrors?: Partial<Record<string, string[]>>;
   values?: Record<string, string>;
+  // Set when the active form changed since the page was rendered.
+  form?: PublicCheckinForm;
 };

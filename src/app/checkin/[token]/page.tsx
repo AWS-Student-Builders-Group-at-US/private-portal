@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { submitCheckin } from "@/features/checkin/actions";
 import { CheckinForm } from "@/features/checkin/components/checkin-form";
+import { getActiveCheckinForm } from "@/features/checkin/form-queries";
 import { getCheckinEventByToken } from "@/features/checkin/queries";
 import { formatMadridDateTime } from "@/features/events/time";
 
@@ -30,7 +31,10 @@ export default function CheckinPage({ params }: PageProps<"/checkin/[token]">) {
 
 async function CheckinContent({ params }: Pick<PageProps<"/checkin/[token]">, "params">) {
   const { token } = await params;
-  const event = await getCheckinEventByToken(token);
+  const [event, form] = await Promise.all([
+    getCheckinEventByToken(token),
+    getActiveCheckinForm(),
+  ]);
   if (!event) notFound();
 
   return (
@@ -42,8 +46,21 @@ async function CheckinContent({ params }: Pick<PageProps<"/checkin/[token]">, "p
           {event.location && ` · ${event.location}`}
         </p>
       </div>
-      {event.checkin_open ? (
-        <CheckinForm action={submitCheckin.bind(null, token)} />
+      {event.checkin_open && form ? (
+        <CheckinForm
+          form={{
+            id: form.id,
+            version: form.version,
+            title: form.title,
+            intro: form.intro,
+            fields: form.fields,
+          }}
+          action={submitCheckin.bind(null, token)}
+        />
+      ) : event.checkin_open ? (
+        <p role="status" className="rounded-lg border bg-muted p-4 text-center">
+          El registro de asistencia no está disponible en este momento.
+        </p>
       ) : (
         <p role="status" className="rounded-lg border bg-muted p-4 text-center">
           El registro de asistencia está cerrado.

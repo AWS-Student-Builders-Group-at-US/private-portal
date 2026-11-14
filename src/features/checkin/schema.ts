@@ -1,17 +1,13 @@
 import { z } from "zod";
 
-// Version of the privacy notice shown at /privacidad. Stored with every
-// attendee row so we know which text they consented to. Bump it whenever the
-// notice changes.
-export const PRIVACY_NOTICE_VERSION = "2026-11-17";
-
 // Checked checkboxes submit "on"; unchecked ones are absent from FormData.
 const checkbox = z.preprocess(
   (value) => value === "on" || value === "true" || value === true,
   z.boolean(),
 );
 
-// Public check-in form. Output matches the `attendees` columns it fills.
+// Rules for the fixed check-in fields (their own `attendees` columns). The
+// dynamic validator (`@/features/checkin-forms/answers`) reuses them.
 export const checkinFormSchema = z.object({
   name: z
     .string("Indica tu nombre.")
