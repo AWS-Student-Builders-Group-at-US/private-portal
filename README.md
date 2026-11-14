@@ -32,7 +32,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    secret.
 3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
    and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
-   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_checkin_forms.sql`, then `*_vault.sql`).
+   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_checkin_forms.sql`, then `*_vault.sql`, then `*_calendars.sql`).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
@@ -40,7 +40,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY` (server-only secret key from *Project Settings → API Keys*; used only by
-     the public check-in flow; never prefix it with `NEXT_PUBLIC_`)
+     the public check-in flow and the calendar feeds; never prefix it with `NEXT_PUBLIC_`)
    - `CHECKIN_IP_SALT` (server-only random string used to hash client IPs for rate limiting)
    - `NEXT_PUBLIC_SITE_URL` (optional; base URL for check-in QR links, defaults to the request
      origin)
@@ -71,3 +71,9 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
   The key lives only in memory and the vault locks after 10 minutes without interaction. A lost
   vault passphrase cannot be recovered. Changing it re-encrypts every item and calls
   `public.rotate_vault()` in one transaction.
+- Calendars (`/panel/perfil`): members paste the Google Calendar *secret address in iCal format*
+  of up to 5 calendars. Only `https://calendar.google.com/calendar/ical/…` URLs are fetched
+  (8 s timeout, 5 MB cap, no off-host redirects). The server stores only busy intervals
+  (`calendar_busy_blocks`, readable by all members, refreshed when older than 15 minutes); the
+  secret URLs are readable only by their owner. `/api/calendario.ics?token=…` is a public,
+  per-member token feed of the team events for Google Calendar subscriptions.
