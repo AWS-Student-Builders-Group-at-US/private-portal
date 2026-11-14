@@ -38,7 +38,12 @@ work stays local on `feat/t1-base`.
 - [ ] T1 (2026-11-15) Base: Next.js + Supabase SSR, Google login, `members` + `is_member()` + RLS,
       access gate (no-access page), app shell (sidebar desktop / bottom bar mobile), Vercel-ready.
 - [x] T2 (2026-11-16) Events CRUD + private Storage files.
-- [ ] T3 (2026-11-17) Public QR check-in with consents + attendee count + QR PNG.
+- [x] T3 (2026-11-17) Public QR check-in with consents + attendee count + QR PNG.
+- [ ] T3b Editable, versioned check-in form from the panel (user decision 2026-11-14): labels for
+      name and email (fixed keys, needed for dedupe), extra fields not decided yet (text, email,
+      select, checkbox), consent checkboxes (photo/email keys + custom), intro text and privacy
+      notice. Each save creates a new version; attendees store the version id and extra answers
+      (jsonb). One active form shared by all events.
 - [ ] T4 (2026-11-18) Tasks board with assignee, due date, event link.
 - [ ] T5 (2026-11-19) Availability: weekly template, overrides, team view.
 - [ ] T6 (2026-11-20) Links, suggestions, home dashboard.
@@ -53,6 +58,26 @@ work stays local on `feat/t1-base`.
 - [ ] P1/P2 (later) Vault, Google iCal calendars, Gmail emails.
 - [ ] P2 Auto-publish approved posts to LinkedIn/Instagram via GetLate (server-only API key;
       Instagram must be a professional account; free plan ~10–20 posts/month).
+
+## Work split (2026-11-14)
+
+Iván owns configuration and deployment; José takes slightly more than half of the remaining tasks.
+
+| Owner | Tasks |
+| --- | --- |
+| Iván | C0 config and deploy (GitHub repo public, Vercel, Supabase, Google OAuth, env vars, migrations, private seed, `.env.example`, `checkin_attempts` retention cleanup) · T3b editable check-in form · Vault · Google iCal calendars (exposes `getBusyBlocks(email, range)` for T5) · Gmail emails |
+| José | T4 tasks board · T5 availability (consumes `getBusyBlocks` when ready) · T6 links, suggestions, panel home · Posts control · Public landing + news · GetLate auto-publish |
+| Both | T7 team test and RLS review with a non-member account |
+
+Workflow for two people:
+
+- Branch per task from an up-to-date `main` (`feat/<task>`), one PR per task, rebase before merging.
+- Each feature lives in its own `src/features/<feature>/` and `src/app/panel/<route>/`; shared files
+  (`nav-items.ts`, `README.md`, `AGENTS.md`, `package.json`) get small, separate edits.
+- Migrations: `supabase/migrations/<YYYYMMDDHHMMSS>_<feature>.sql` with the real creation time; never
+  edit a migration that is already on `main`, add a new one.
+- Every new table: RLS on with `(select public.is_member())`; public reads only through explicit
+  policies; the secret key only in `src/lib/supabase/admin.ts`.
 
 ### T1 acceptance criteria
 
@@ -83,6 +108,12 @@ work stays local on `feat/t1-base`.
   - Not verified against a real Supabase project (RLS, Storage, signed URLs).
   - RDD: not run; the review preflight stops on `managed_assets_outdated` and the user declined
     `gentle-ai sync` earlier.
+- T3: implemented (writer), not committed yet: the commit was blocked because a hook rewrites
+  the git command and auto mode refused it. `npm test` 33/33 (parent spot check), lint, tsc and
+  placeholder build pass (writer). Parent checked the migration: RLS on `attendees` (members
+  select/delete only, insert/update revoked) and `checkin_attempts` (no access). Follow-ups:
+  `checkin_attempts` retention cleanup; review `/privacidad` text and controller before the first
+  event; `npm audit` reports 16 findings (mostly vitest 3 dev deps).
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step

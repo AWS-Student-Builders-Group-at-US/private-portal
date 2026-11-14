@@ -32,12 +32,18 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    secret.
 3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
    and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
-   private `event-files` Storage bucket).
+   private `event-files` Storage bucket, then `*_checkin.sql`).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
-5. **Configure Vercel.** Import the repo and set the environment variables listed in
-   `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
+5. **Configure Vercel.** Import the repo and set these environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `SUPABASE_SECRET_KEY` (server-only secret key from *Project Settings → API Keys*; used only by
+     the public check-in flow; never prefix it with `NEXT_PUBLIC_`)
+   - `CHECKIN_IP_SALT` (server-only random string used to hash client IPs for rate limiting)
+   - `NEXT_PUBLIC_SITE_URL` (optional; base URL for check-in QR links, defaults to the request
+     origin)
 6. **Add redirect URLs.** In Supabase *Authentication → URL Configuration*, set the Site URL to
    the production URL and add these redirect URLs:
    - `https://<your-app>.vercel.app/auth/callback`
@@ -51,5 +57,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - After sign-in (and when a signed-in user opens `/login`) users land on `/panel`.
 - Signed-in users whose email is not in `public.members` are redirected to `/no-access`.
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
-- `/checkin/*` is reserved for a future public QR check-in page and is excluded from the login
-  redirect.
+- `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
+  outside the gate. Check-in writes attendees with the server-only secret key
+  (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute). The privacy notice
+  contains placeholders that must be reviewed before the first real event.

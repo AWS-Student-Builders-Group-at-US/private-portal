@@ -10,8 +10,8 @@ export const config = {
     /*
      * Run on every path except:
      * - _next/static, _next/image, favicon.ico and static image files
-     * - checkin/... : reserved for the future public QR check-in page
-     *   (/checkin/[token]), which must never require login.
+     * - checkin/... : the public QR check-in page (/checkin/[token]),
+     *   which must never require login or touch the session.
      */
     "/((?!_next/static|_next/image|favicon.ico|checkin/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],

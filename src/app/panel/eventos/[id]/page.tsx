@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
+import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
+import { AttendanceSection } from "@/features/checkin/components/attendance-section";
 import { DeleteEventButton } from "@/features/events/components/delete-event-button";
 import { EventFiles } from "@/features/events/components/event-files";
 import { StatusMessage } from "@/features/events/components/status-message";
@@ -74,6 +76,11 @@ export default async function EventDetailPage({
           </div>
         ))}
       </dl>
+      <Suspense
+        fallback={<p className="text-sm text-muted-foreground">Cargando asistencia…</p>}
+      >
+        <AttendanceSection eventId={event.id} />
+      </Suspense>
       <EventFiles eventId={event.id} files={files} />
       <DeleteEventButton eventId={event.id} />
     </div>
