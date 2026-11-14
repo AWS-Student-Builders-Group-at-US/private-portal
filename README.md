@@ -32,7 +32,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    secret.
 3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
    and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
-   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_emails.sql`).
+   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_checkin_forms.sql`, then `*_vault.sql`, then `*_calendars.sql`, then `*_emails.sql`).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
@@ -40,7 +40,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `SUPABASE_SECRET_KEY` (server-only secret key from *Project Settings → API Keys*; used only by
-     the public check-in flow and community emails; never prefix it with `NEXT_PUBLIC_`)
+     the public check-in flow, the calendar feeds and community emails; never prefix it with `NEXT_PUBLIC_`)
    - `CHECKIN_IP_SALT` (server-only random string used to hash client IPs for rate limiting)
    - `NEXT_PUBLIC_SITE_URL` (base URL for check-in QR links, defaults to the request origin;
      required to send community emails)
@@ -60,8 +60,24 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
   outside the gate. Check-in writes attendees with the server-only secret key
-  (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute). The privacy notice
-  contains placeholders that must be reviewed before the first real event.
+  (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute).
+- Members edit the check-in form and its privacy notice at `/panel/mas/formulario-qr`. Each publish
+  creates a new immutable version (`public.checkin_forms`); each attendee stores the version they
+  accepted. `/privacidad?v=N` shows an older version. Version 1 contains placeholders (data
+  controller, contact email) that must be completed before the first real event.
+- `/panel/boveda` is the shared credentials vault. It is zero-knowledge: a shared vault passphrase
+  derives an AES-256-GCM key in the browser (PBKDF2-SHA-256, 600,000 iterations; see
+  `src/features/vault/crypto.ts`), and Supabase stores only ciphertexts (`public.vault_items`) plus
+  the salt and a verifier (`public.vault_meta`). Item names and categories are stored in plaintext.
+  The key lives only in memory and the vault locks after 10 minutes without interaction. A lost
+  vault passphrase cannot be recovered. Changing it re-encrypts every item and calls
+  `public.rotate_vault()` in one transaction.
+- Calendars (`/panel/perfil`): members paste the Google Calendar *secret address in iCal format*
+  of up to 5 calendars. Only `https://calendar.google.com/calendar/ical/…` URLs are fetched
+  (8 s timeout, 5 MB cap, no off-host redirects). The server stores only busy intervals
+  (`calendar_busy_blocks`, readable by all members, refreshed when older than 15 minutes); the
+  secret URLs are readable only by their owner. `/api/calendario.ics?token=…` is a public,
+  per-member token feed of the team events for Google Calendar subscriptions.
 - `/baja/<token>` is the public unsubscribe page for community emails (outside the gate,
   `noindex`). Opening it never unsubscribes; the visitor confirms with a button. Mail clients use
   the RFC 8058 one-click endpoint `POST /api/baja/<token>` from the `List-Unsubscribe` header.

@@ -39,7 +39,7 @@ work stays local on `feat/t1-base`.
       access gate (no-access page), app shell (sidebar desktop / bottom bar mobile), Vercel-ready.
 - [x] T2 (2026-11-16) Events CRUD + private Storage files.
 - [x] T3 (2026-11-17) Public QR check-in with consents + attendee count + QR PNG.
-- [ ] T3b Editable, versioned check-in form from the panel (user decision 2026-11-14): labels for
+- [x] T3b Editable, versioned check-in form from the panel (user decision 2026-11-14): labels for
       name and email (fixed keys, needed for dedupe), extra fields not decided yet (text, email,
       select, checkbox), consent checkboxes (photo/email keys + custom), intro text and privacy
       notice. Each save creates a new version; attendees store the version id and extra answers
@@ -114,6 +114,26 @@ Workflow for two people:
   select/delete only, insert/update revoked) and `checkin_attempts` (no access). Follow-ups:
   `checkin_attempts` retention cleanup; review `/privacidad` text and controller before the first
   event; `npm audit` reports 16 findings (mostly vitest 3 dev deps).
+- T3: committed by the user as `7235728`; `main` now points there and is the default branch.
+- T3b: implemented on `feat/t3b-checkin-form` (writer). `checkin_forms` immutable versions
+  (members select only; writes through `publish_checkin_form` / `activate_checkin_form`, security
+  definer, member check, table lock), version 1 seeded; attendees store `form_version_id` and
+  `answers`; editor at `/panel/mas/formulario-qr`; `/privacidad` renders the active (or `?v=N`)
+  version with a safe text renderer. RED observed, GREEN `npm test` 60/60 (parent spot check);
+  lint, tsc and placeholder build pass (writer). Parent reviewed the migration grants and RLS.
+  Migration `20261118000000_checkin_forms.sql` must run in Supabase after the first three.
+- Parallel run (2026-11-14), one writer per branch, separate worktrees:
+  - Vault on `feat/vault`: Web Crypto only (PBKDF2-SHA-256 600k → AES-GCM-256, random IV, AAD per
+    row, verifier), `rotate_vault` security definer. Parent read `crypto.ts` line by line: correct.
+    Vault tests 13/13 (parent spot check).
+  - Calendars on `feat/calendars`: Google iCal allowlist (SSRF guard + DB check), busy blocks only
+    (no titles), `getBusyBlocks(email, from, to)` for T5, team export feed with per-member token.
+    Tests 29/29 (parent spot check); parent read the URL guard.
+  - Emails on `feat/emails`: Gmail SMTP via Nodemailer, consent from latest check-in, one-click
+    unsubscribe (POST only), 25 per call, 450/day cap, at-most-once deliveries. Tests 24/24
+    (parent spot check); parent checked grants and the unsubscribe route.
+  - All three: lint and placeholder build pass (writers). Not run against real Supabase/Gmail.
+  - Follow-up: `src/lib/supabase/admin.ts` comment still names only check-in as admin user.
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step

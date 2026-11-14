@@ -30,9 +30,10 @@ Guidance for humans and coding agents working on this repository.
 - Enable RLS on every table; gate access with `public.is_member()`.
 - The secret key (`SUPABASE_SECRET_KEY`, formerly `service_role`) is server-only (never
   `NEXT_PUBLIC_*`, never in client code). Only `src/lib/supabase/admin.ts` reads it, and only the
-  public check-in flow (`src/features/checkin`) and community emails (`src/features/emails`:
-  public unsubscribe by token, and server-only tables written after a membership check) may use
-  that client.
+  public check-in flow (`src/features/checkin`, which also serves `/privacidad`), the calendar
+  feeds (`src/features/calendars` refresh, `src/app/api/calendario.ics`) and community emails
+  (`src/features/emails`: public unsubscribe by token, and server-only tables written after a
+  membership check) may use that client.
 - Gmail credentials (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) are server-only and only
   `src/features/emails/mailer.ts` reads them. Never log credentials or recipient lists.
 

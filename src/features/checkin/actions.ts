@@ -3,6 +3,13 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  buildAnswersSchema,
+  readFormValues,
+  toAttendeeColumns,
+} from "@/features/checkin-forms/answers";
+import type { PublicCheckinForm } from "@/features/checkin-forms/types";
+import { getActiveCheckinForm } from "./form-queries";
 import { getCheckinEventByToken } from "./queries";
 import {
   CHECKIN_WINDOW_SECONDS,
@@ -10,7 +17,6 @@ import {
   hashIp,
   isRateLimited,
 } from "./rate-limit";
-import { PRIVACY_NOTICE_VERSION, checkinFormSchema } from "./schema";
 import type { CheckinFormState } from "./types";
 
 // Public action (no session). It uses the admin client, so every input is
@@ -18,6 +24,8 @@ import type { CheckinFormState } from "./types";
 // Messages never reveal other attendees' data.
 
 const GENERIC_ERROR = "No se pudo registrar la asistencia. Inténtalo de nuevo.";
+const FORM_CHANGED =
+  "El formulario y sus condiciones se han actualizado. Revísalos y vuelve a enviarlo.";
 const UNIQUE_VIOLATION = "23505";
 
 export async function submitCheckin(
@@ -25,25 +33,36 @@ export async function submitCheckin(
   _prev: CheckinFormState,
   formData: FormData,
 ): Promise<CheckinFormState> {
-  const values = {
-    name: String(formData.get("name") ?? ""),
-    email: String(formData.get("email") ?? ""),
-    photo_consent: formData.get("photo_consent") === "on" ? "on" : "",
-    email_consent: formData.get("email_consent") === "on" ? "on" : "",
-  };
-  const parsed = checkinFormSchema.safeParse(values);
+  const [event, form] = await Promise.all([
+    getCheckinEventByToken(token).catch(() => null),
+    getActiveCheckinForm().catch(() => null),
+  ]);
+  if (!event || !form) return { message: GENERIC_ERROR };
+  const values = readFormValues(form.fields, formData);
+  if (!event.checkin_open) {
+    return { message: "El registro de asistencia está cerrado.", values };
+  }
+
+  // The attendee must accept the version they saw. If it changed since the
+  // page was rendered, show the new one instead of saving.
+  if (formData.get("form_version_id") !== form.id) {
+    const publicForm: PublicCheckinForm = {
+      id: form.id,
+      version: form.version,
+      title: form.title,
+      intro: form.intro,
+      fields: form.fields,
+    };
+    return { message: FORM_CHANGED, values, form: publicForm };
+  }
+
+  const parsed = buildAnswersSchema(form.fields).safeParse(values);
   if (!parsed.success) {
     return {
       message: "Revisa los campos marcados.",
       fieldErrors: z.flattenError(parsed.error).fieldErrors,
       values,
     };
-  }
-
-  const event = await getCheckinEventByToken(token).catch(() => null);
-  if (!event) return { message: GENERIC_ERROR, values };
-  if (!event.checkin_open) {
-    return { message: "El registro de asistencia está cerrado.", values };
   }
 
   const salt = process.env.CHECKIN_IP_SALT;
@@ -71,8 +90,9 @@ export async function submitCheckin(
 
   const { error } = await supabase.from("attendees").insert({
     event_id: event.id,
-    ...parsed.data,
-    consent_version: PRIVACY_NOTICE_VERSION,
+    ...toAttendeeColumns(parsed.data),
+    form_version_id: form.id,
+    consent_version: String(form.version),
   });
   if (error?.code === UNIQUE_VIOLATION) {
     return { status: "success", message: "Ya estabas registrado en este evento." };
