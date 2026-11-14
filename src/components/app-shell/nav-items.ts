@@ -30,6 +30,7 @@ export const MORE_ITEMS = [
   { href: "/panel/recursos", label: "Recursos" },
   { href: "/panel/sugerencias", label: "Sugerencias" },
   { href: "/panel/boveda", label: "Bóveda" },
+  { href: "/panel/mas/formulario-qr", label: "Formulario QR" },
   { href: "/panel/perfil", label: "Mi perfil" },
 ];
 

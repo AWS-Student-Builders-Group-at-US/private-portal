@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { formatMadridDateTimeShort } from "@/features/events/time";
 import { buttonVariants } from "@/components/ui/button";
+import { getFormVersionIndex } from "@/features/checkin-forms/queries";
+import { formatAnswer } from "../csv";
 import { qrPngDataUrl } from "../qr";
 import { getAttendance } from "../queries";
 import { buildCheckinUrl, resolveSiteUrl } from "../url";
@@ -14,7 +16,10 @@ import {
 // Member-only attendance block for /panel/eventos/[id]: open/close check-in,
 // QR, counts and the attendee list.
 export async function AttendanceSection({ eventId }: { eventId: string }) {
-  const attendance = await getAttendance(eventId);
+  const [attendance, index] = await Promise.all([
+    getAttendance(eventId),
+    getFormVersionIndex(),
+  ]);
   if (!attendance) {
     return (
       <p className="text-sm text-destructive">
@@ -110,7 +115,20 @@ export async function AttendanceSection({ eventId }: { eventId: string }) {
                   Fotos: {attendee.photo_consent ? "sí" : "no"} · Correos:{" "}
                   {attendee.email_consent ? "sí" : "no"} ·{" "}
                   {formatMadridDateTimeShort(attendee.checked_in_at)}
+                  {attendee.form_version_id &&
+                    index?.versionById[attendee.form_version_id] &&
+                    ` · Formulario v${index.versionById[attendee.form_version_id]}`}
                 </span>
+                {Object.keys(attendee.answers ?? {}).length > 0 && (
+                  <span className="text-muted-foreground">
+                    {Object.entries(attendee.answers)
+                      .map(
+                        ([key, value]) =>
+                          `${index?.labels[key] ?? key}: ${formatAnswer(value)}`,
+                      )
+                      .join(" · ")}
+                  </span>
+                )}
               </div>
               <DeleteAttendeeButton
                 attendeeId={attendee.id}

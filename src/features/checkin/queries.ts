@@ -32,7 +32,9 @@ export async function getAttendance(eventId: string): Promise<Attendance | null>
       .maybeSingle(),
     supabase
       .from("attendees")
-      .select("id, name, email, photo_consent, email_consent, checked_in_at")
+      .select(
+        "id, name, email, photo_consent, email_consent, checked_in_at, form_version_id, answers",
+      )
       .eq("event_id", eventId)
       .order("checked_in_at", { ascending: true }),
   ]);
