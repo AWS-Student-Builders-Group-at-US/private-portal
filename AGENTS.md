@@ -30,8 +30,8 @@ Guidance for humans and coding agents working on this repository.
 - Enable RLS on every table; gate access with `public.is_member()`.
 - The secret key (`SUPABASE_SECRET_KEY`, formerly `service_role`) is server-only (never
   `NEXT_PUBLIC_*`, never in client code). Only `src/lib/supabase/admin.ts` reads it, and only the
-  public check-in flow (`src/features/checkin`) and the calendar feeds (`src/features/calendars`
-  refresh, `src/app/api/calendario.ics`) may use that client.
+  public check-in flow (`src/features/checkin`, which also serves `/privacidad`) and the calendar
+  feeds (`src/features/calendars` refresh, `src/app/api/calendario.ics`) may use that client.
 
 ## Language
 

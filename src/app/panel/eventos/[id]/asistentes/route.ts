@@ -1,4 +1,5 @@
 import { attendeesToCsv } from "@/features/checkin/csv";
+import { getFormVersionIndex } from "@/features/checkin-forms/queries";
 import { memberClientOrNull, notFoundResponse } from "@/features/checkin/member-route";
 
 // Member-only CSV export of an event's attendees (contains personal data).
@@ -17,14 +18,23 @@ export async function GET(
     .maybeSingle();
   if (!event) return notFoundResponse();
 
-  const { data: attendees, error } = await supabase
-    .from("attendees")
-    .select("name, email, photo_consent, email_consent, checked_in_at")
-    .eq("event_id", event.id)
-    .order("checked_in_at", { ascending: true });
-  if (error) return new Response("Error", { status: 500 });
+  const [{ data: attendees, error }, index] = await Promise.all([
+    supabase
+      .from("attendees")
+      .select(
+        "name, email, photo_consent, email_consent, checked_in_at, form_version_id, answers",
+      )
+      .eq("event_id", event.id)
+      .order("checked_in_at", { ascending: true }),
+    getFormVersionIndex(),
+  ]);
+  if (error || !index) return new Response("Error", { status: 500 });
 
-  return new Response(attendeesToCsv(attendees), {
+  const rows = attendees.map((attendee) => ({
+    ...attendee,
+    form_version: index.versionById[attendee.form_version_id] ?? null,
+  }));
+  return new Response(attendeesToCsv(rows, index.labels), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": 'attachment; filename="asistentes.csv"',

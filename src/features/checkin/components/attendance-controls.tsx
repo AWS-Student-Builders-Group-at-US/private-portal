@@ -64,7 +64,7 @@ export function CopyUrlButton({ url }: { url: string }) {
   );
 }
 
-function ConfirmAction({
+export function ConfirmAction({
   label,
   question,
   confirmLabel,
