@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { deleteTask } from "../actions";
 
 // Two-step delete: the first click asks for confirmation in the page.
-export function DeleteTaskButton({ taskId }: { taskId: string }) {
+export function DeleteTaskButton({
+  taskId,
+  returnTo,
+}: {
+  taskId: string;
+  returnTo?: string;
+}) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -13,8 +19,8 @@ export function DeleteTaskButton({ taskId }: { taskId: string }) {
   function remove() {
     setError(null);
     startTransition(async () => {
-      // On success the action redirects to the board.
-      const result = await deleteTask(taskId);
+      // On success the action redirects (board or `returnTo`).
+      const result = await deleteTask(taskId, returnTo);
       if (!result.ok) setError(result.message);
     });
   }

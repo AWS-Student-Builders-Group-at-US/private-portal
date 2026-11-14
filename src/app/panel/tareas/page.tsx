@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { StatusBanner } from "@/components/status-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { madridToday } from "@/features/tasks/dates";
 import {
@@ -9,7 +10,6 @@ import {
   parseTaskFilters,
   sortTasks,
 } from "@/features/tasks/filters";
-import { TaskStatusMessage } from "@/features/tasks/components/status-message";
 import { TaskBoard } from "@/features/tasks/components/task-board";
 import { TaskFilters } from "@/features/tasks/components/task-filters";
 import {
@@ -18,6 +18,12 @@ import {
   listTasks,
 } from "@/features/tasks/queries";
 import { getCurrentMember } from "@/lib/auth/member";
+
+const STATUS_MESSAGES = {
+  creada: "Tarea creada.",
+  guardada: "Cambios guardados.",
+  eliminada: "Tarea eliminada.",
+};
 
 export default async function TasksPage({
   searchParams,
@@ -50,7 +56,7 @@ export default async function TasksPage({
           Nueva tarea
         </Link>
       </div>
-      <TaskStatusMessage status={params.estado} />
+      <StatusBanner status={params.estado} messages={STATUS_MESSAGES} />
       <TaskFilters
         persona={persona}
         evento={filters.eventId ?? ""}

@@ -58,7 +58,7 @@ export default async function EditTaskPage({
         cancelHref={backHref}
         returnTo={fromEvent ? backHref : undefined}
       />
-      <DeleteTaskButton taskId={task.id} />
+      <DeleteTaskButton taskId={task.id} returnTo={fromEvent ? backHref : undefined} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { EventOption, MemberOption, Task, TaskCardData } from "./types";
 
@@ -44,14 +45,15 @@ export async function listEventTasks(eventId: string): Promise<TaskCardData[]> {
 }
 
 export async function getTask(id: string): Promise<Task | null> {
+  // An invalid uuid is a "not found"; any other error is a real failure.
+  if (!z.uuid().safeParse(id).success) return null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tasks")
     .select(TASK_COLUMNS)
     .eq("id", id)
     .maybeSingle();
-  // An invalid uuid is a "not found", not a server error.
-  if (error) return null;
+  if (error) throw new Error("No se pudo cargar la tarea.");
   return data as Task | null;
 }
 
