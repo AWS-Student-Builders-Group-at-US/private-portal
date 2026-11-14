@@ -23,6 +23,12 @@ talk needs a QR attendance flow with consent. Five users, one organization.
 - UI text in Spanish; code, comments and identifiers in English.
 - Full proposal: claude.ai doc "Plataforma interna Core Team".
 
+## Delivery decision (2026-11-14)
+
+The user pushes the repo to the group's GitHub organization with their own account once the app
+is finished, and deploys then. Commit author email stays as is (user's decision). Until then all
+work stays local on `feat/t1-base`.
+
 ## Delivery strategy
 
 `ask-on-risk`. Forecast: well above 400 authored lines over the feature → one PR per day/task.
