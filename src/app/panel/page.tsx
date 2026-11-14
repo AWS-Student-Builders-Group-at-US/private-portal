@@ -4,6 +4,10 @@ import { splitEvents } from "@/features/events/components/event-list";
 import { listEvents } from "@/features/events/queries";
 import { formatMadridDateTimeShort } from "@/features/events/time";
 import { sortSuggestions } from "@/features/suggestions/logic";
+import { TaskMeta } from "@/features/tasks/components/task-meta";
+import { madridToday } from "@/features/tasks/dates";
+import { filterTasks, sortTasks } from "@/features/tasks/filters";
+import { listTasks } from "@/features/tasks/queries";
 import { listSuggestions } from "@/features/suggestions/queries";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -11,10 +15,17 @@ const HOME_LIMIT = 3;
 
 export default async function HomePage() {
   const member = await getCurrentMember();
-  const [events, suggestions] = await Promise.all([
+  const [events, suggestions, tasks] = await Promise.all([
     listEvents(),
     listSuggestions(member.email),
+    listTasks(),
   ]);
+  const myPending = sortTasks(
+    filterTasks(tasks, { person: "me", eventId: null }, member.email).filter(
+      (task) => task.status !== "done",
+    ),
+  );
+  const today = madridToday();
   const upcoming = splitEvents(events, new Date()).upcoming.slice(0, HOME_LIMIT);
   const fresh = suggestions.filter((s) => s.status === "nueva");
   const topFresh = sortSuggestions(fresh).slice(0, HOME_LIMIT);
@@ -25,6 +36,30 @@ export default async function HomePage() {
         <h1 className="text-2xl font-semibold">Hola, {member.name}</h1>
         <p className="text-muted-foreground">Esto es lo que tienes por delante.</p>
       </div>
+
+      <HomeSection
+        title={`Mis tareas pendientes${myPending.length ? ` (${myPending.length})` : ""}`}
+        href="/panel/tareas?persona=yo"
+        linkLabel="Ver tablero"
+      >
+        {myPending.length === 0 ? (
+          <Empty>No tienes tareas pendientes.</Empty>
+        ) : (
+          <ul className="divide-y rounded-lg border">
+            {myPending.slice(0, HOME_LIMIT + 2).map((task) => (
+              <li key={task.id}>
+                <Link
+                  href={`/panel/tareas/${task.id}`}
+                  className="flex flex-col gap-1 px-4 py-3 hover:bg-muted"
+                >
+                  <span className="truncate font-medium">{task.title}</span>
+                  <TaskMeta task={task} today={today} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </HomeSection>
 
       <HomeSection title="Próximos eventos" href="/panel/eventos" linkLabel="Ver eventos">
         {upcoming.length === 0 ? (
