@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
 // Only the member panel requires a session. Everything else (`/`, `/login`,
-// `/auth/*`, `/no-access`, and the future `/noticias*` and `/checkin/*`) is public.
+// `/auth/*`, `/no-access`, `/checkin/*`, `/baja/*`, `/api/baja/*` and the
+// future `/noticias*`) is public.
 function requiresLogin(pathname: string) {
   return pathname === "/panel" || pathname.startsWith("/panel/");
 }

@@ -19,7 +19,7 @@ Guidance for humans and coding agents working on this repository.
 - `src/app/panel/` — member-only routes (`/panel/*`) behind the access gate
   (`src/lib/auth/member.ts`). Only `/panel/*` requires login (`src/lib/supabase/proxy.ts`).
 - `src/app/page.tsx` (`/`), `src/app/login`, `src/app/no-access`, `src/app/auth/callback` — public,
-  outside the gate, as do `/checkin/*` and `/privacidad`. Future public routes (`/noticias*`) also stay outside it.
+  outside the gate, as do `/checkin/*`, `/baja/*`, `/api/baja/*` and `/privacidad`. Future public routes (`/noticias*`) also stay outside it.
 - `src/features/<feature>/` — code for each future feature (components, server actions, queries).
 - `src/components/ui/` — generated shadcn/ui components; `src/components/` — shared app components.
 - `supabase/migrations/` — one plain SQL migration per feature, named `<timestamp>_<feature>.sql`.
@@ -30,7 +30,11 @@ Guidance for humans and coding agents working on this repository.
 - Enable RLS on every table; gate access with `public.is_member()`.
 - The secret key (`SUPABASE_SECRET_KEY`, formerly `service_role`) is server-only (never
   `NEXT_PUBLIC_*`, never in client code). Only `src/lib/supabase/admin.ts` reads it, and only the
-  public check-in flow (`src/features/checkin`) may use that client.
+  public check-in flow (`src/features/checkin`) and community emails (`src/features/emails`:
+  public unsubscribe by token, and server-only tables written after a membership check) may use
+  that client.
+- Gmail credentials (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) are server-only and only
+  `src/features/emails/mailer.ts` reads them. Never log credentials or recipient lists.
 
 ## Language
 
