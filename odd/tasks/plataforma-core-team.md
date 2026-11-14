@@ -47,8 +47,18 @@ talk needs a QR attendance flow with consent. Five users, one organization.
 
 ## Progress and evidence
 
-- T1: in progress. Route: delegated direct (writer trigger: 2+ non-trivial files).
+- T1: implemented, commit `6b76606` on `feat/t1-base`. Route: delegated direct (writer trigger:
+  2+ non-trivial files).
+  - Next.js 16.4.6 (`src/proxy.ts`, Cache Components on), `@supabase/ssr` 0.12.
+  - `npm run lint`: pass (writer + parent spot check). Build with placeholder env: pass (writer).
+  - Test-first exception: no runnable deterministic test for OAuth/RLS without a Supabase project.
+  - Pending: `.env.example` (writing `.env*` is blocked by permission settings; the user creates it).
+  - Not verified against a real Supabase project yet (needs account setup).
+  - RDD: assessed `high` (`review_due: high_risk`); review preflight stopped with
+    `managed_assets_outdated` (needs `gentle-ai sync`, user decision).
+- Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step
 
-T1 implementation, then account setup by Guille (Supabase project, Google OAuth client, Vercel).
+User creates `.env.example`; decide on `gentle-ai sync` for the review; account setup by Guille
+(`coordinacion/setup-plataforma.md` outside the repo); then T2.
