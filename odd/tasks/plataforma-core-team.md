@@ -55,10 +55,10 @@ talk needs a QR attendance flow with consent. Five users, one organization.
   - Pending: `.env.example` (writing `.env*` is blocked by permission settings; the user creates it).
   - Not verified against a real Supabase project yet (needs account setup).
   - RDD: assessed `high` (`review_due: high_risk`); review preflight stopped with
-    `managed_assets_outdated` (needs `gentle-ai sync`, user decision).
+    `managed_assets_outdated`; user declined review for this candidate (no sync run).
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step
 
-User creates `.env.example`; decide on `gentle-ai sync` for the review; account setup by Guille
+User creates `.env.example`; account setup by Guille
 (`coordinacion/setup-plataforma.md` outside the repo); then T2.
