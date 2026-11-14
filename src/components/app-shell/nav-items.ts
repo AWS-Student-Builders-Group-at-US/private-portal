@@ -27,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 // Secondary sections, listed on /panel/mas.
 export const MORE_ITEMS = [
+  { href: "/panel/publicaciones", label: "Publicaciones" },
   { href: "/panel/recursos", label: "Recursos" },
   { href: "/panel/sugerencias", label: "Sugerencias" },
   { href: "/panel/boveda", label: "Bóveda" },
