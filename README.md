@@ -32,7 +32,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    secret.
 3. **Run the migrations.** Paste each file in `supabase/migrations/` into the Supabase SQL editor
    and run them in filename order (`*_members.sql`, then `*_events.sql`, which also creates the
-   private `event-files` Storage bucket, then `*_checkin.sql`).
+   private `event-files` Storage bucket, then `*_checkin.sql`, then `*_checkin_forms.sql`).
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored).
@@ -59,5 +59,8 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
   outside the gate. Check-in writes attendees with the server-only secret key
-  (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute). The privacy notice
-  contains placeholders that must be reviewed before the first real event.
+  (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute).
+- Members edit the check-in form and its privacy notice at `/panel/mas/formulario-qr`. Each publish
+  creates a new immutable version (`public.checkin_forms`); each attendee stores the version they
+  accepted. `/privacidad?v=N` shows an older version. Version 1 contains placeholders (data
+  controller, contact email) that must be completed before the first real event.
