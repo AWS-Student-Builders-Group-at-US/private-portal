@@ -6,12 +6,11 @@ describe("suggestionFormSchema", () => {
   it("parses a signed suggestion", () => {
     expect(suggestionFormSchema.parse({ body: "  Hacer un taller de Lambda  " })).toEqual({
       body: "Hacer un taller de Lambda",
-      anonymous: false,
     });
   });
 
-  it("marks anonymous suggestions", () => {
-    expect(suggestionFormSchema.parse({ body: "Idea", anonymous: "on" }).anonymous).toBe(true);
+  it("has no anonymous option", () => {
+    expect(suggestionFormSchema.parse({ body: "Idea", anonymous: "on" })).toEqual({ body: "Idea" });
   });
 
   it("requires text and limits its length", () => {
