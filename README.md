@@ -88,7 +88,7 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
   outside the gate. Check-in writes attendees with the server-only secret key
   (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute).
-- Members edit the check-in form and its privacy notice at `/panel/mas/formulario-qr`. Each publish
+- Members edit the check-in form and its privacy notice at `/panel/eventos/formularios`. Each publish
   creates a new immutable version (`public.checkin_forms`); each attendee stores the version they
   accepted. `/privacidad?v=N` shows an older version. Version 1 contains placeholders (data
   controller, contact email) that must be completed before the first real event.

@@ -15,14 +15,14 @@ export default async function CheckinFormEditorPage() {
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href="/panel/mas"
+        href="/panel/eventos"
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Más
+        Eventos
       </Link>
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Formulario QR</h1>
+        <h1 className="text-2xl font-semibold">Formularios de registro</h1>
         <p className="text-sm text-muted-foreground">
           Cada publicación crea una versión nueva. Cada asistente queda vinculado a la
           versión que aceptó.

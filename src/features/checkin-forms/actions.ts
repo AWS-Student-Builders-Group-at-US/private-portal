@@ -10,7 +10,7 @@ import { checkinFormContentSchema } from "./definition";
 // security definer functions, which re-check membership and keep versions
 // immutable and a single active one.
 
-const EDITOR_PATH = "/panel/mas/formulario-qr";
+const EDITOR_PATH = "/panel/eventos/formularios";
 
 export async function publishCheckinForm(input: unknown): Promise<ActionResult> {
   const parsed = checkinFormContentSchema.safeParse(input);
