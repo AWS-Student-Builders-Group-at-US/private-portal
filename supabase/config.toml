@@ -1,4 +1,4 @@
 # Minimal Supabase CLI config. Only used by the "Database migrations" workflow
-# (`supabase db push --db-url ...`); the hosted project is configured in the
+# (`supabase db push --remote ... --yes`); the hosted project is configured in the
 # Supabase dashboard.
 project_id = "core-team-app"
