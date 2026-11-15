@@ -1,6 +1,7 @@
 import "server-only";
 import type { FolderNode } from "./ancestry";
 import { DriveConfigError, isDriveId, readServiceAccountKey, type ServiceAccountKey } from "./config";
+import { classifyDriveFailure } from "./errors";
 import { createServiceAccountJwt, GOOGLE_TOKEN_URL } from "./jwt";
 import { FOLDER_MIME, toDriveItem } from "./mapping";
 import type { DriveErrorCode, DriveFile, DriveListing } from "./types";
@@ -90,11 +91,12 @@ async function driveGet<T>(path: string, params: Record<string, string>): Promis
   const response = await request(`${API}${path}?${query}`, {
     headers: { authorization: `Bearer ${token}`, accept: "application/json" },
   });
-  if (response.status === 401 || response.status === 403) {
-    throw new DriveError("permission", `Drive answered ${response.status}.`);
+  if (!response.ok) {
+    const { code, reason } = classifyDriveFailure(response.status, await response.text());
+    // Status and Google's reason only (no tokens, ids or file names).
+    console.error(`[drive] ${response.status} ${reason ?? "no-reason"} -> ${code}`);
+    throw new DriveError(code, `Drive answered ${response.status} (${reason ?? "no reason"}).`);
   }
-  if (response.status === 404) throw new DriveError("not_found", "Drive answered 404.");
-  if (!response.ok) throw new DriveError("unknown", `Drive answered ${response.status}.`);
   return (await response.json()) as T;
 }
 

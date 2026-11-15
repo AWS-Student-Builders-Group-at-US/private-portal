@@ -28,4 +28,10 @@ export type Crumb = { id: string; name: string };
 export type DriveListing = { items: DriveItem[]; truncated: boolean };
 
 // Error codes surfaced to the UI (mapped to Spanish copy).
-export type DriveErrorCode = "config" | "permission" | "not_found" | "timeout" | "unknown";
+export type DriveErrorCode =
+  | "config"
+  | "api_disabled"
+  | "permission"
+  | "not_found"
+  | "timeout"
+  | "unknown";
