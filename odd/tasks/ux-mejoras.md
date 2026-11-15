@@ -33,7 +33,7 @@ uses, and the check-in form is global although events need different questions.
       team view.
 - [x] T3 Per-event check-in form: named forms with versions; event picks a form (null → active
       default); form editor moves under Eventos; check-in and `/privacidad` use the event's form.
-- [ ] T4 Drive file preview modal in Recursos; vault "Secret / API key" item type with `.env`
+- [x] T4 Drive file preview modal in Recursos; vault "Secret / API key" item type with `.env`
       import/export.
 
 ## Delivery strategy
@@ -84,6 +84,26 @@ one PR into `trunk` unless the user asks for slices.
   `npx tsc --noEmit`: pass (after `next typegen` for the new route); `npm run build` (placeholder
   env): pass. Commit: see `git log` (feat(checkin) named check-in forms).
 
+- T4 done. Route: delegated direct (writer trigger: 2+ non-trivial files). Drive: `DriveItem`
+  carries `mimeType`; pure `drive/preview.ts` (`isDriveFileId` allows only `[A-Za-z0-9_-]{1,200}`,
+  `drivePreviewUrl` maps Google Docs/Sheets/Slides to `docs.google.com/.../preview`, everything
+  else to `drive.google.com/file/d/<id>/preview`, folders/invalid ids → null). Clicking a file in
+  Recursos opens `DrivePreviewDialog` (Base UI Dialog: name, iframe, «Abrir en Drive», close,
+  note that the viewer needs access with their Google account); folders keep navigating. Vault:
+  `kind: "account" | "secret"` (default `account`) lives inside the encrypted payload, no
+  migration; secret items drop username/password/url and keep keys in `fields` (new keys secret
+  by default). Pure `vault/env.ts`: `parseEnv` (comments, blank lines, `export `, quotes,
+  escapes, first `=` splits, duplicates keep last value, invalid line numbers), `serializeEnv`
+  (quotes non-plain values, skips invalid names), `mergeEnvFields` (enforces
+  `MAX_CUSTOM_FIELDS` and field lengths with Spanish errors). Form has a type selector and
+  «Importar .env»; list has «Copiar como .env». Vault link fixed to `/panel/ajustes#ajustes-boveda`
+  (anchor already present in `src/app/panel/ajustes/page.tsx`).
+  Test-first: `preview.test.ts` and `env.test.ts` RED (modules missing), `schema.test.ts` RED
+  (7 failed) and `mapping.test.ts` RED (1 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 42 files, 340 tests passed;
+  `npx tsc --noEmit`: pass; `npm run build` (placeholder env): pass. Commit: see `git log`
+  (feat(resources,vault) drive file preview and secret items).
+
 ## Next step
 
-T4 (Drive file preview, vault secrets).
+PR `feat/ux-mejoras` into `trunk`.

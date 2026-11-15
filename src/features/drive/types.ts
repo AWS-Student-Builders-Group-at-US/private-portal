@@ -17,6 +17,7 @@ export type DriveItem = {
   id: string;
   name: string;
   kind: DriveKind;
+  mimeType: string | null;
   modified: string | null;
   modifiedTime: string | null;
   size: string | null;
