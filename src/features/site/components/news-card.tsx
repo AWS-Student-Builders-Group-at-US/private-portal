@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Cpu } from "lucide-react";
 import { publicMediaUrl } from "@/features/posts/media";
 import { previewText } from "@/features/posts/content";
 import type { NewsItem } from "../queries";
@@ -16,9 +17,9 @@ export function NewsCard({ item }: { item: NewsItem }) {
   return (
     <Link
       href={`/noticias/${item.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-[var(--aws-orange)]/60 hover:shadow-lg"
+      className="group flex h-full flex-col border bg-card transition-colors hover:border-[var(--aws-squid)]"
     >
-      <div className="aspect-[1.91/1] overflow-hidden bg-[var(--aws-squid)]">
+      <div className="aspect-[1.91/1] overflow-hidden border-b bg-[var(--aws-squid)]">
         {item.image_path ? (
           // eslint-disable-next-line @next/next/no-img-element -- public bucket image
           <img
@@ -27,16 +28,19 @@ export function NewsCard({ item }: { item: NewsItem }) {
             className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="grid size-full place-items-center bg-[radial-gradient(circle_at_30%_20%,rgb(255_153_0/0.35),transparent_55%)] text-sm font-semibold text-white/80">
+          <div className="flex size-full flex-col items-center justify-center gap-3 font-mono text-xs text-white/80">
+            <Cpu className="size-8 text-[var(--aws-orange)]" strokeWidth={1.5} aria-hidden />
             SBG · Noticias
           </div>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">
-        <time dateTime={item.published_on} className="text-xs font-medium text-[var(--aws-orange-strong)]">
+        <time dateTime={item.published_on} className="font-mono text-xs text-muted-foreground">
           {formatNewsDate(item.published_on)}
         </time>
-        <h3 className="font-semibold leading-snug group-hover:underline">{item.title}</h3>
+        <h3 className="font-semibold leading-snug underline-offset-4 group-hover:underline group-hover:decoration-[var(--aws-orange)] group-hover:decoration-2">
+          {item.title}
+        </h3>
         <p className="text-sm text-muted-foreground">{previewText(item.body, 140)}</p>
       </div>
     </Link>

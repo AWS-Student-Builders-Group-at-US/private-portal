@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SITE } from "@/features/site/config";
 import { NewsCard } from "@/features/site/components/news-card";
+import { SectionLabel, SitePage } from "@/features/site/components/primitives";
 import { Reveal } from "@/features/site/components/reveal";
 import { SiteFooter, SiteHeader } from "@/features/site/components/site-chrome";
 import { getNews } from "@/features/site/queries";
@@ -13,18 +14,24 @@ export const metadata: Metadata = {
 export default async function NewsPage() {
   const news = await getNews(60);
   return (
-    <div className="flex flex-1 flex-col">
+    <SitePage>
       <SiteHeader />
       <main id="contenido" className="flex-1">
-        <section className="bg-[var(--aws-ink)] text-white">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-16 sm:px-6">
-            <span className="animate-rise-in text-xs font-semibold tracking-[0.2em] text-[var(--aws-orange)] uppercase">Noticias</span>
-            <h1 className="animate-rise-in text-4xl font-semibold tracking-tight [animation-delay:80ms]">Lo último del grupo</h1>
+        <section className="border-b">
+          <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-16 sm:px-6">
+            <SectionLabel index="05" className="animate-rise-in text-muted-foreground">
+              Noticias
+            </SectionLabel>
+            <h1 className="animate-rise-in text-4xl font-semibold [animation-delay:80ms] sm:text-5xl">
+              Lo último del grupo
+            </h1>
           </div>
         </section>
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
           {news.length === 0 ? (
-            <p className="text-muted-foreground">Todavía no hay noticias publicadas.</p>
+            <p className="border bg-white p-8 text-muted-foreground">
+              Todavía no hay noticias publicadas.
+            </p>
           ) : (
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {news.map((item, i) => (
@@ -37,6 +44,6 @@ export default async function NewsPage() {
         </div>
       </main>
       <SiteFooter />
-    </div>
+    </SitePage>
   );
 }

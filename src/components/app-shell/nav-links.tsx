@@ -25,9 +25,9 @@ export function SidebarNav() {
           href={href}
           aria-current={isActive(href, pathname) ? "page" : undefined}
           className={cn(
-            "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            "relative flex items-center gap-3 px-3 py-2 font-mono text-[0.8125rem] text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             isActive(href, pathname) &&
-              "bg-sidebar-accent font-medium text-sidebar-accent-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
+              "bg-sidebar-accent font-medium text-sidebar-accent-foreground before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-sidebar-primary [&_svg]:text-sidebar-primary",
           )}
         >
           <Icon className="size-4" />
@@ -39,9 +39,10 @@ export function SidebarNav() {
 }
 
 const bottomItemClass =
-  "flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground transition-colors";
+  "relative flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground transition-colors";
+// Active item: orange bar on top (decorative) plus bolder dark label.
 const bottomItemActiveClass =
-  "font-medium text-foreground [&_svg]:text-[var(--aws-orange-strong)]";
+  "font-semibold text-foreground before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:bg-[var(--aws-orange)]";
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -85,7 +86,7 @@ function MenuDrawer({ pathname }: { pathname: string }) {
         <Dialog.Backdrop className="fixed inset-0 z-20 bg-black/40 md:hidden" />
         <Dialog.Popup className="fixed inset-x-0 bottom-0 z-30 flex flex-col gap-4 rounded-t-xl border-t bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
           <div className="flex items-center justify-between gap-2">
-            <Dialog.Title className="text-lg font-semibold">Menú</Dialog.Title>
+            <Dialog.Title className="font-mono text-lg font-semibold">Menú</Dialog.Title>
             <Dialog.Close
               aria-label="Cerrar menú"
               className={buttonVariants({ variant: "ghost", size: "icon" })}
@@ -102,8 +103,9 @@ function MenuDrawer({ pathname }: { pathname: string }) {
                     onClick={() => setOpen(false)}
                     aria-current={isActive(href, pathname) ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 hover:bg-muted",
-                      isActive(href, pathname) && "font-medium",
+                      "flex items-center gap-3 px-4 py-3 font-mono text-sm hover:bg-muted",
+                      isActive(href, pathname) &&
+                        "font-semibold shadow-[inset_4px_0_0_var(--aws-orange)]",
                     )}
                   >
                     <Icon className="size-4" />

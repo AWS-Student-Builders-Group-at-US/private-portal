@@ -1,20 +1,24 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { ChipMark } from "@/components/chip-mark";
+import { cn } from "@/lib/utils";
 import { SITE } from "../config";
+import { CtaArrow, cta } from "./primitives";
 
 export function Logo({ light = false }: { light?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2.5" aria-label={`${SITE.name}, inicio`}>
-      <span
-        aria-hidden
-        className="grid size-9 place-items-center rounded-lg bg-[var(--aws-orange)] text-xs font-bold text-[var(--aws-ink)]"
-      >
-        SBG
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className={`text-sm font-semibold ${light ? "text-white" : ""}`}>{SITE.name}</span>
-        <span className={`text-[0.7rem] ${light ? "text-white/60" : "text-muted-foreground"}`}>
-          Universidad de Sevilla
+    <Link
+      href="/"
+      className="flex min-w-0 items-center gap-3"
+      aria-label={`${SITE.name} at ${SITE.university}, inicio`}
+    >
+      <ChipMark />
+      <span className="flex min-w-0 flex-col font-mono leading-tight">
+        <span className={`truncate text-xs font-semibold sm:text-sm ${light ? "text-white" : ""}`}>
+          {SITE.name}
+        </span>
+        <span className={`truncate text-[0.7rem] sm:text-xs ${light ? "text-white/70" : "text-muted-foreground"}`}>
+          at {SITE.university}
         </span>
       </span>
     </Link>
@@ -22,36 +26,42 @@ export function Logo({ light = false }: { light?: boolean }) {
 }
 
 const NAV = [
-  { href: "/#que-hacemos", label: "Qué hacemos" },
-  { href: "/#actividades", label: "Actividades" },
+  { href: "/#que-es", label: "¿Qué es?" },
+  { href: "/#proximo-evento", label: "Próximo evento" },
   { href: "/noticias", label: "Noticias" },
-  { href: "/#unete", label: "Únete" },
 ];
+
+const navLink =
+  "font-mono text-sm text-foreground/80 underline-offset-8 transition-colors hover:text-foreground hover:underline hover:decoration-[var(--aws-orange)] hover:decoration-2";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-[var(--aws-ink)]/85 text-white backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Logo light />
-        <nav aria-label="Principal" className="hidden items-center gap-6 text-sm text-white/75 md:flex">
+    <header className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur-sm">
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-40 focus:bg-white focus:px-3 focus:py-2 focus:font-mono focus:text-sm"
+      >
+        Saltar al contenido
+      </a>
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-20 sm:px-6">
+        <Logo />
+        <nav aria-label="Principal" className="hidden items-center gap-7 md:flex">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="transition-colors hover:text-white">
+            <Link key={item.href} href={item.href} className={navLink}>
               {item.label}
             </Link>
           ))}
         </nav>
-        <a
-          href={SITE.meetupUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 rounded-lg bg-[var(--aws-orange)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-[var(--aws-ink)] transition-colors hover:bg-[var(--aws-orange-strong)]"
-        >
-          Únete<span className="hidden sm:inline"> en Meetup</span>
-        </a>
+        <Link href="/#unete" className={cn(cta.primary, "shrink-0 px-3 py-2 sm:px-4")}>
+          Únete<span className="hidden sm:inline"> al grupo</span> <CtaArrow />
+        </Link>
       </div>
-      <nav aria-label="Principal (móvil)" className="flex gap-5 overflow-x-auto px-4 pb-2 text-sm text-white/75 md:hidden">
+      <nav
+        aria-label="Principal (móvil)"
+        className="flex gap-6 overflow-x-auto border-t px-4 py-2.5 md:hidden"
+      >
         {NAV.map((item) => (
-          <Link key={item.href} href={item.href} className="shrink-0 hover:text-white">
+          <Link key={item.href} href={item.href} className={cn(navLink, "shrink-0 text-xs")}>
             {item.label}
           </Link>
         ))}
@@ -60,40 +70,73 @@ export function SiteHeader() {
   );
 }
 
+type FooterLink = { label: string; href: string; external: boolean };
+
 export function SiteFooter() {
-  const social = [
-    { label: "Meetup", href: SITE.meetupUrl },
-    { label: "LinkedIn", href: SITE.linkedinUrl },
-    { label: "Instagram", href: SITE.instagramUrl },
-  ].filter((s): s is { label: string; href: string } => !!s.href);
+  const links = [
+    { label: "Meetup", href: SITE.meetupUrl, external: true },
+    { label: "WhatsApp", href: SITE.whatsappUrl, external: true },
+    { label: "Builder Center", href: SITE.builderCenterUrl, external: true },
+    { label: "LinkedIn", href: SITE.linkedinUrl, external: true },
+    { label: "Instagram", href: SITE.instagramUrl, external: true },
+    { label: "Noticias", href: "/noticias", external: false },
+    { label: "Privacidad", href: "/privacidad", external: false },
+  ].filter((l): l is FooterLink => !!l.href);
 
   return (
-    <footer className="bg-[var(--aws-ink)] text-white/70">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[2fr_1fr_1fr]">
-        <div className="flex flex-col gap-3">
+    <footer className="on-dark">
+      <div className="grid md:grid-cols-[1.4fr_1fr_1fr]">
+        <div className="flex flex-col gap-4 bg-[var(--aws-squid)] px-4 py-10 text-white sm:px-6 md:px-10">
           <Logo light />
-          <p className="max-w-sm text-sm">
-            Comunidad de estudiantes que aprende cloud construyendo, con el apoyo de AWS.
+          <p className="max-w-sm text-sm text-white/75">
+            Comunidad de estudiantes del campus Reina Mercedes que aprende cloud construyendo con
+            AWS.
           </p>
         </div>
-        <div className="flex flex-col gap-2 text-sm">
-          <span className="font-semibold text-white">Síguenos</span>
-          {social.map((s) => (
-            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white">
-              {s.label} <ArrowUpRight className="size-3.5" aria-hidden />
-            </a>
-          ))}
-        </div>
-        <div className="flex flex-col gap-2 text-sm">
-          <span className="font-semibold text-white">Más</span>
-          <Link href="/noticias" className="hover:text-white">Noticias</Link>
-          <Link href="/privacidad" className="hover:text-white">Privacidad</Link>
-          <Link href="/panel" className="hover:text-white">Acceso Core Team</Link>
+        <nav
+          aria-label="Enlaces del pie de página"
+          className="bg-[var(--aws-orange)] px-4 py-10 text-[var(--aws-ink)] sm:px-6 md:px-10"
+          style={{ ["--ring" as string]: "var(--aws-ink)" }}
+        >
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-2 font-mono text-sm font-medium">
+            {links.map((l) => (
+              <li key={l.label}>
+                {l.external ? (
+                  <a
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                  >
+                    {l.label} <ArrowUpRight className="size-3.5" aria-hidden />
+                  </a>
+                ) : (
+                  <Link href={l.href} className="underline-offset-4 hover:underline">
+                    {l.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="flex flex-col justify-between gap-6 bg-[var(--aws-ink)] px-4 py-10 text-white/75 sm:px-6 md:px-10">
+          <p className="font-mono text-xs leading-relaxed">
+            Campus Reina Mercedes · ETSII
+            <br />
+            Sevilla
+          </p>
+          <Link
+            href="/panel"
+            className="w-fit font-mono text-[0.7rem] text-white/60 underline-offset-4 hover:text-white hover:underline"
+          >
+            Acceso Core Team
+          </Link>
         </div>
       </div>
-      <div className="border-t border-white/10">
-        <p className="mx-auto max-w-6xl px-4 py-4 text-xs sm:px-6">
-          © 2026 {SITE.name} · {SITE.place}. Grupo de estudiantes; no es un sitio oficial de Amazon Web Services.
+      <div className="bg-[var(--aws-ink)] text-white/70">
+        <p className="mx-auto max-w-6xl border-t border-white/10 px-4 py-5 font-mono text-[0.7rem] leading-relaxed sm:px-6">
+          Comunidad organizada por estudiantes de la {SITE.university} dentro del programa AWS
+          Student Builder Groups. © 2026. No es un sitio oficial de Amazon Web Services.
         </p>
       </div>
     </footer>

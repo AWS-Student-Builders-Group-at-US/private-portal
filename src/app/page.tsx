@@ -1,17 +1,42 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, CalendarDays, MapPin } from "lucide-react";
-import { SITE } from "@/features/site/config";
+import { CalendarDays, Hammer, MapPin, MessageCircle, Clock } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { SITE, TEAM } from "@/features/site/config";
+import { eventSchedule, initials } from "@/features/site/format";
 import { NewsCard } from "@/features/site/components/news-card";
+import {
+  CtaArrow,
+  SectionLabel,
+  SectionTitle,
+  SitePage,
+  cta,
+} from "@/features/site/components/primitives";
 import { Reveal } from "@/features/site/components/reveal";
 import { SiteFooter, SiteHeader } from "@/features/site/components/site-chrome";
 import { getNews, getUpcomingEvents, type PublicEvent } from "@/features/site/queries";
 
 export const metadata: Metadata = {
-  title: `${SITE.name} · Universidad de Sevilla`,
+  title: `${SITE.name} · ${SITE.university}`,
   description:
     "Comunidad de estudiantes de la Universidad de Sevilla que aprende cloud construyendo con AWS: talleres, charlas y proyectos.",
 };
+
+const PROGRAM = [
+  {
+    title: "Comunidad global",
+    text: "Los Student Builder Groups son comunidades de estudiantes apoyadas por AWS en universidades de todo el mundo.",
+  },
+  {
+    title: "Aprender haciendo",
+    text: "Talleres, charlas y proyectos en los que despliegas algo real en la nube.",
+  },
+  {
+    title: "Abierto a todos",
+    text: "Da igual tu carrera o tu nivel: no hace falta experiencia previa con AWS.",
+  },
+];
 
 const WHAT_WE_DO = [
   {
@@ -34,203 +59,394 @@ const STEPS = [
   { title: "Construye con nosotros", text: "Propón ideas, ayuda a organizar o únete al equipo." },
 ];
 
-const KEYWORDS = ["Construir", "Aprender", "Cloud", "AWS", "Comunidad", "Sevilla"];
+// Avatar tiles cycle through the palette; orange and blue always carry dark text.
+const AVATAR_STYLES = [
+  "bg-[var(--aws-squid)] text-white",
+  "bg-[var(--aws-orange)] text-[var(--aws-ink)]",
+  "bg-[var(--aws-blue)] text-[var(--aws-ink)]",
+  "bg-[var(--aws-ink)] text-[var(--aws-orange)]",
+  "border border-[var(--aws-squid)] bg-white text-[var(--aws-squid)]",
+];
+
+const SECTION = "mx-auto flex max-w-6xl scroll-mt-28 flex-col gap-10 px-4 py-20 sm:px-6";
 
 export default function PublicHomePage() {
   return (
-    <div className="flex flex-1 flex-col">
+    <SitePage>
       <SiteHeader />
       <main id="contenido" className="flex-1">
         <Hero />
         <WhatWeDo />
-        <KeywordBand />
-        <Activities />
+        <Team />
         <Join />
+        <NextEvent />
         <LatestNews />
         <Sponsors />
       </main>
       <SiteFooter />
+    </SitePage>
+  );
+}
+
+// Solid squares sitting on 80px grid cells, in the page margins (decorative;
+// only from xl, where the margins are wide enough not to cover any text).
+function GridSquares() {
+  const rightEdge = "left-[round(down,calc(100%_-_80px),80px)]";
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 hidden xl:block">
+      <span className="absolute top-0 left-[80px] size-20 bg-[var(--aws-orange)]" />
+      <span className="absolute top-[160px] left-0 size-20 bg-[var(--aws-blue)]" />
+      <span className={`absolute top-0 size-20 bg-[var(--aws-blue)] ${rightEdge}`} />
+      <span className={`absolute top-[320px] size-20 bg-[var(--aws-orange)] ${rightEdge}`} />
     </div>
   );
 }
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-[var(--aws-ink)] text-white">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgb(255_255_255/0.04)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.04)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-48 right-[-10%] size-[42rem] rounded-full bg-[radial-gradient(closest-side,rgb(255_153_0/0.30),transparent)]"
-      />
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-7 px-4 py-24 sm:px-6 md:py-32">
-        <p className="animate-rise-in text-xs font-semibold tracking-[0.2em] text-[var(--aws-orange)] uppercase">
-          {SITE.name} · Universidad de Sevilla
-        </p>
-        <h1 className="max-w-3xl animate-rise-in text-4xl font-semibold tracking-tight [animation-delay:80ms] sm:text-6xl">
-          Aprende cloud <span className="text-[var(--aws-orange)]">construyendo</span>.
-        </h1>
-        <p className="max-w-xl animate-rise-in text-lg text-white/70 [animation-delay:160ms]">
-          Somos una comunidad de estudiantes del campus Reina Mercedes que aprende AWS con
-          talleres, charlas y proyectos reales. Abierta a cualquier carrera.
-        </p>
-        <div className="flex animate-rise-in flex-wrap gap-3 [animation-delay:240ms]">
-          <a
-            href={SITE.meetupUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center gap-2 rounded-lg bg-[var(--aws-orange)] px-5 py-3 font-semibold text-[var(--aws-ink)] transition-colors hover:bg-[var(--aws-orange-strong)]"
+    <section aria-labelledby="hero-title" className="relative overflow-hidden border-b bg-grid">
+      <GridSquares />
+      <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:py-24">
+        <div className="flex min-w-0 flex-col gap-7">
+          <SectionLabel className="animate-rise-in text-muted-foreground">
+            {SITE.name} · US
+          </SectionLabel>
+          <h1
+            id="hero-title"
+            className="animate-rise-in text-4xl font-semibold break-words [animation-delay:80ms] sm:text-6xl lg:text-7xl"
           >
-            Únete en Meetup
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-          </a>
-          <Link href="#unete" className="rounded-lg border border-white/20 px-5 py-3 font-medium transition-colors hover:bg-white/10">
-            Cómo unirse
-          </Link>
-          <Link href="#contacto" className="rounded-lg px-5 py-3 font-medium text-white/80 transition-colors hover:text-white">
-            Contacto
-          </Link>
+            Empieza a crear con <span className="bg-[var(--aws-orange)] px-2 text-[var(--aws-ink)]">AWS</span>
+          </h1>
+          <p className="max-w-xl animate-rise-in text-lg text-muted-foreground [animation-delay:160ms]">
+            Somos una comunidad de estudiantes de la {SITE.university}, en el campus Reina Mercedes,
+            que aprende cloud con talleres, charlas y proyectos reales. Abierta a cualquier carrera.
+          </p>
+          <div className="flex animate-rise-in flex-wrap gap-3 [animation-delay:240ms]">
+            <Link href="#unete" className={cta.primary}>
+              Únete al grupo <CtaArrow />
+            </Link>
+            <Link href="#proximo-evento" className={cta.dark}>
+              Ver próximo evento
+            </Link>
+          </div>
+          <dl className="grid max-w-md animate-rise-in grid-cols-2 [animation-delay:320ms]">
+            <div className="flex flex-col gap-1 border bg-white p-4">
+              <dt className="order-2 text-xs text-muted-foreground">Campus Reina Mercedes</dt>
+              <dd className="order-1 font-mono text-2xl font-semibold">ETSII</dd>
+            </div>
+            <div className="flex flex-col gap-1 bg-[var(--aws-orange)] p-4 text-[var(--aws-ink)]">
+              <dt className="order-2 text-xs">Gratis, abierto a todas las carreras</dt>
+              <dd className="order-1 font-mono text-2xl font-semibold">0 €</dd>
+            </div>
+          </dl>
         </div>
+        <ProgramCard />
       </div>
     </section>
   );
 }
 
-function SectionTitle({ eyebrow, title, id }: { eyebrow: string; title: string; id?: string }) {
+function ProgramCard() {
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold tracking-[0.2em] text-[var(--aws-orange-strong)] uppercase">{eyebrow}</span>
-      <h2 id={id} className="text-3xl font-semibold tracking-tight">{title}</h2>
+    <div id="que-es" className="flex min-w-0 scroll-mt-28 animate-rise-in flex-col [animation-delay:200ms]">
+      <div className="on-dark flex flex-col gap-4 bg-[var(--aws-squid)] p-6 text-white sm:p-8">
+        <SectionLabel index="01" className="text-white/70">
+          El programa
+        </SectionLabel>
+        <h2 className="text-2xl font-semibold sm:text-3xl">¿Qué es un Student Builder Group?</h2>
+        <p className="text-sm text-white/75">
+          Un grupo de estudiantes que se reúne para aprender y construir en la nube con el apoyo del
+          programa AWS Student Builder Groups.
+        </p>
+      </div>
+      <ol>
+        {PROGRAM.map((item, i) => (
+          <li key={item.title} className="flex gap-4 border border-t-0 bg-white p-5">
+            <span className="font-mono text-sm font-semibold text-[var(--aws-orange-text)]">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="flex flex-col gap-1">
+              <h3 className="font-semibold">{item.title}</h3>
+              <p className="text-sm text-muted-foreground">{item.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
 
 function WhatWeDo() {
   return (
-    <section id="que-hacemos" className="mx-auto flex max-w-6xl scroll-mt-20 flex-col gap-10 px-4 py-20 sm:px-6">
+    <section id="que-hacemos" aria-labelledby="que-hacemos-title" className={SECTION}>
       <Reveal>
-        <SectionTitle eyebrow="01 · Qué hacemos" title="Un grupo para aprender haciendo" />
+        <SectionTitle id="que-hacemos-title" index="01" label="Qué hacemos" title="Un grupo para aprender haciendo" />
       </Reveal>
-      <ol className="grid gap-4 md:grid-cols-3">
+      <ul className="grid gap-px border bg-border md:grid-cols-3">
         {WHAT_WE_DO.map((item, i) => (
-          <Reveal as="li" key={item.title} delay={i * 90}>
-            <div className="flex h-full flex-col gap-3 rounded-2xl border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--aws-orange)]/60 hover:shadow-lg">
-              <span className="font-mono text-sm text-[var(--aws-orange-strong)]">0{i + 1}</span>
-              <h3 className="text-lg font-semibold">{item.title}</h3>
-              <p className="text-sm text-muted-foreground">{item.text}</p>
-            </div>
+          <Reveal as="li" key={item.title} delay={i * 90} className="flex flex-col gap-3 bg-white p-6">
+            <span aria-hidden className="size-3 bg-[var(--aws-orange)]" />
+            <h3 className="text-lg font-semibold">{item.title}</h3>
+            <p className="text-sm text-muted-foreground">{item.text}</p>
           </Reveal>
         ))}
-      </ol>
+      </ul>
     </section>
   );
 }
 
-function KeywordBand() {
-  const row = [...KEYWORDS, ...KEYWORDS];
+function Team() {
   return (
-    <div aria-hidden className="overflow-hidden border-y bg-[var(--aws-squid)] py-4 text-white">
-      <div className="flex w-max animate-marquee gap-8 pr-8 text-sm font-semibold tracking-[0.3em] uppercase">
-        {[...row, ...row].map((word, i) => (
-          <span key={i} className="flex items-center gap-8">
-            {word}
-            <span className="text-[var(--aws-orange)]">·</span>
-          </span>
+    <section id="equipo" aria-labelledby="equipo-title" className={SECTION}>
+      <Reveal>
+        <SectionTitle
+          id="equipo-title"
+          index="02"
+          label="Quién está detrás"
+          title="El Core Team"
+          intro="Estudiantes que organizan las actividades del grupo. Si quieres echar una mano, escríbenos en cualquier evento."
+        />
+      </Reveal>
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {TEAM.map((member, i) => (
+          <Reveal as="li" key={member.name} delay={i * 70} className="flex items-center gap-4 border bg-white p-4 lg:flex-col lg:items-start">
+            <span
+              aria-hidden
+              className={cn(
+                "grid size-14 shrink-0 place-items-center font-mono text-lg font-semibold",
+                AVATAR_STYLES[i % AVATAR_STYLES.length],
+              )}
+            >
+              {initials(member.name)}
+            </span>
+            <div className="flex flex-col gap-0.5">
+              <h3 className="font-semibold">{member.name}</h3>
+              <p className="text-sm text-muted-foreground">{member.role}</p>
+            </div>
+          </Reveal>
         ))}
+      </ul>
+    </section>
+  );
+}
+
+type Channel = {
+  name: string;
+  text: string;
+  icon: LucideIcon;
+  href: string | null;
+  action: string;
+  pending?: string;
+  featured?: boolean;
+};
+
+const CHANNELS: Channel[] = [
+  {
+    name: "WhatsApp",
+    text: "Avisos rápidos y dudas entre miembros del grupo.",
+    icon: MessageCircle,
+    href: SITE.whatsappUrl,
+    action: "Entrar en el grupo",
+    pending: "Enlace disponible pronto.",
+  },
+  {
+    name: "Meetup",
+    text: "Aquí publicamos cada evento. Apúntate gratis para recibir los avisos.",
+    icon: CalendarDays,
+    href: SITE.meetupUrl,
+    action: "Únete en Meetup",
+    featured: true,
+  },
+  {
+    name: "AWS Builder Center",
+    text: "Recursos, artículos y la comunidad global de builders de AWS.",
+    icon: Hammer,
+    href: SITE.builderCenterUrl,
+    action: "Ir a Builder Center",
+  },
+];
+
+function Join() {
+  return (
+    <section id="unete" aria-labelledby="unete-title" className={SECTION}>
+      <Reveal>
+        <SectionTitle
+          id="unete-title"
+          index="03"
+          label="Únete"
+          title="Cómo unirse"
+          intro="No hace falta experiencia previa con AWS ni ser de informática."
+        />
+      </Reveal>
+      <ol className="grid gap-px border bg-border md:grid-cols-3">
+        {STEPS.map((step, i) => (
+          <Reveal as="li" key={step.title} delay={i * 90} className="flex gap-4 bg-white p-5">
+            <span className="grid size-9 shrink-0 place-items-center bg-[var(--aws-squid)] font-mono text-sm font-semibold text-[var(--aws-orange)]">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="flex flex-col gap-1">
+              <h3 className="font-semibold">{step.title}</h3>
+              <p className="text-sm text-muted-foreground">{step.text}</p>
+            </div>
+          </Reveal>
+        ))}
+      </ol>
+      <ul className="grid gap-4 md:grid-cols-3">
+        {CHANNELS.map((channel, i) => (
+          <Reveal
+            as="li"
+            key={channel.name}
+            delay={i * 90}
+            className={cn(
+              "flex flex-col gap-4 border p-6",
+              channel.featured
+                ? "on-dark border-[var(--aws-squid)] bg-[var(--aws-squid)] text-white"
+                : "bg-white",
+            )}
+          >
+            <channel.icon
+              aria-hidden
+              className={cn("size-7", channel.featured ? "text-[var(--aws-orange)]" : "text-[var(--aws-squid)]")}
+              strokeWidth={1.75}
+            />
+            <h3 className="text-xl font-semibold">{channel.name}</h3>
+            <p className={cn("text-sm", channel.featured ? "text-white/75" : "text-muted-foreground")}>
+              {channel.text}
+            </p>
+            <div className="mt-auto pt-2">
+              {channel.href ? (
+                <a
+                  href={channel.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(channel.featured ? cta.primary : cta.outline, "w-full")}
+                >
+                  {channel.action} <CtaArrow />
+                </a>
+              ) : (
+                <p className="font-mono text-xs text-muted-foreground">{channel.pending}</p>
+              )}
+            </div>
+          </Reveal>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+async function NextEvent() {
+  const [next, ...later] = await getUpcomingEvents(3);
+  return (
+    <section id="proximo-evento" aria-labelledby="proximo-evento-title" className={SECTION}>
+      <Reveal className="flex flex-wrap items-end justify-between gap-4">
+        <SectionTitle id="proximo-evento-title" index="04" label="Próximo evento" title="Nos vemos en el campus" />
+        <a
+          href={SITE.meetupUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-sm underline decoration-[var(--aws-orange)] decoration-2 underline-offset-4 hover:decoration-foreground"
+        >
+          Ver todo en Meetup ↗
+        </a>
+      </Reveal>
+      {next ? (
+        <Reveal>
+          <NextEventCard event={next} />
+        </Reveal>
+      ) : (
+        <Reveal>
+          <div className="flex flex-col items-start gap-4 border bg-white p-8">
+            <p className="font-mono text-xl font-semibold">Pronto anunciaremos el próximo evento</p>
+            <p className="text-muted-foreground">
+              Síguenos en Meetup para enterarte el primero.
+            </p>
+            <a href={SITE.meetupUrl} target="_blank" rel="noopener noreferrer" className={cta.primary}>
+              Únete en Meetup <CtaArrow />
+            </a>
+          </div>
+        </Reveal>
+      )}
+      {later.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <SectionLabel className="text-muted-foreground">Más adelante</SectionLabel>
+          <ul className="grid gap-4 md:grid-cols-2">
+            {later.map((event, i) => (
+              <Reveal as="li" key={`${event.title}-${event.starts_at}`} delay={i * 90}>
+                <LaterEventCard event={event} />
+              </Reveal>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function NextEventCard({ event }: { event: PublicEvent }) {
+  const { date, time } = eventSchedule(event.starts_at, event.ends_at);
+  const signUp = event.meetup_url ?? SITE.meetupUrl;
+  return (
+    <article className="grid border-2 border-[var(--aws-squid)] bg-white md:grid-cols-[minmax(0,16rem)_1fr]">
+      <dl className="flex flex-col gap-4 bg-[var(--aws-orange)] p-6 font-mono text-[var(--aws-ink)]">
+        <MetaRow icon={CalendarDays} label="Fecha" value={date} />
+        <MetaRow icon={Clock} label="Hora" value={time} />
+        {event.location && <MetaRow icon={MapPin} label="Lugar" value={event.location} />}
+      </dl>
+      <div className="flex flex-col gap-5 p-6 sm:p-8">
+        <h3 className="text-2xl font-semibold sm:text-3xl">{event.title}</h3>
+        <p className="text-muted-foreground">
+          Apúntate en Meetup para reservar tu sitio y recibir todos los detalles del evento.
+        </p>
+        <div className="mt-auto flex flex-wrap gap-3">
+          <a href={signUp} target="_blank" rel="noopener noreferrer" className={cta.primary}>
+            Apúntate en Meetup <CtaArrow />
+          </a>
+          <a href={SITE.meetupUrl} target="_blank" rel="noopener noreferrer" className={cta.dark}>
+            Ver todos los eventos
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MetaRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+      <div className="flex flex-col">
+        <dt className="text-[0.7rem] tracking-[0.12em] uppercase">{label}</dt>
+        <dd className="text-sm font-semibold">{value}</dd>
       </div>
     </div>
   );
 }
 
-const eventDate = new Intl.DateTimeFormat("es-ES", {
-  timeZone: "Europe/Madrid",
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-async function Activities() {
-  const events = await getUpcomingEvents(3);
+function LaterEventCard({ event }: { event: PublicEvent }) {
+  const { date, time } = eventSchedule(event.starts_at, event.ends_at);
   return (
-    <section id="actividades" className="mx-auto flex max-w-6xl scroll-mt-20 flex-col gap-10 px-4 py-20 sm:px-6">
-      <Reveal className="flex flex-wrap items-end justify-between gap-4">
-        <SectionTitle eyebrow="02 · Agenda" title="Próximas actividades" />
-        <a href={SITE.meetupUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm font-medium hover:underline">
-          Ver todo en Meetup <ArrowUpRight className="size-4" aria-hidden />
-        </a>
-      </Reveal>
-      {events.length === 0 ? (
-        <Reveal>
-          <p className="rounded-2xl border border-dashed p-8 text-center text-muted-foreground">
-            Estamos preparando las próximas actividades. Síguenos en{" "}
-            <a href={SITE.meetupUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline underline-offset-4">Meetup</a>{" "}
-            para enterarte el primero.
-          </p>
-        </Reveal>
-      ) : (
-        <ul className="grid gap-4 md:grid-cols-3">
-          {events.map((event, i) => (
-            <Reveal as="li" key={`${event.title}-${event.starts_at}`} delay={i * 90}>
-              <EventCard event={event} />
-            </Reveal>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function EventCard({ event }: { event: PublicEvent }) {
-  return (
-    <article className="flex h-full flex-col gap-4 rounded-2xl border bg-card p-6">
-      <h3 className="text-lg font-semibold">{event.title}</h3>
-      <p className="flex items-start gap-2 text-sm text-muted-foreground first-letter:uppercase">
-        <CalendarDays className="mt-0.5 size-4 shrink-0 text-[var(--aws-orange-strong)]" aria-hidden />
-        <span className="first-letter:uppercase">{eventDate.format(new Date(event.starts_at))}</span>
+    <article className="flex h-full flex-col gap-3 border bg-white p-5">
+      <p className="font-mono text-xs text-muted-foreground">
+        {date} · {time}
       </p>
+      <h3 className="font-semibold">{event.title}</h3>
       {event.location && (
         <p className="flex items-start gap-2 text-sm text-muted-foreground">
-          <MapPin className="mt-0.5 size-4 shrink-0 text-[var(--aws-orange-strong)]" aria-hidden />
+          <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
           {event.location}
         </p>
       )}
       {event.meetup_url && (
-        <a href={event.meetup_url} target="_blank" rel="noopener noreferrer" className="mt-auto flex items-center gap-1 text-sm font-semibold text-[var(--aws-orange-strong)] hover:underline">
-          Apúntate en Meetup <ArrowUpRight className="size-4" aria-hidden />
+        <a
+          href={event.meetup_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-auto w-fit font-mono text-sm underline decoration-[var(--aws-orange)] decoration-2 underline-offset-4 hover:decoration-foreground"
+        >
+          Apúntate en Meetup ↗
         </a>
       )}
     </article>
-  );
-}
-
-function Join() {
-  return (
-    <section id="unete" className="scroll-mt-20 bg-[var(--aws-squid)] text-white">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 sm:px-6 md:grid-cols-[1fr_1.4fr]">
-        <Reveal className="flex flex-col gap-4">
-          <span className="text-xs font-semibold tracking-[0.2em] text-[var(--aws-orange)] uppercase">03 · Únete</span>
-          <h2 className="text-3xl font-semibold tracking-tight">Cómo unirse</h2>
-          <p className="text-white/70">No hace falta experiencia previa con AWS ni ser de informática.</p>
-        </Reveal>
-        <ol className="flex flex-col gap-3">
-          {STEPS.map((step, i) => (
-            <Reveal as="li" key={step.title} delay={i * 90}>
-              <div className="flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-5">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--aws-orange)] font-semibold text-[var(--aws-ink)]">{i + 1}</span>
-                <div className="flex flex-col gap-1">
-                  <h3 className="font-semibold">{step.title}</h3>
-                  <p className="text-sm text-white/70">{step.text}</p>
-                </div>
-              </div>
-            </Reveal>
-          ))}
-        </ol>
-      </div>
-    </section>
   );
 }
 
@@ -238,11 +454,14 @@ async function LatestNews() {
   const news = await getNews(3);
   if (news.length === 0) return null;
   return (
-    <section className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-20 sm:px-6">
+    <section aria-labelledby="noticias-title" className={SECTION}>
       <Reveal className="flex flex-wrap items-end justify-between gap-4">
-        <SectionTitle eyebrow="04 · Noticias" title="Últimas noticias" />
-        <Link href="/noticias" className="flex items-center gap-1 text-sm font-medium hover:underline">
-          Ver todas <ArrowRight className="size-4" aria-hidden />
+        <SectionTitle id="noticias-title" index="05" label="Noticias" title="Últimas noticias" />
+        <Link
+          href="/noticias"
+          className="font-mono text-sm underline decoration-[var(--aws-orange)] decoration-2 underline-offset-4 hover:decoration-foreground"
+        >
+          Ver todas →
         </Link>
       </Reveal>
       <ul className="grid gap-4 md:grid-cols-3">
@@ -259,26 +478,29 @@ async function LatestNews() {
 function Sponsors() {
   const contact = SITE.contactEmail ? `mailto:${SITE.contactEmail}` : SITE.meetupUrl;
   return (
-    <section id="contacto" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6">
+    <section id="contacto" aria-labelledby="contacto-title" className="mx-auto max-w-6xl scroll-mt-28 px-4 pb-20 sm:px-6">
       <Reveal>
-        <div className="relative overflow-hidden rounded-3xl border bg-card p-8 md:p-12">
-          <div aria-hidden className="pointer-events-none absolute -right-24 -bottom-24 size-80 rounded-full bg-[radial-gradient(closest-side,rgb(255_153_0/0.22),transparent)]" />
-          <div className="relative flex flex-col gap-4 md:max-w-2xl">
-            <span className="text-xs font-semibold tracking-[0.2em] text-[var(--aws-orange-strong)] uppercase">Patrocinadores y colaboradores</span>
-            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">¿Quieres que tu empresa aparezca aquí?</h2>
-            <p className="text-muted-foreground">
+        <div className="on-dark grid gap-8 bg-[var(--aws-squid)] p-8 text-white md:grid-cols-[1fr_auto] md:items-end md:p-12">
+          <div className="flex flex-col gap-4 md:max-w-2xl">
+            <SectionLabel index="06" className="text-white/70">
+              Colabora
+            </SectionLabel>
+            <h2 id="contacto-title" className="text-2xl font-semibold md:text-3xl">
+              ¿Quieres que tu empresa aparezca aquí?
+            </h2>
+            <p className="text-white/75">
               Buscamos empresas y profesionales que quieran dar una charla, prestar un espacio o
               apoyar las actividades del grupo. Escríbenos y lo hablamos.
             </p>
-            <a
-              href={contact}
-              target={SITE.contactEmail ? undefined : "_blank"}
-              rel="noopener noreferrer"
-              className="flex w-fit items-center gap-2 rounded-lg bg-[var(--aws-squid)] px-5 py-3 font-semibold text-white transition-colors hover:bg-[var(--aws-navy)] dark:bg-[var(--aws-orange)] dark:text-[var(--aws-ink)]"
-            >
-              Contacta con nosotros <ArrowRight className="size-4" aria-hidden />
-            </a>
           </div>
+          <a
+            href={contact}
+            target={SITE.contactEmail ? undefined : "_blank"}
+            rel="noopener noreferrer"
+            className={cn(cta.primary, "w-fit")}
+          >
+            Contacta con nosotros <CtaArrow />
+          </a>
         </div>
       </Reveal>
     </section>

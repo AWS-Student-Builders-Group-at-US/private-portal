@@ -9,6 +9,7 @@ import {
   getLatestVersionOfForm,
 } from "@/features/checkin/form-queries";
 import { EVENT_TIME_ZONE } from "@/features/events/time";
+import { BrandStrip } from "@/features/site/components/brand-strip";
 
 export const metadata: Metadata = { title: "Política de privacidad" };
 
@@ -23,12 +24,10 @@ const dateFormatter = new Intl.DateTimeFormat("es-ES", {
 // an exact (possibly older) version, which must belong to `f` when both are set.
 export default function PrivacyPage({ searchParams }: PageProps<"/privacidad">) {
   return (
-    <main className="flex flex-1 justify-center p-4 sm:p-6">
-      <article className="flex w-full max-w-2xl flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-muted-foreground">
-            AWS Student Builder Group · Universidad de Sevilla
-          </p>
+    <main className="theme-light flex flex-1 justify-center bg-grid p-4 text-foreground sm:p-10">
+      <article className="flex h-fit w-full max-w-2xl flex-col gap-6 border bg-card p-5 sm:p-8">
+        <div className="flex flex-col gap-5">
+          <BrandStrip />
           <h1 className="text-2xl font-semibold">Política de privacidad</h1>
         </div>
         <Suspense fallback={<p className="text-sm text-muted-foreground">Cargando…</p>}>
@@ -58,7 +57,7 @@ async function PrivacyContent({
 
   return (
     <>
-      <p className="text-sm text-muted-foreground">
+      <p className="font-mono text-xs text-muted-foreground">
         Registro de asistencia a eventos · Versión {form.version} ·{" "}
         {dateFormatter.format(new Date(form.created_at))}
         {isOlder && " (versión anterior)"}
