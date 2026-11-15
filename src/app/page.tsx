@@ -114,9 +114,13 @@ function Hero() {
           </SectionLabel>
           <h1
             id="hero-title"
-            className="animate-rise-in text-4xl font-semibold break-words [animation-delay:80ms] sm:text-6xl lg:text-7xl"
+            className="animate-rise-in text-4xl leading-[1.15] font-semibold break-words [animation-delay:80ms] sm:text-6xl lg:text-7xl"
           >
-            Empieza a crear con <span className="bg-[var(--aws-orange)] px-2 text-[var(--aws-ink)]">AWS</span>
+            Empieza a crear con{" "}
+            {/* inline-block keeps the highlight from overlapping the line above. */}
+            <span className="mt-1 inline-block bg-[var(--aws-orange)] px-2 py-1 leading-none text-[var(--aws-ink)]">
+              AWS
+            </span>
           </h1>
           <p className="max-w-xl animate-rise-in text-lg text-muted-foreground [animation-delay:160ms]">
             Somos una comunidad de estudiantes de la {SITE.university}, en el campus Reina Mercedes,
