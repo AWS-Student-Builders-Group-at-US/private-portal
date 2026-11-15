@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { DEFAULT_CHECKIN_FIELDS } from "@/features/checkin-forms/definition";
-import { FormEditor } from "@/features/checkin-forms/components/form-editor";
-import { VersionsList } from "@/features/checkin-forms/components/versions-list";
-import { listCheckinFormVersions } from "@/features/checkin-forms/queries";
-import { formatMadridDateTimeShort } from "@/features/events/time";
+import { CreateFormButton, FormsList } from "@/features/checkin-forms/components/forms-list";
+import { listCheckinForms } from "@/features/checkin-forms/queries";
 
-// Member-only editor for the public check-in form and its privacy notice.
-// Each publish creates a new immutable version.
-export default async function CheckinFormEditorPage() {
-  const versions = await listCheckinFormVersions();
-  const active = versions.find((version) => version.is_active) ?? versions[0];
+// Member-only list of named check-in forms. Each event picks one; events
+// without a form use the default one.
+export default async function CheckinFormsPage() {
+  const forms = await listCheckinForms();
+  const active = forms.filter((form) => form.archived_at === null);
+  const archived = forms.filter((form) => form.archived_at !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,35 +22,27 @@ export default async function CheckinFormEditorPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold">Formularios de registro</h1>
         <p className="text-sm text-muted-foreground">
-          Cada publicación crea una versión nueva. Cada asistente queda vinculado a la
-          versión que aceptó.
+          Cada evento usa la última versión de su formulario, o la del formulario por
+          defecto si no elige ninguno. Cada asistente queda vinculado a la versión que
+          aceptó.
         </p>
       </div>
-      <FormEditor
-        key={active?.id ?? "new"}
-        initial={{
-          title: active?.title ?? "Registro de asistencia",
-          intro: active?.intro ?? "",
-          fields: active?.fields ?? DEFAULT_CHECKIN_FIELDS,
-          privacy_notice: active?.privacy_notice ?? "",
-        }}
-      />
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Versiones</h2>
-        {versions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Todavía no hay versiones.</p>
-        ) : (
-          <VersionsList
-            versions={versions.map((version) => ({
-              id: version.id,
-              version: version.version,
-              date: formatMadridDateTimeShort(version.created_at),
-              created_by: version.created_by,
-              is_active: version.is_active,
-            }))}
-          />
-        )}
-      </section>
+      <CreateFormButton />
+      {active.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Todavía no hay formularios.</p>
+      ) : (
+        <FormsList forms={active} />
+      )}
+      {archived.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Archivados</h2>
+          <p className="text-sm text-muted-foreground">
+            No se ofrecen en eventos nuevos, pero siguen funcionando en los eventos que ya
+            los usan.
+          </p>
+          <FormsList forms={archived} />
+        </section>
+      )}
     </div>
   );
 }

@@ -46,6 +46,8 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    12. `20261124000000_suggestions_signed.sql`
    13. `20261124010000_member_admin.sql`
    14. `20261125000000_app_settings.sql`
+   15. `20261126000000_availability_notes.sql`
+   16. `20261126010000_checkin_form_per_event.sql`
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
    commit the real seed (`supabase/seed.sql` is git-ignored). After that, members manage the list from
@@ -88,10 +90,15 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
   outside the gate. Check-in writes attendees with the server-only secret key
   (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute).
-- Members edit the check-in form and its privacy notice at `/panel/eventos/formularios`. Each publish
-  creates a new immutable version (`public.checkin_forms`); each attendee stores the version they
-  accepted. `/privacidad?v=N` shows an older version. Version 1 contains placeholders (data
-  controller, contact email) that must be completed before the first real event.
+- Members manage named check-in forms ("General", "Charla", "Taller"…;
+  `public.checkin_form_templates`) at `/panel/eventos/formularios` and edit each one, with its
+  privacy notice, at `/panel/eventos/formularios/<id>`. Each publish creates a new immutable version
+  (`public.checkin_forms`, version numbers are global); each attendee stores the version they
+  accepted. Every event may pick a form (`events.checkin_form_id`); events without one use the
+  default form. Check-in always uses the latest version of that form. Forms are archived, never
+  deleted. `/privacidad` shows the default form's latest notice, `?f=<form id>` another form's and
+  `?v=N` an exact (older) version. Version 1 contains placeholders (data controller, contact email)
+  that must be completed before the first real event.
 - `/panel/boveda` is the shared credentials vault. It is zero-knowledge: a shared vault passphrase
   derives an AES-256-GCM key in the browser (PBKDF2-SHA-256, 600,000 iterations; see
   `src/features/vault/crypto.ts`), and Supabase stores only ciphertexts (`public.vault_items`) plus

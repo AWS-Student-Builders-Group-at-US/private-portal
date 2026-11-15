@@ -31,7 +31,7 @@ uses, and the check-in form is global although events need different questions.
 - [x] T2 Calendar: remove "Semana habitual" and "Cambios por fecha" from the UI and from the
       occupation math; shared notes over a selected range of cells (title + content) shown in the
       team view.
-- [ ] T3 Per-event check-in form: named forms with versions; event picks a form (null → active
+- [x] T3 Per-event check-in form: named forms with versions; event picks a form (null → active
       default); form editor moves under Eventos; check-in and `/privacidad` use the event's form.
 - [ ] T4 Drive file preview modal in Recursos; vault "Secret / API key" item type with `.env`
       import/export.
@@ -63,6 +63,27 @@ one PR into `trunk` unless the user asks for slices.
   Checks: `npm run lint`: pass (no output); `npm test`: 38 files, 297 tests passed;
   `npm run build` (placeholder env): pass. Commit: see `git log` (feat(calendar) google-only week).
 
+- T3 done. Route: delegated direct (writer trigger: 2+ non-trivial files). Migration
+  `20261126010000_checkin_form_per_event.sql`: new `checkin_form_templates` (named forms, one
+  default, archived never deleted; RLS select for members, no direct writes), backfilled "General"
+  (default) owning every existing version; `checkin_forms.form_id` (not null, default = default
+  form, so the legacy `publish_checkin_form` keeps working) and `events.checkin_form_id` (nullable,
+  `on delete restrict`). New security definer RPCs with member checks and table locks:
+  `create_/rename_checkin_form_template`, `set_default_checkin_form_template`,
+  `set_checkin_form_template_archived`, `publish_checkin_form_version`; legacy RPCs untouched and
+  `is_active` still marks the default form's newest version. Version numbers stay global, so
+  `?v=N` and `consent_version` remain unambiguous. Check-in uses the latest version of the event's
+  form (archived forms keep serving their events; forms without versions fall back to the
+  default). `/panel/eventos/formularios` lists forms (create, rename, default, archive);
+  `/panel/eventos/formularios/[id]` is the editor + versions ("Restaurar" republishes a copy).
+  Event form has "Formulario de registro"; event detail links the form in use. `/privacidad`
+  accepts `?f=<form id>` and `?v=N`; the check-in page links `?f=…&v=…`.
+  Test-first: `checkin-forms/resolve.test.ts` and `privacy-query.test.ts` RED (modules missing),
+  `events/schema.test.ts` RED (4 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 40 files, 313 tests passed;
+  `npx tsc --noEmit`: pass (after `next typegen` for the new route); `npm run build` (placeholder
+  env): pass. Commit: see `git log` (feat(checkin) named check-in forms).
+
 ## Next step
 
-T3 (per-event check-in form).
+T4 (Drive file preview, vault secrets).

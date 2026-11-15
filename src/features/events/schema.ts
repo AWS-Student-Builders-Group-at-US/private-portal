@@ -66,6 +66,11 @@ export const eventFormSchema = z
       (value) => value === "on" || value === "true" || value === true,
       z.boolean(),
     ),
+    // Blank means "use the default check-in form".
+    checkin_form_id: z.preprocess(
+      blankToNull,
+      z.uuid("Elige un formulario de registro válido.").nullable(),
+    ),
   })
   .refine(
     (event) =>

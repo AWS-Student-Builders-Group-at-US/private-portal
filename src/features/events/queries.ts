@@ -25,7 +25,7 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, title, description, starts_at, ends_at, location, meetup_url, expected_attendees, is_public, created_by, created_at, updated_at",
+      "id, title, description, starts_at, ends_at, location, meetup_url, expected_attendees, is_public, checkin_form_id, created_by, created_at, updated_at",
     )
     .eq("id", id)
     .maybeSingle();

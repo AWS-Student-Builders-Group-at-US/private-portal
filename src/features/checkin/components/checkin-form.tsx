@@ -14,7 +14,7 @@ type Props = {
 
 export function CheckinForm({ form: initialForm, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
-  // The server sends the new active version when it changed since render.
+  // The server sends the new version when it changed since render.
   const form = state.form ?? initialForm;
 
   if (state.status === "success") {
@@ -42,7 +42,10 @@ export function CheckinForm({ form: initialForm, action }: Props) {
       />
       <p className="text-sm text-muted-foreground">
         Consulta cómo tratamos tus datos en la{" "}
-        <Link href="/privacidad" className="underline underline-offset-4">
+        <Link
+          href={`/privacidad?f=${form.form_id}&v=${form.version}`}
+          className="underline underline-offset-4"
+        >
           política de privacidad
         </Link>{" "}
         (versión {form.version}).

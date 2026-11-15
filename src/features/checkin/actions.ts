@@ -9,7 +9,7 @@ import {
   toAttendeeColumns,
 } from "@/features/checkin-forms/answers";
 import type { PublicCheckinForm } from "@/features/checkin-forms/types";
-import { getActiveCheckinForm } from "./form-queries";
+import { getCheckinFormForEvent } from "./form-queries";
 import { getCheckinEventByToken } from "./queries";
 import {
   CHECKIN_WINDOW_SECONDS,
@@ -33,10 +33,11 @@ export async function submitCheckin(
   _prev: CheckinFormState,
   formData: FormData,
 ): Promise<CheckinFormState> {
-  const [event, form] = await Promise.all([
-    getCheckinEventByToken(token).catch(() => null),
-    getActiveCheckinForm().catch(() => null),
-  ]);
+  const event = await getCheckinEventByToken(token).catch(() => null);
+  // The event's form (or the default one): its latest version is the one to accept.
+  const form = event
+    ? await getCheckinFormForEvent(event.checkin_form_id).catch(() => null)
+    : null;
   if (!event || !form) return { message: GENERIC_ERROR };
   const values = readFormValues(form.fields, formData);
   if (!event.checkin_open) {
@@ -48,6 +49,7 @@ export async function submitCheckin(
   if (formData.get("form_version_id") !== form.id) {
     const publicForm: PublicCheckinForm = {
       id: form.id,
+      form_id: form.form_id,
       version: form.version,
       title: form.title,
       intro: form.intro,
