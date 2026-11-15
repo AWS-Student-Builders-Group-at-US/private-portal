@@ -12,6 +12,12 @@ export function driveErrorMessage(
         detail:
           "Define GOOGLE_SERVICE_ACCOUNT_KEY en el servidor (Vercel) y elige la carpeta en Ajustes o con GOOGLE_DRIVE_FOLDER_ID. Los pasos están en el README.",
       };
+    case "api_disabled":
+      return {
+        title: "La Google Drive API no está habilitada",
+        detail:
+          "Actívala en Google Cloud (APIs y servicios → Biblioteca → Google Drive API → Habilitar) en el mismo proyecto que la cuenta de servicio y espera un par de minutos.",
+      };
     case "permission":
     case "not_found":
       return {
