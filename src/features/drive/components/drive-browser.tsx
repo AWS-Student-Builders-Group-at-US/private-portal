@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { DriveItem, DriveKind } from "../types";
+import { DrivePreviewDialog } from "./drive-preview-dialog";
 
 const ICONS: Record<DriveKind, { icon: LucideIcon; label: string; className: string }> = {
   folder: { icon: Folder, label: "Carpeta", className: "text-amber-600" },
@@ -29,8 +30,10 @@ const fieldClass =
   "w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 // Lists one Drive folder. Names are untrusted text and only rendered as text.
+// Folders navigate; files open a preview dialog.
 export function DriveBrowser({ items, truncated }: { items: DriveItem[]; truncated: boolean }) {
   const [query, setQuery] = useState("");
+  const [previewing, setPreviewing] = useState<DriveItem | null>(null);
   const needle = query.trim().toLocaleLowerCase("es");
   const visible = needle
     ? items.filter((item) => item.name.toLocaleLowerCase("es").includes(needle))
@@ -71,7 +74,14 @@ export function DriveBrowser({ items, truncated }: { items: DriveItem[]; truncat
                       {item.name}
                     </Link>
                   ) : (
-                    <span className="truncate font-medium">{item.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewing(item)}
+                      aria-haspopup="dialog"
+                      className="truncate text-left font-medium hover:underline"
+                    >
+                      {item.name}
+                    </button>
                   )}
                   <span className="text-xs text-muted-foreground">
                     {[
@@ -104,6 +114,7 @@ export function DriveBrowser({ items, truncated }: { items: DriveItem[]; truncat
           Se muestran los primeros 1000 elementos. Abre la carpeta en Drive para ver el resto.
         </p>
       )}
+      <DrivePreviewDialog item={previewing} onClose={() => setPreviewing(null)} />
     </div>
   );
 }

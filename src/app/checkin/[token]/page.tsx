@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { submitCheckin } from "@/features/checkin/actions";
 import { CheckinForm } from "@/features/checkin/components/checkin-form";
-import { getActiveCheckinForm } from "@/features/checkin/form-queries";
+import { getCheckinFormForEvent } from "@/features/checkin/form-queries";
 import { getCheckinEventByToken } from "@/features/checkin/queries";
 import { formatMadridDateTime } from "@/features/events/time";
 
@@ -31,11 +31,9 @@ export default function CheckinPage({ params }: PageProps<"/checkin/[token]">) {
 
 async function CheckinContent({ params }: Pick<PageProps<"/checkin/[token]">, "params">) {
   const { token } = await params;
-  const [event, form] = await Promise.all([
-    getCheckinEventByToken(token),
-    getActiveCheckinForm(),
-  ]);
+  const event = await getCheckinEventByToken(token);
   if (!event) notFound();
+  const form = await getCheckinFormForEvent(event.checkin_form_id);
 
   return (
     <>
@@ -50,6 +48,7 @@ async function CheckinContent({ params }: Pick<PageProps<"/checkin/[token]">, "p
         <CheckinForm
           form={{
             id: form.id,
+            form_id: form.form_id,
             version: form.version,
             title: form.title,
             intro: form.intro,

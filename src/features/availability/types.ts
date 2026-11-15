@@ -1,12 +1,20 @@
+import type { NoteRect } from "./notes";
 import type { OccupationByMember, SlotOccupation } from "./occupation";
-import type { OverrideRange, TemplateRange } from "./slots";
 
-export type Override = OverrideRange & { id: string };
+// A shared availability note (see notes.ts for the rectangle model).
+export type AvailabilityNote = NoteRect & {
+  id: string;
+  member_email: string;
+  title: string;
+  body: string;
+};
 
 export type TeamWeek = {
   dates: string[];
   members: { email: string; name: string }[];
   occupation: OccupationByMember;
+  // Every member's notes that overlap the week.
+  notes: AvailabilityNote[];
   // Part of the week is outside the stored Google window.
   outsideGoogleWindow: boolean;
 };
@@ -15,17 +23,13 @@ export type TeamWeek = {
 export type MyWeek = {
   dates: string[];
   days: Record<string, SlotOccupation[]>;
+  // The member's own notes that overlap the week.
+  notes: AvailabilityNote[];
   outsideGoogleWindow: boolean;
 };
 
-export type MyAvailability = {
-  template: TemplateRange[];
-  overrides: Override[];
-};
-
-export type OverrideFormState = {
+export type NoteFormState = {
   message?: string;
   fieldErrors?: Partial<Record<string, string[]>>;
-  values?: Record<string, string>;
   ok?: boolean;
 };

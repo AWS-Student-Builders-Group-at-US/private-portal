@@ -87,6 +87,7 @@ export function toDriveItem(file: DriveFile): DriveItem {
     id: file.id,
     name: file.name?.trim() || "(sin nombre)",
     kind,
+    mimeType: file.mimeType ?? null,
     modified: formatModified(file.modifiedTime),
     modifiedTime: file.modifiedTime ?? null,
     size: kind !== "folder" && Number.isFinite(bytes) ? formatBytes(bytes) : null,

@@ -32,6 +32,6 @@ export type CheckinFormState = {
   message?: string;
   fieldErrors?: Partial<Record<string, string[]>>;
   values?: Record<string, string>;
-  // Set when the active form changed since the page was rendered.
+  // Set when the event's form version changed since the page was rendered.
   form?: PublicCheckinForm;
 };

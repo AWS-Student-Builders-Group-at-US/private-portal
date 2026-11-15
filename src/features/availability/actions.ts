@@ -5,90 +5,79 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/features/events/types";
 import { getCurrentMember } from "@/lib/auth/member";
-import { overrideFormSchema, templateRangesSchema } from "./schema";
-import type { OverrideFormState } from "./types";
+import { noteFormSchema, noteTextSchema } from "./schema";
+import type { NoteFormState } from "./types";
 
 // Every action runs with the user's session; RLS only lets members write
-// their own availability rows.
+// their own availability notes.
 
 const CALENDAR_PATH = "/panel/calendario";
 
-// Replaces the member's weekly template. The new rows are inserted before the
-// old ones are deleted, so a failure never leaves the member with nothing.
-export async function saveTemplate(ranges: unknown): Promise<ActionResult> {
-  const parsed = templateRangesSchema.safeParse(ranges);
-  if (!parsed.success) {
-    return { ok: false, message: "La disponibilidad no es válida." };
-  }
-  const { email } = await getCurrentMember();
-  const supabase = await createClient();
-
-  const { data: old, error: readError } = await supabase
-    .from("availability_template")
-    .select("id")
-    .eq("member_email", email);
-  if (readError) return { ok: false, message: "No se pudo guardar. Inténtalo de nuevo." };
-
-  if (parsed.data.length > 0) {
-    const { error } = await supabase
-      .from("availability_template")
-      .insert(parsed.data.map((range) => ({ ...range, member_email: email })));
-    if (error) return { ok: false, message: "No se pudo guardar. Inténtalo de nuevo." };
-  }
-  if (old.length > 0) {
-    const { error } = await supabase
-      .from("availability_template")
-      .delete()
-      .in("id", old.map((row) => row.id));
-    if (error) {
-      return { ok: false, message: "Se guardó a medias. Recarga la página y revisa." };
-    }
-  }
-
-  revalidatePath(CALENDAR_PATH);
-  return { ok: true };
-}
-
-export async function addOverride(
-  _prev: OverrideFormState,
-  formData: FormData,
-): Promise<OverrideFormState> {
+function formValues(formData: FormData) {
   const values: Record<string, string> = {};
   for (const [key, value] of formData.entries()) {
     if (typeof value === "string" && !key.startsWith("$")) values[key] = value;
   }
-  const parsed = overrideFormSchema.safeParse(values);
-  if (!parsed.success) {
-    return {
-      message: "Revisa los campos marcados.",
-      fieldErrors: z.flattenError(parsed.error).fieldErrors,
-      values,
-    };
-  }
+  return values;
+}
+
+function invalid(error: z.ZodError): NoteFormState {
+  return {
+    message: "Revisa los campos marcados.",
+    fieldErrors: z.flattenError(error).fieldErrors,
+  };
+}
+
+export async function createNote(
+  _prev: NoteFormState,
+  formData: FormData,
+): Promise<NoteFormState> {
+  const parsed = noteFormSchema.safeParse(formValues(formData));
+  if (!parsed.success) return invalid(parsed.error);
   const { email } = await getCurrentMember();
   const supabase = await createClient();
   const { error } = await supabase
-    .from("availability_override")
+    .from("availability_notes")
     .insert({ ...parsed.data, member_email: email });
-  if (error) {
-    return { message: "No se pudo guardar el cambio. Inténtalo de nuevo.", values };
+  if (error) return { message: "No se pudo guardar la nota. Inténtalo de nuevo." };
+  revalidatePath(CALENDAR_PATH);
+  return { ok: true };
+}
+
+// Changes the title and content of one of the member's own notes.
+export async function updateNote(
+  id: string,
+  _prev: NoteFormState,
+  formData: FormData,
+): Promise<NoteFormState> {
+  if (!z.uuid().safeParse(id).success) return { message: "Nota no encontrada." };
+  const parsed = noteTextSchema.safeParse(formValues(formData));
+  if (!parsed.success) return invalid(parsed.error);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("availability_notes")
+    .update(parsed.data)
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) {
+    return { message: "No se pudo guardar la nota. Inténtalo de nuevo." };
   }
   revalidatePath(CALENDAR_PATH);
   return { ok: true };
 }
 
-export async function deleteOverride(id: string): Promise<ActionResult> {
+export async function deleteNote(id: string): Promise<ActionResult> {
   if (!z.uuid().safeParse(id).success) {
-    return { ok: false, message: "Cambio no encontrado." };
+    return { ok: false, message: "Nota no encontrada." };
   }
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("availability_override")
+    .from("availability_notes")
     .delete()
     .eq("id", id)
     .select("id");
   if (error || !data?.length) {
-    return { ok: false, message: "No se pudo eliminar el cambio." };
+    return { ok: false, message: "No se pudo eliminar la nota." };
   }
   revalidatePath(CALENDAR_PATH);
   return { ok: true };

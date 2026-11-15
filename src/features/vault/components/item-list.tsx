@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { errorMessage, type VaultItem } from "../data";
+import { serializeEnv } from "../env";
 import { isSafeUrl, type VaultCustomField } from "../schema";
 import { useVault } from "./vault-provider";
 
@@ -40,6 +41,7 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const payload = item.payload;
+  const isSecret = payload?.kind === "secret";
 
   // Copy/status messages disappear after a few seconds.
   useEffect(() => {
@@ -55,6 +57,27 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
       setMessage(`Copiado: ${what}.`);
     } catch {
       setMessage("No se pudo copiar. Muestra el valor y cópialo manualmente.");
+    }
+  }
+
+  // Copies a secret item's keys as `.env` lines; keys that are not valid
+  // variable names are left out and reported.
+  async function copyAsEnv() {
+    if (!payload) return;
+    const { text, skipped } = serializeEnv(payload.fields);
+    if (text === "") {
+      setMessage("Ninguna clave tiene un nombre válido para un archivo .env.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage(
+        skipped.length > 0
+          ? `Copiado como .env. Se omitieron claves con nombres no válidos: ${skipped.join(", ")}.`
+          : "Copiado como .env.",
+      );
+    } catch {
+      setMessage("No se pudo copiar. Muestra los valores y cópialos manualmente.");
     }
   }
 
@@ -79,25 +102,53 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
 
       {payload ? (
         <>
-          <p className="text-sm">
-            <span className="text-muted-foreground">Usuario: </span>
-            {mask(payload.username)}
-          </p>
-          {showPassword && (
+          {isSecret ? (
+            <p className="text-xs text-muted-foreground">
+              Secret / API key · {payload.fields.length}{" "}
+              {payload.fields.length === 1 ? "clave" : "claves"}
+            </p>
+          ) : (
+            <p className="text-sm">
+              <span className="text-muted-foreground">Usuario: </span>
+              {mask(payload.username)}
+            </p>
+          )}
+          {!isSecret && showPassword && (
             <p className="font-mono text-sm break-all">{payload.password || "—"}</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => copy(payload.username, "Usuario")}>
-              <Copy /> Copiar usuario
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => copy(payload.password, "Contraseña")}>
-              <Copy /> Copiar contraseña
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowPassword((v) => !v)}>
-              {showPassword ? <EyeOff /> : <Eye />}
-              {showPassword ? "Ocultar" : "Mostrar"}
-            </Button>
-            {isSafeUrl(payload.url) && (
+            {isSecret ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={payload.fields.length === 0}
+                onClick={copyAsEnv}
+              >
+                <Copy /> Copiar como .env
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => copy(payload.username, "Usuario")}
+                >
+                  <Copy /> Copiar usuario
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => copy(payload.password, "Contraseña")}
+                >
+                  <Copy /> Copiar contraseña
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowPassword((v) => !v)}>
+                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? "Ocultar" : "Mostrar"}
+                </Button>
+              </>
+            )}
+            {!isSecret && isSafeUrl(payload.url) && (
               <a
                 href={payload.url}
                 target="_blank"

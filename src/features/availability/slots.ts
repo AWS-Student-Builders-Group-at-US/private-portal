@@ -11,15 +11,6 @@ export const DAY_END = 22 * 60; // 22:00
 export const SLOT_MINUTES = 30;
 export const SLOTS_PER_DAY = (DAY_END - DAY_START) / SLOT_MINUTES;
 
-export const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-export type TemplateRange = { weekday: number; start_time: string; end_time: string };
-export type OverrideRange = {
-  date: string;
-  start_time: string;
-  end_time: string;
-  kind: "free" | "busy";
-};
 // Google busy time already converted to a Madrid day (see busyBlocksToRanges).
 // `weight` is the feed importance (1 or 0.5); `source` is the feed id, if known.
 export type DayRange = {
@@ -114,41 +105,4 @@ export function busyBlocksToRanges(blocks: BusyBlock[]): DayRange[] {
     }
   }
   return ranges;
-}
-
-// Painted grid cells are "weekday:slot" keys.
-export const cellKey = (weekday: number, slot: number) => `${weekday}:${slot}`;
-
-export function cellsToTemplateRanges(cells: Set<string>): TemplateRange[] {
-  const ranges: TemplateRange[] = [];
-  for (let weekday = 0; weekday < 7; weekday++) {
-    let runStart: number | null = null;
-    for (let i = 0; i <= SLOTS_PER_DAY; i++) {
-      const on = i < SLOTS_PER_DAY && cells.has(cellKey(weekday, i));
-      if (on && runStart === null) runStart = i;
-      if (!on && runStart !== null) {
-        ranges.push({
-          weekday,
-          start_time: minutesToTime(slotStart(runStart)),
-          end_time: minutesToTime(slotStart(i)),
-        });
-        runStart = null;
-      }
-    }
-  }
-  return ranges;
-}
-
-export function templateToCells(ranges: TemplateRange[]): Set<string> {
-  const cells = new Set<string>();
-  for (const range of ranges) {
-    const start = timeToMinutes(range.start_time);
-    const end = timeToMinutes(range.end_time);
-    for (let i = 0; i < SLOTS_PER_DAY; i++) {
-      if (slotStart(i) >= start && slotStart(i) + SLOT_MINUTES <= end) {
-        cells.add(cellKey(range.weekday, i));
-      }
-    }
-  }
-  return cells;
 }

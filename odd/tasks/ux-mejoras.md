@@ -1,0 +1,109 @@
+# UX improvements (round 2)
+
+Locator: `odd/tasks/ux-mejoras.md` · Engram mirror: `odd/ux-mejoras/tasks` (pending: auto mode cannot
+review engram saves in this session).
+
+## Objective
+
+Apply the Core Team feedback of 2026-11-15 to the member panel: simpler navigation, a simpler calendar
+with shared notes, per-event check-in forms, file previews, vault secrets and a sectioned settings page.
+
+## Problem and why
+
+The "Más" tab hides half of the app, the calendar mixes three sources of manual availability nobody
+uses, and the check-in form is global although events need different questions.
+
+## Scope and constraints
+
+- Branch `feat/ux-mejoras` from `trunk`; PR into `trunk`, then `trunk` → `main` (CI enforces it).
+- Visual style is owned by José (PR #9): keep using the existing components and tokens, no restyle.
+- UI text in Spanish; code, comments and identifiers in English.
+- Migrations: new files only, backward compatible (add columns with defaults, never drop/rename in
+  the same release). Existing `availability_template`/`availability_overrides` tables stay (unused).
+- Out of scope now: posts auto-publishing settings (depends on PR #10), public web (PR #11).
+
+## Tasks
+
+- [x] T1 Navigation and settings: remove "Más"; Recursos, Sugerencias, Bóveda and Ajustes in the
+      main nav (desktop sidebar; mobile: 5 fixed items + drawer for the rest); sign-out inside
+      Ajustes; Ajustes split into sections (Cuentas, Bóveda, Google Drive, Web pública placeholder,
+      Publicaciones placeholder); drop the calendars and form link cards.
+- [x] T2 Calendar: remove "Semana habitual" and "Cambios por fecha" from the UI and from the
+      occupation math; shared notes over a selected range of cells (title + content) shown in the
+      team view.
+- [x] T3 Per-event check-in form: named forms with versions; event picks a form (null → active
+      default); form editor moves under Eventos; check-in and `/privacidad` use the event's form.
+- [x] T4 Drive file preview modal in Recursos; vault "Secret / API key" item type with `.env`
+      import/export.
+
+## Delivery strategy
+
+`ask-on-risk`. Forecast ~1,200–1,600 authored lines across four tasks: one work-unit commit per task,
+one PR into `trunk` unless the user asks for slices.
+
+## Progress and evidence
+
+- T1 done. Route: delegated direct (writer trigger: 2+ non-trivial files). Nav split into
+  `BOTTOM_NAV_ITEMS` + `MENU_ITEMS` (Base UI Dialog drawer on mobile); `isActive` now matches
+  `href` or `href/…` only. Test-first: `src/components/app-shell/nav-items.test.ts` RED (4 failed)
+  then GREEN. Form editor moved to `/panel/eventos/formularios`; Ajustes sectioned with anchors.
+  Checks: `npm run lint`: pass (no output); `npm test`: 37 files, 288 tests passed;
+  `npm run build` (placeholder env): pass. Commit: see `git log` (feat(panel) flat navigation).
+
+- T2 done. Route: delegated direct (writer trigger: 2+ non-trivial files). "Semana habitual" and
+  "Cambios por fecha" removed (TemplatePainter, OverridesPanel, their actions/schemas/slot helpers
+  deleted); occupation is Google-only (`MemberDayData = { busy }`, `SlotOccupation` without
+  `manual`); legacy tables untouched. New `availability_notes` table (migration
+  `20261126000000_availability_notes.sql`, RLS: members read all, write own) and pure helpers in
+  `notes.ts` (`rectFromCorners`, `notesInWeek`, `noteCoversCell`, `notesForCell`,
+  `formatNoteRange`). "Tu semana" has an «Añadir nota» mode (click/drag, two taps, or arrows +
+  Enter) and lists own notes with edit/delete; the team view marks note cells and lists "Notas del
+  equipo" for the selected people. Test-first: `notes.test.ts` RED (module missing),
+  `schema.test.ts` RED (9 failed), `occupation.test.ts` RED (8 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 38 files, 297 tests passed;
+  `npm run build` (placeholder env): pass. Commit: see `git log` (feat(calendar) google-only week).
+
+- T3 done. Route: delegated direct (writer trigger: 2+ non-trivial files). Migration
+  `20261126010000_checkin_form_per_event.sql`: new `checkin_form_templates` (named forms, one
+  default, archived never deleted; RLS select for members, no direct writes), backfilled "General"
+  (default) owning every existing version; `checkin_forms.form_id` (not null, default = default
+  form, so the legacy `publish_checkin_form` keeps working) and `events.checkin_form_id` (nullable,
+  `on delete restrict`). New security definer RPCs with member checks and table locks:
+  `create_/rename_checkin_form_template`, `set_default_checkin_form_template`,
+  `set_checkin_form_template_archived`, `publish_checkin_form_version`; legacy RPCs untouched and
+  `is_active` still marks the default form's newest version. Version numbers stay global, so
+  `?v=N` and `consent_version` remain unambiguous. Check-in uses the latest version of the event's
+  form (archived forms keep serving their events; forms without versions fall back to the
+  default). `/panel/eventos/formularios` lists forms (create, rename, default, archive);
+  `/panel/eventos/formularios/[id]` is the editor + versions ("Restaurar" republishes a copy).
+  Event form has "Formulario de registro"; event detail links the form in use. `/privacidad`
+  accepts `?f=<form id>` and `?v=N`; the check-in page links `?f=…&v=…`.
+  Test-first: `checkin-forms/resolve.test.ts` and `privacy-query.test.ts` RED (modules missing),
+  `events/schema.test.ts` RED (4 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 40 files, 313 tests passed;
+  `npx tsc --noEmit`: pass (after `next typegen` for the new route); `npm run build` (placeholder
+  env): pass. Commit: see `git log` (feat(checkin) named check-in forms).
+
+- T4 done. Route: delegated direct (writer trigger: 2+ non-trivial files). Drive: `DriveItem`
+  carries `mimeType`; pure `drive/preview.ts` (`isDriveFileId` allows only `[A-Za-z0-9_-]{1,200}`,
+  `drivePreviewUrl` maps Google Docs/Sheets/Slides to `docs.google.com/.../preview`, everything
+  else to `drive.google.com/file/d/<id>/preview`, folders/invalid ids → null). Clicking a file in
+  Recursos opens `DrivePreviewDialog` (Base UI Dialog: name, iframe, «Abrir en Drive», close,
+  note that the viewer needs access with their Google account); folders keep navigating. Vault:
+  `kind: "account" | "secret"` (default `account`) lives inside the encrypted payload, no
+  migration; secret items drop username/password/url and keep keys in `fields` (new keys secret
+  by default). Pure `vault/env.ts`: `parseEnv` (comments, blank lines, `export `, quotes,
+  escapes, first `=` splits, duplicates keep last value, invalid line numbers), `serializeEnv`
+  (quotes non-plain values, skips invalid names), `mergeEnvFields` (enforces
+  `MAX_CUSTOM_FIELDS` and field lengths with Spanish errors). Form has a type selector and
+  «Importar .env»; list has «Copiar como .env». Vault link fixed to `/panel/ajustes#ajustes-boveda`
+  (anchor already present in `src/app/panel/ajustes/page.tsx`).
+  Test-first: `preview.test.ts` and `env.test.ts` RED (modules missing), `schema.test.ts` RED
+  (7 failed) and `mapping.test.ts` RED (1 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 42 files, 340 tests passed;
+  `npx tsc --noEmit`: pass; `npm run build` (placeholder env): pass. Commit: see `git log`
+  (feat(resources,vault) drive file preview and secret items).
+
+## Next step
+
+PR `feat/ux-mejoras` into `trunk`.

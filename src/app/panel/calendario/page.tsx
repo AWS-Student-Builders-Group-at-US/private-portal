@@ -7,15 +7,9 @@ import { MyCalendars } from "@/features/calendars/components/my-calendars";
 import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
 import { resolveSiteUrl } from "@/features/checkin/url";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
-import { OverridesPanel } from "@/features/availability/components/overrides-panel";
 import { TeamView } from "@/features/availability/components/team-view";
-import { TemplatePainter } from "@/features/availability/components/template-painter";
 import { formatDay, isValidIsoDate, madridToday } from "@/features/availability/dates";
-import {
-  getMyAvailability,
-  getMyWeek,
-  getTeamWeek,
-} from "@/features/availability/queries";
+import { getMyWeek, getTeamWeek } from "@/features/availability/queries";
 import { addDays, weekStart } from "@/features/availability/slots";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -44,7 +38,7 @@ export default async function CalendarPage({
       {team ? (
         <TeamSection monday={monday} thisMonday={thisMonday} />
       ) : (
-        <MySection today={today} monday={monday} thisMonday={thisMonday} />
+        <MySection monday={monday} thisMonday={thisMonday} />
       )}
     </div>
   );
@@ -76,17 +70,14 @@ function Tab({
 }
 
 async function MySection({
-  today,
   monday,
   thisMonday,
 }: {
-  today: string;
   monday: string;
   thisMonday: string;
 }) {
   const member = await getCurrentMember();
-  const [mine, week, feeds, token, requestHeaders] = await Promise.all([
-    getMyAvailability(member.email, today),
+  const [week, feeds, token, requestHeaders] = await Promise.all([
     getMyWeek(member.email, monday),
     listMyFeeds(),
     getMyExportToken(),
@@ -98,8 +89,9 @@ async function MySection({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Tu semana</h2>
         <p className="text-sm text-muted-foreground">
-          Cada franja muestra lo ocupado que estás: el valor más alto entre tus calendarios de
-          Google, tu semana habitual y tus cambios por fecha.
+          Cada franja muestra lo ocupado que estás según tus calendarios de Google: 1 si no
+          puedes moverlo, 0,5 si podrías moverlo. Con «Añadir nota» marcas un rango de franjas
+          y dejas una nota que verá todo el equipo (por ejemplo, «No puedo presencial»).
         </p>
         <WeekNav
           monday={monday}
@@ -113,14 +105,6 @@ async function MySection({
           </p>
         )}
         <MyWeekGrid key={monday} week={week} feeds={feeds} />
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Semana habitual</h2>
-        <TemplatePainter initial={mine.template} />
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Cambios por fecha</h2>
-        <OverridesPanel overrides={mine.overrides} today={today} />
       </section>
       <MyCalendars feeds={feeds} exportUrl={exportUrl} />
     </div>

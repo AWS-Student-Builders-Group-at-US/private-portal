@@ -14,11 +14,18 @@ const customFieldSchema = z.object({
 
 export type VaultCustomField = z.output<typeof customFieldSchema>;
 
+// "account": username/password/url login. "secret": a list of API keys or
+// environment variables kept in `fields`.
+export const VAULT_ITEM_KINDS = ["account", "secret"] as const;
+const kindSchema = z.enum(VAULT_ITEM_KINDS);
+export type VaultItemKind = z.output<typeof kindSchema>;
+
 // Decrypted item secrets. Only `label` and `category` are stored in plaintext;
-// this object is JSON-encoded and encrypted as a whole. Every key has a
-// default so payloads encrypted by older versions (e.g. without `fields`)
-// still parse.
+// this object is JSON-encoded and encrypted as a whole, so the item kind is
+// encrypted too. Every key has a default so payloads encrypted by older
+// versions (e.g. without `fields` or `kind`) still parse.
 export const vaultPayloadSchema = z.object({
+  kind: kindSchema.default("account"),
   username: z.string().max(500).default(""),
   password: z.string().max(1000).default(""),
   url: z.string().max(2000).default(""),
@@ -40,6 +47,7 @@ export const vaultItemFormSchema = z
       .min(1, "El nombre es obligatorio.")
       .max(120, "El nombre admite como máximo 120 caracteres."),
     category: trimmed(60, "Categoría"),
+    kind: z.enum(VAULT_ITEM_KINDS, "Tipo de elemento no válido.").default("account"),
     username: trimmed(500, "Usuario"),
     // Passwords are kept verbatim (leading/trailing spaces may be meaningful).
     password: z.string().max(1000, "La contraseña es demasiado larga.").default(""),
@@ -66,10 +74,14 @@ export const vaultItemFormSchema = z
       .max(MAX_CUSTOM_FIELDS, `Se admiten como máximo ${MAX_CUSTOM_FIELDS} campos adicionales.`)
       .default([]),
   })
-  .transform(({ label, category, ...payload }) => ({
+  .transform(({ label, category, kind, username, password, url, notes, fields }) => ({
     label,
     category: category === "" ? null : category,
-    payload,
+    // Secret items keep their values in `fields`; account-only values are dropped.
+    payload:
+      kind === "secret"
+        ? { kind, username: "", password: "", url: "", notes, fields }
+        : { kind, username, password, url, notes, fields },
   }));
 
 /** Only http(s) URLs are opened from the vault list. */
