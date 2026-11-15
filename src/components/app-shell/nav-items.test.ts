@@ -15,6 +15,7 @@ describe("navigation items", () => {
       "Calendario",
       "Tareas",
       "Eventos",
+      "Publicaciones",
       "Recursos",
       "Sugerencias",
       "Bóveda",
@@ -31,6 +32,7 @@ describe("navigation items", () => {
       "Eventos",
     ]);
     expect(MENU_ITEMS.map((item) => item.label)).toEqual([
+      "Publicaciones",
       "Recursos",
       "Sugerencias",
       "Bóveda",
@@ -61,6 +63,7 @@ describe("isMenuActive", () => {
   it("is true only for sections inside the mobile menu", () => {
     expect(isMenuActive("/panel/ajustes")).toBe(true);
     expect(isMenuActive("/panel/recursos/abc-1")).toBe(true);
+    expect(isMenuActive("/panel/publicaciones/nueva")).toBe(true);
     expect(isMenuActive("/panel/eventos/formularios")).toBe(false);
     expect(isMenuActive("/panel")).toBe(false);
   });

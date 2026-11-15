@@ -25,9 +25,9 @@ export function SidebarNav() {
           href={href}
           aria-current={isActive(href, pathname) ? "page" : undefined}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent",
+            "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             isActive(href, pathname) &&
-              "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
+              "bg-sidebar-accent font-medium text-sidebar-accent-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary",
           )}
         >
           <Icon className="size-4" />
@@ -38,8 +38,10 @@ export function SidebarNav() {
   );
 }
 
-const bottomItemClass = "flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground";
-const bottomItemActiveClass = "font-medium text-foreground";
+const bottomItemClass =
+  "flex flex-col items-center gap-1 py-2 text-xs text-muted-foreground transition-colors";
+const bottomItemActiveClass =
+  "font-medium text-foreground [&_svg]:text-[var(--aws-orange-strong)]";
 
 export function BottomNav() {
   const pathname = usePathname();

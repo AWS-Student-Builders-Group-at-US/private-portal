@@ -2,15 +2,18 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Dark mode follows the operating system preference (no theme toggle in T1). */
+/* Dark mode follows the operating system preference (no theme toggle in T1).
+   The public site (`.theme-light`, see below) is always light. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  /* Noto Sans for body copy, Noto Sans Mono for headings and labels
+     (variables set by next/font in src/app/layout.tsx). */
+  --font-sans: var(--font-noto-sans);
+  --font-mono: var(--font-noto-sans-mono);
+  --font-heading: var(--font-noto-sans-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,74 +52,169 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* AWS palette: Squid Ink (#232F3E), deep navy (#161E2D), Smile orange
+   (#FF9900, only ever with dark text), sky blue accent (#4DB8FF).
+   Shared by the member panel and the public site. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --aws-orange: #ff9900;
+  --aws-orange-strong: #ec7211;
+  /* Orange dark enough for text on white (AA, ~5:1). */
+  --aws-orange-text: #a65200;
+  --aws-blue: #4db8ff;
+  --aws-squid: #232f3e;
+  --aws-navy: #161e2d;
+  --aws-ink: #0f141a;
+}
+
+/* Member panel and login: rounded, Squid Ink primary. Tokens only;
+   components read them through Tailwind. */
+:root {
+  --background: #ffffff;
+  --foreground: #16191f;
+  --card: #ffffff;
+  --card-foreground: #16191f;
+  --popover: #ffffff;
+  --popover-foreground: #16191f;
+  --primary: var(--aws-squid);
+  --primary-foreground: #ffffff;
+  --secondary: #f2f3f3;
+  --secondary-foreground: var(--aws-squid);
+  --muted: #f2f3f3;
+  --muted-foreground: #5f6b7a;
+  --accent: #fff4e5;
+  --accent-foreground: #8d4a00;
+  --destructive: #d13212;
+  --border: #e3e6e8;
+  --input: #d1d5db;
+  --ring: var(--aws-orange);
+  --grid-line: rgb(35 47 62 / 8%);
+  --grid-line-faint: rgb(35 47 62 / 4.5%);
+  --chart-1: #ff9900;
+  --chart-2: #0972d3;
+  --chart-3: #037f0c;
+  --chart-4: #8456ce;
+  --chart-5: #232f3e;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--aws-squid);
+  --sidebar-foreground: #d5dbdb;
+  --sidebar-primary: var(--aws-orange);
+  --sidebar-primary-foreground: var(--aws-ink);
+  --sidebar-accent: rgb(255 255 255 / 8%);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: var(--aws-orange);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+    --background: var(--aws-ink);
+    --foreground: #e9ebed;
+    --card: var(--aws-navy);
+    --card-foreground: #e9ebed;
+    --popover: var(--aws-navy);
+    --popover-foreground: #e9ebed;
+    --primary: var(--aws-orange);
+    --primary-foreground: var(--aws-ink);
+    --secondary: #1f2937;
+    --secondary-foreground: #e9ebed;
+    --muted: #1b2433;
+    --muted-foreground: #9ba7b6;
+    --accent: rgb(255 153 0 / 14%);
+    --accent-foreground: #ffc266;
+    --destructive: #ff5d64;
+    --border: rgb(255 255 255 / 10%);
+    --input: rgb(255 255 255 / 16%);
+    --ring: var(--aws-orange);
+    --grid-line: rgb(255 255 255 / 6%);
+    --grid-line-faint: rgb(255 255 255 / 3.5%);
+    --sidebar: var(--aws-navy);
+    --sidebar-foreground: #c6ccd4;
+    --sidebar-primary: var(--aws-orange);
+    --sidebar-primary-foreground: var(--aws-ink);
+    --sidebar-accent: rgb(255 255 255 / 7%);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgb(255 255 255 / 8%);
+    --sidebar-ring: var(--aws-orange);
+  }
+}
+
+/* Public site (/, /noticias, /checkin, /privacidad): always light, hard edges
+   (a 2px radius scales every rounded-* utility down to near-square), orange
+   primary with dark text. Applied by `SitePage` and the standalone public pages. */
+.theme-light {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #16191f;
+  --card: #ffffff;
+  --card-foreground: #16191f;
+  --popover: #ffffff;
+  --popover-foreground: #16191f;
+  --primary: var(--aws-orange);
+  --primary-foreground: #16191f;
+  --secondary: var(--aws-squid);
+  --secondary-foreground: #ffffff;
+  --muted: #f4f5f6;
+  --muted-foreground: #5a6573;
+  --accent: #fff4e5;
+  --accent-foreground: #8d4a00;
+  --destructive: #c4290e;
+  --border: #d5dbdb;
+  --input: #aab3bd;
+  /* Focus outlines: Squid Ink on light surfaces; `.on-dark` switches to orange. */
+  --ring: var(--aws-squid);
+  --grid-line: rgb(35 47 62 / 8%);
+  --grid-line-faint: rgb(35 47 62 / 4.5%);
+  --radius: 0.125rem;
+}
+
+/* Dark blocks (Squid Ink cards, footer): keep focus outlines visible. */
+.on-dark {
+  --ring: var(--aws-orange);
+  --label-accent: var(--aws-orange);
+}
+
+/* Square grid drawn behind the content (80px cells, thin light-grey lines). */
+@utility bg-grid {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Fainter grid for the member panel. */
+@utility bg-grid-faint {
+  background-color: var(--background);
+  background-image:
+    linear-gradient(var(--grid-line-faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-faint) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+/* Light, purposeful motion; disabled for people who ask for reduced motion. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-rise-in {
+  animation: rise-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -129,5 +227,21 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Page headings use the mono face (panel and public site); utilities can
+     still override it. The public site also sets h3 and buttons in mono. */
+  h1,
+  h2,
+  .theme-light h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  .theme-light [data-slot="button"] {
+    font-family: var(--font-mono);
+  }
+  /* Public site: visible keyboard focus on links and other native controls. */
+  .theme-light :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }
