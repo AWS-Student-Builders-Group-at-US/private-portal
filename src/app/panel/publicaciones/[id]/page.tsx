@@ -8,7 +8,9 @@ import { networkWarnings } from "@/features/posts/content";
 import { publicMediaUrl } from "@/features/posts/media";
 import { PostPreviews } from "@/features/posts/components/post-previews";
 import { DeletePostButton, PostStatusActions } from "@/features/posts/components/post-status-actions";
+import { SiteVisibilityToggle } from "@/features/posts/components/site-visibility-toggle";
 import { PostStatusBadge } from "@/features/posts/components/status-badge";
+import { PlatformLinks, ZernioBadge } from "@/features/posts/components/zernio-bits";
 import { getPost } from "@/features/posts/queries";
 import { POST_TARGET_LABELS } from "@/features/posts/schema";
 import { availableActions } from "@/features/posts/workflow";
@@ -21,17 +23,21 @@ export default async function PostDetailPage({ params, searchParams }: PageProps
   const post = await getPost(id);
   if (!post) notFound();
 
-  const actions = availableActions(post, member.email);
-  const editable = post.status === "draft" || post.status === "review";
+  const fromZernio = post.source === "zernio";
+  const actions = fromZernio ? [] : availableActions(post, member.email);
+  const editable = !fromZernio && (post.status === "draft" || post.status === "review");
   const warnings = networkWarnings({ body: post.body, hasImage: !!post.image_path, targets: post.targets });
-  const manual = post.targets.filter((t) => t !== "web");
+  const manual = fromZernio ? [] : post.targets.filter((t) => t !== "web");
 
   const details: [string, React.ReactNode][] = [
     ["Fecha", post.scheduled_at ? formatMadridDateTime(post.scheduled_at) : "Sin fecha"],
     ["Destinos", post.targets.map((t) => POST_TARGET_LABELS[t]).join(", ")],
     ["Enlace web", `/noticias/${post.slug}`],
+    ...(fromZernio
+      ? ([["En redes", <PlatformLinks key="links" urls={post.platform_urls} />]] as [string, React.ReactNode][])
+      : []),
     ["Evento", post.event_id ? <Link href={`/panel/eventos/${post.event_id}`} className="underline underline-offset-4">{post.event_title}</Link> : "—"],
-    ["Creada por", post.created_by],
+    ["Creada por", fromZernio ? "Zernio" : post.created_by],
     ["Aprobada por", post.approved_by ?? "—"],
     ["Publicada", post.published_at ? formatMadridDateTime(post.published_at) : "—"],
   ];
@@ -45,7 +51,10 @@ export default async function PostDetailPage({ params, searchParams }: PageProps
       <StatusBanner status={estado} messages={MESSAGES} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <PostStatusBadge status={post.status} />
+          <span className="flex flex-wrap gap-2">
+            <PostStatusBadge status={post.status} />
+            {fromZernio && <ZernioBadge />}
+          </span>
           <h1 className="text-2xl font-semibold">{post.title}</h1>
         </div>
         {editable && (
@@ -55,6 +64,15 @@ export default async function PostDetailPage({ params, searchParams }: PageProps
           </Link>
         )}
       </div>
+
+      {fromZernio && (
+        <p className="rounded-lg border bg-muted px-4 py-2 text-sm">
+          Planificada en Zernio: el contenido y la fecha se gestionan allí y se sincronizan solos.
+          {post.status === "published" && Object.keys(post.platform_urls).length === 0 &&
+            " Todavía no tenemos el enlace a la publicación en redes."}
+        </p>
+      )}
+      <SiteVisibilityToggle postId={post.id} shown={post.show_on_site} />
 
       <PostStatusActions
         postId={post.id}
@@ -94,7 +112,7 @@ export default async function PostDetailPage({ params, searchParams }: PageProps
         />
       </section>
 
-      <DeletePostButton postId={post.id} />
+      {!fromZernio && <DeletePostButton postId={post.id} />}
     </div>
   );
 }

@@ -14,6 +14,8 @@ export type NewsItem = {
   body: string;
   image_path: string | null;
   published_on: string;
+  // Live Instagram/LinkedIn posts (https, platform hosts only; set by the sync).
+  platform_urls: Partial<Record<"instagram" | "linkedin", string>> | null;
 };
 
 export type PublicEvent = {

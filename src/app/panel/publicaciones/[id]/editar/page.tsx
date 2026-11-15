@@ -12,6 +12,18 @@ export default async function EditPostPage({ params }: PageProps<"/panel/publica
   if (!post) notFound();
   const back = `/panel/publicaciones/${post.id}`;
 
+  if (post.source === "zernio") {
+    return (
+      <div className="flex flex-col gap-3">
+        <h1 className="text-2xl font-semibold">Editar publicación</h1>
+        <p className="text-sm text-muted-foreground">
+          Esta publicación viene de Zernio: su contenido se edita en Zernio y se sincroniza solo. Desde{" "}
+          <Link href={back} className="underline underline-offset-4">su ficha</Link> puedes ocultarla de la web.
+        </p>
+      </div>
+    );
+  }
+
   if (post.status === "approved" || post.status === "published") {
     return (
       <div className="flex flex-col gap-3">

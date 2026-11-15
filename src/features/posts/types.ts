@@ -1,5 +1,8 @@
 import type { PostStatus, PostTarget } from "./schema";
 
+export type PostSource = "panel" | "zernio";
+export type PlatformUrls = Partial<Record<"instagram" | "linkedin", string>>;
+
 export type Post = {
   id: string;
   title: string;
@@ -17,6 +20,9 @@ export type Post = {
   published_at: string | null;
   publish_error: string | null;
   created_at: string;
+  source: PostSource;
+  platform_urls: PlatformUrls;
+  show_on_site: boolean;
 };
 
 export type PostFormState = {

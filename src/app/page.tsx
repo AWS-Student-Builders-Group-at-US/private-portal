@@ -215,25 +215,7 @@ function Team() {
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {TEAM.map((member, i) => (
           <Reveal as="li" key={member.name} delay={i * 70} className="flex items-center gap-4 border bg-white p-4 lg:flex-col lg:items-start">
-            {member.photo ? (
-              <Image
-                src={member.photo}
-                alt={`Foto de ${member.name}`}
-                width={112}
-                height={112}
-                className="size-14 shrink-0 object-cover lg:size-20"
-              />
-            ) : (
-              <span
-                aria-hidden
-                className={cn(
-                  "grid size-14 shrink-0 place-items-center font-mono text-lg font-semibold lg:size-20",
-                  AVATAR_STYLES[i % AVATAR_STYLES.length],
-                )}
-              >
-                {initials(member.name)}
-              </span>
-            )}
+            <TeamAvatar member={member} index={i} />
             <div className="flex flex-col gap-0.5">
               <h3 className="font-semibold">{member.name}</h3>
               <p className="text-sm text-muted-foreground">{member.role}</p>
@@ -253,6 +235,44 @@ function Team() {
         ))}
       </ul>
     </section>
+  );
+}
+
+// Photo or initials. With a LinkedIn profile it is also a link, hidden from
+// keyboard and screen readers because the visible "LinkedIn" link below
+// already goes to the same place.
+function TeamAvatar({ member, index }: { member: (typeof TEAM)[number]; index: number }) {
+  const avatar = member.photo ? (
+    <Image
+      src={member.photo}
+      alt={member.linkedinUrl ? "" : `Foto de ${member.name}`}
+      width={112}
+      height={112}
+      className="size-14 shrink-0 object-cover lg:size-20"
+    />
+  ) : (
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-14 shrink-0 place-items-center font-mono text-lg font-semibold lg:size-20",
+        AVATAR_STYLES[index % AVATAR_STYLES.length],
+      )}
+    >
+      {initials(member.name)}
+    </span>
+  );
+  if (!member.linkedinUrl) return avatar;
+  return (
+    <a
+      href={member.linkedinUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-hidden
+      tabIndex={-1}
+      className="shrink-0 transition-opacity hover:opacity-85"
+    >
+      {avatar}
+    </a>
   );
 }
 
