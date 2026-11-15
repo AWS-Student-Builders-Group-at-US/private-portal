@@ -4,17 +4,18 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { formatDay } from "../dates";
 import {
-  SLOTS_PER_DAY,
   commonFreeRanges,
-  minutesToTime,
-  slotStart,
-  teamCounts,
-} from "../slots";
+  formatOccupation,
+  occupationColor,
+  teamOccupation,
+} from "../occupation";
+import { SLOTS_PER_DAY, minutesToTime, slotStart } from "../slots";
 import type { TeamWeek } from "../types";
 
 const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 
-// Week heatmap: the darker a slot, the more selected people are free.
+// Week map: each cell is the sum of the selected members' occupation
+// (0 = everyone free, green … n = everyone busy, red).
 export function TeamView({ week }: { week: TeamWeek }) {
   const [selected, setSelected] = useState(
     () => new Set(week.members.map((m) => m.email)),
@@ -22,8 +23,8 @@ export function TeamView({ week }: { week: TeamWeek }) {
   const people = week.members
     .map((m) => m.email)
     .filter((email) => selected.has(email));
-  const counts = teamCounts(week.free, people, week.dates);
-  const common = commonFreeRanges(week.free, people, week.dates);
+  const sums = teamOccupation(week.occupation, people, week.dates);
+  const common = commonFreeRanges(week.occupation, people, week.dates);
   const total = people.length;
 
   function toggle(email: string) {
@@ -62,7 +63,7 @@ export function TeamView({ week }: { week: TeamWeek }) {
         <div
           className="grid min-w-[36rem] grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px"
           role="table"
-          aria-label="Personas libres por franja"
+          aria-label="Ocupación del equipo por franja"
         >
           <div role="columnheader" />
           {week.dates.map((date) => (
@@ -78,28 +79,22 @@ export function TeamView({ week }: { week: TeamWeek }) {
                   {slot % 2 === 0 ? time : ""}
                 </div>
                 {week.dates.map((date) => {
-                  const count = counts[date][slot];
-                  const all = total > 0 && count === total;
-                  const pct = total > 0 ? Math.round((count / total) * 85) : 0;
+                  const sum = sums[date][slot];
+                  const label = `${formatDay(date)} ${time}: ocupación ${formatOccupation(sum)} de ${total}`;
                   return (
                     <div
                       key={date}
                       role="cell"
-                      title={`${formatDay(date)} ${time}: ${count} de ${total} libres`}
-                      aria-label={`${formatDay(date)} ${time}: ${count} de ${total} libres`}
+                      title={label}
+                      aria-label={label}
                       className={cn(
-                        "h-5 rounded-[3px] bg-muted",
-                        all && "ring-2 ring-inset ring-foreground/60",
+                        "h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-medium text-neutral-900 tabular-nums",
                         slot % 2 === 0 && "mt-px",
                       )}
-                      style={
-                        count > 0
-                          ? {
-                              backgroundColor: `color-mix(in oklch, var(--primary) ${pct + 15}%, var(--muted))`,
-                            }
-                          : undefined
-                      }
-                    />
+                      style={{ backgroundColor: occupationColor(sum, total) }}
+                    >
+                      {formatOccupation(sum)}
+                    </div>
                   );
                 })}
               </div>
@@ -107,9 +102,7 @@ export function TeamView({ week }: { week: TeamWeek }) {
           })}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Más oscuro = más personas libres. Con borde: están todas las seleccionadas.
-      </p>
+      <Legend total={total} />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Huecos en los que estáis todos</h2>
@@ -130,6 +123,31 @@ export function TeamView({ week }: { week: TeamWeek }) {
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+function Legend({ total }: { total: number }) {
+  const steps = [0, total / 2, total];
+  return (
+    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <div
+        className="h-3 w-full max-w-xs rounded-full"
+        style={{
+          background: `linear-gradient(to right, ${occupationColor(0, 1)}, ${occupationColor(0.5, 1)}, ${occupationColor(1, 1)})`,
+        }}
+        aria-hidden
+      />
+      <div className="flex w-full max-w-xs justify-between tabular-nums" aria-hidden>
+        {steps.map((step, i) => (
+          <span key={i}>{formatOccupation(step)}</span>
+        ))}
+      </div>
+      <p>
+        Cada franja suma la ocupación de las personas seleccionadas: 1 si no puede moverlo, 0,5
+        si podría moverlo. 0 (verde) = todos libres; {formatOccupation(total)} (rojo) = todos
+        ocupados.
+      </p>
     </div>
   );
 }

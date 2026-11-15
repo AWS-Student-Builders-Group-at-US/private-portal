@@ -35,8 +35,9 @@ export function OverridesPanel({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Para días concretos que no siguen tu semana habitual: márcate libre u
-        ocupado en una franja. Ocupado siempre gana.
+        Para días concretos que no siguen tu semana habitual. «Ocupado» cuenta
+        como 1 y siempre gana; «Libre» anula tu semana habitual en esa franja,
+        pero tus eventos de Google siguen contando.
       </p>
       <form
         key={formKey}

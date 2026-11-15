@@ -1,17 +1,21 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getBusyBlocks } from "@/features/calendars/busy";
+import { isOutsideGoogleWindow } from "@/features/calendars/window";
 import { madridLocalToUtcIso } from "@/features/events/time";
+import {
+  occupationForDay,
+  slotOccupationForDay,
+  type OccupationByMember,
+} from "./occupation";
 import {
   addDays,
   busyBlocksToRanges,
-  freeSlotsForDay,
   weekDates,
-  type FreeByMember,
   type OverrideRange,
   type TemplateRange,
 } from "./slots";
-import type { MyAvailability, Override, TeamWeek } from "./types";
+import type { MyAvailability, MyWeek, Override, TeamWeek } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
 
@@ -55,7 +59,57 @@ export async function getMyAvailability(
   };
 }
 
-// Free 30-minute slots of every member for the week starting on `monday`.
+function weekBounds(monday: string) {
+  return {
+    from: new Date(madridLocalToUtcIso(`${monday}T00:00`)),
+    to: new Date(madridLocalToUtcIso(`${addDays(monday, 7)}T00:00`)),
+  };
+}
+
+function toOverrideRange(o: OverrideRange): OverrideRange {
+  return {
+    date: o.date,
+    start_time: hhmm(o.start_time),
+    end_time: hhmm(o.end_time),
+    kind: o.kind,
+  };
+}
+
+// The member's own occupation per slot for the week starting on `monday`,
+// including Google busy blocks (refreshed first when stale).
+export async function getMyWeek(email: string, monday: string): Promise<MyWeek> {
+  const dates = weekDates(monday);
+  const supabase = await createClient();
+  const { from, to } = weekBounds(monday);
+  const [template, overrides, blocks] = await Promise.all([
+    supabase
+      .from("availability_template")
+      .select("weekday, start_time, end_time")
+      .eq("member_email", email),
+    supabase
+      .from("availability_override")
+      .select("date, start_time, end_time, kind")
+      .eq("member_email", email)
+      .gte("date", monday)
+      .lte("date", dates[6]),
+    getBusyBlocks(email, from, to).catch(() => []),
+  ]);
+  if (template.error || overrides.error) {
+    throw new Error("No se pudo cargar tu disponibilidad.");
+  }
+  const data = {
+    template: template.data.map(toTemplate),
+    overrides: (overrides.data as OverrideRange[]).map(toOverrideRange),
+    busy: busyBlocksToRanges(blocks),
+  };
+  return {
+    dates,
+    days: Object.fromEntries(dates.map((date) => [date, slotOccupationForDay(date, data)])),
+    outsideGoogleWindow: isOutsideGoogleWindow(from, to),
+  };
+}
+
+// Occupation (0, 0.5 or 1) of every member per slot for the week starting on `monday`.
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const dates = weekDates(monday);
   const sunday = dates[6];
@@ -75,35 +129,32 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
   }
 
-  const from = new Date(madridLocalToUtcIso(`${monday}T00:00`));
-  const to = new Date(madridLocalToUtcIso(`${addDays(monday, 7)}T00:00`));
+  const { from, to } = weekBounds(monday);
   const busyByMember = await Promise.all(
     members.data.map((m) => getBusyBlocks(m.email, from, to).catch(() => [])),
   );
 
-  const free: FreeByMember = {};
+  const occupation: OccupationByMember = {};
   members.data.forEach((member, i) => {
     const template = templates.data
       .filter((t) => t.member_email === member.email)
       .map((t) => toTemplate(t as TemplateRange));
     const memberOverrides = overrides.data
       .filter((o) => o.member_email === member.email)
-      .map(
-        (o): OverrideRange => ({
-          date: o.date,
-          start_time: hhmm(o.start_time),
-          end_time: hhmm(o.end_time),
-          kind: o.kind,
-        }),
-      );
+      .map((o) => toOverrideRange(o as OverrideRange));
     const busy = busyBlocksToRanges(busyByMember[i]);
-    free[member.email] = Object.fromEntries(
+    occupation[member.email] = Object.fromEntries(
       dates.map((date) => [
         date,
-        [...freeSlotsForDay(date, { template, overrides: memberOverrides, busy })],
+        occupationForDay(date, { template, overrides: memberOverrides, busy }),
       ]),
     );
   });
 
-  return { dates, members: members.data, free };
+  return {
+    dates,
+    members: members.data,
+    occupation,
+    outsideGoogleWindow: isOutsideGoogleWindow(from, to),
+  };
 }

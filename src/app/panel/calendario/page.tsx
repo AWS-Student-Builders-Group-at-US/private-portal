@@ -1,12 +1,21 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MyCalendars } from "@/features/calendars/components/my-calendars";
+import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
+import { resolveSiteUrl } from "@/features/checkin/url";
+import { MyWeekGrid } from "@/features/availability/components/my-week";
 import { OverridesPanel } from "@/features/availability/components/overrides-panel";
 import { TeamView } from "@/features/availability/components/team-view";
 import { TemplatePainter } from "@/features/availability/components/template-painter";
 import { formatDay, isValidIsoDate, madridToday } from "@/features/availability/dates";
-import { getMyAvailability, getTeamWeek } from "@/features/availability/queries";
+import {
+  getMyAvailability,
+  getMyWeek,
+  getTeamWeek,
+} from "@/features/availability/queries";
 import { addDays, weekStart } from "@/features/availability/slots";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -16,6 +25,10 @@ export default async function CalendarPage({
   const { vista, semana } = await searchParams;
   const team = vista === "equipo";
   const today = madridToday();
+  const monday = weekStart(
+    typeof semana === "string" && isValidIsoDate(semana) ? semana : today,
+  );
+  const thisMonday = weekStart(today);
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,14 +42,9 @@ export default async function CalendarPage({
         </Tab>
       </nav>
       {team ? (
-        <TeamSection
-          monday={weekStart(
-            typeof semana === "string" && isValidIsoDate(semana) ? semana : today,
-          )}
-          thisMonday={weekStart(today)}
-        />
+        <TeamSection monday={monday} thisMonday={thisMonday} />
       ) : (
-        <MySection today={today} />
+        <MySection today={today} monday={monday} thisMonday={thisMonday} />
       )}
     </div>
   );
@@ -67,11 +75,45 @@ function Tab({
   );
 }
 
-async function MySection({ today }: { today: string }) {
+async function MySection({
+  today,
+  monday,
+  thisMonday,
+}: {
+  today: string;
+  monday: string;
+  thisMonday: string;
+}) {
   const member = await getCurrentMember();
-  const mine = await getMyAvailability(member.email, today);
+  const [mine, week, feeds, token, requestHeaders] = await Promise.all([
+    getMyAvailability(member.email, today),
+    getMyWeek(member.email, monday),
+    listMyFeeds(),
+    getMyExportToken(),
+    headers(),
+  ]);
+  const exportUrl = buildExportUrl(resolveSiteUrl(requestHeaders), token);
   return (
     <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Tu semana</h2>
+        <p className="text-sm text-muted-foreground">
+          Cada franja muestra lo ocupado que estás: el valor más alto entre tus calendarios de
+          Google, tu semana habitual y tus cambios por fecha.
+        </p>
+        <WeekNav
+          monday={monday}
+          thisMonday={thisMonday}
+          weekHref={(date) => `/panel/calendario?semana=${date}`}
+        />
+        {week.outsideGoogleWindow && (
+          <p className="text-sm text-muted-foreground" role="note">
+            Los calendarios de Google solo se cargan de un mes atrás a un mes adelante; esta
+            semana puede no incluir todos tus eventos de Google.
+          </p>
+        )}
+        <MyWeekGrid key={monday} week={week} feeds={feeds} />
+      </section>
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Semana habitual</h2>
         <TemplatePainter initial={mine.template} />
@@ -80,6 +122,47 @@ async function MySection({ today }: { today: string }) {
         <h2 className="text-lg font-semibold">Cambios por fecha</h2>
         <OverridesPanel overrides={mine.overrides} today={today} />
       </section>
+      <MyCalendars feeds={feeds} exportUrl={exportUrl} />
+    </div>
+  );
+}
+
+function WeekNav({
+  monday,
+  thisMonday,
+  weekHref,
+}: {
+  monday: string;
+  thisMonday: string;
+  weekHref: (date: string) => string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Link
+        href={weekHref(addDays(monday, -7))}
+        className={buttonVariants({ variant: "outline", size: "icon" })}
+        aria-label="Semana anterior"
+      >
+        <ChevronLeft />
+      </Link>
+      <span className="text-sm font-medium">
+        {formatDay(monday)} – {formatDay(addDays(monday, 6))}
+      </span>
+      <Link
+        href={weekHref(addDays(monday, 7))}
+        className={buttonVariants({ variant: "outline", size: "icon" })}
+        aria-label="Semana siguiente"
+      >
+        <ChevronRight />
+      </Link>
+      {monday !== thisMonday && (
+        <Link
+          href={weekHref(thisMonday)}
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          Esta semana
+        </Link>
+      )}
     </div>
   );
 }
@@ -92,36 +175,19 @@ async function TeamSection({
   thisMonday: string;
 }) {
   const week = await getTeamWeek(monday);
-  const weekHref = (date: string) => `/panel/calendario?vista=equipo&semana=${date}`;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href={weekHref(addDays(monday, -7))}
-          className={buttonVariants({ variant: "outline", size: "icon" })}
-          aria-label="Semana anterior"
-        >
-          <ChevronLeft />
-        </Link>
-        <span className="text-sm font-medium">
-          {formatDay(monday)} – {formatDay(addDays(monday, 6))}
-        </span>
-        <Link
-          href={weekHref(addDays(monday, 7))}
-          className={buttonVariants({ variant: "outline", size: "icon" })}
-          aria-label="Semana siguiente"
-        >
-          <ChevronRight />
-        </Link>
-        {monday !== thisMonday && (
-          <Link
-            href={weekHref(thisMonday)}
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
-            Esta semana
-          </Link>
-        )}
-      </div>
+      <WeekNav
+        monday={monday}
+        thisMonday={thisMonday}
+        weekHref={(date) => `/panel/calendario?vista=equipo&semana=${date}`}
+      />
+      {week.outsideGoogleWindow && (
+        <p className="text-sm text-muted-foreground" role="note">
+          Los calendarios de Google solo se cargan de un mes atrás a un mes adelante; esta
+          semana puede no incluir todos los eventos de Google del equipo.
+        </p>
+      )}
       <TeamView key={monday} week={week} />
     </div>
   );

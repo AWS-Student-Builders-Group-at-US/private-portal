@@ -20,10 +20,23 @@ export type OverrideRange = {
   end_time: string;
   kind: "free" | "busy";
 };
-// Busy time already converted to a Madrid day (see busyBlocksToRanges).
-export type DayRange = { date: string; start: number; end: number };
-// Busy block as returned by getBusyBlocks (Date objects; ISO strings also accepted).
-export type BusyBlock = { start: Date | string; end: Date | string };
+// Google busy time already converted to a Madrid day (see busyBlocksToRanges).
+// `weight` is the feed importance (1 or 0.5); `source` is the feed id, if known.
+export type DayRange = {
+  date: string;
+  start: number;
+  end: number;
+  weight: number;
+  source?: string;
+};
+// Busy block as returned by getBusyBlocks (Date objects; ISO strings also
+// accepted). Blocks without a weight count as 1.
+export type BusyBlock = {
+  start: Date | string;
+  end: Date | string;
+  weight?: number;
+  feedId?: string;
+};
 
 // "09:30" or "09:30:00" -> 570.
 export function timeToMinutes(time: string) {
@@ -69,60 +82,6 @@ export function weekDates(monday: string) {
   return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 }
 
-type Interval = [number, number];
-
-function mergeIntervals(intervals: Interval[]): Interval[] {
-  const sortedIntervals = intervals
-    .filter(([start, end]) => end > start)
-    .sort((a, b) => a[0] - b[0]);
-  const merged: Interval[] = [];
-  for (const [start, end] of sortedIntervals) {
-    const last = merged[merged.length - 1];
-    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
-    else merged.push([start, end]);
-  }
-  return merged;
-}
-
-// Slots (indices) in which a person is free on `date`:
-// template for that weekday + "free" overrides, minus "busy" overrides and
-// Google busy time. A slot counts as free only when fully covered by free
-// time and not touched by any busy time.
-export function freeSlotsForDay(
-  date: string,
-  data: {
-    template: TemplateRange[];
-    overrides: OverrideRange[];
-    busy: DayRange[];
-  },
-): Set<number> {
-  const weekday = weekdayOf(date);
-  const free = mergeIntervals([
-    ...data.template
-      .filter((t) => t.weekday === weekday)
-      .map((t): Interval => [timeToMinutes(t.start_time), timeToMinutes(t.end_time)]),
-    ...data.overrides
-      .filter((o) => o.date === date && o.kind === "free")
-      .map((o): Interval => [timeToMinutes(o.start_time), timeToMinutes(o.end_time)]),
-  ]);
-  const busy: Interval[] = [
-    ...data.overrides
-      .filter((o) => o.date === date && o.kind === "busy")
-      .map((o): Interval => [timeToMinutes(o.start_time), timeToMinutes(o.end_time)]),
-    ...data.busy.filter((b) => b.date === date).map((b): Interval => [b.start, b.end]),
-  ];
-
-  const result = new Set<number>();
-  for (let i = 0; i < SLOTS_PER_DAY; i++) {
-    const start = slotStart(i);
-    const end = start + SLOT_MINUTES;
-    const covered = free.some(([fs, fe]) => fs <= start && fe >= end);
-    const blocked = busy.some(([bs, be]) => bs < end && be > start);
-    if (covered && !blocked) result.add(i);
-  }
-  return result;
-}
-
 function minutesOfLocal(local: string) {
   return timeToMinutes(local.slice(11, 16));
 }
@@ -148,57 +107,10 @@ export function busyBlocksToRanges(blocks: BusyBlock[]): DayRange[] {
           segEnd === nextMidnight
             ? 24 * 60
             : minutesOfLocal(utcIsoToMadridLocal(new Date(segEnd).toISOString())),
+        weight: block.weight ?? 1,
+        ...(block.feedId ? { source: block.feedId } : {}),
       });
       cur = segEnd;
-    }
-  }
-  return ranges;
-}
-
-// Free slot indices per person per date: { [person]: { [date]: number[] } }.
-export type FreeByMember = Record<string, Record<string, number[]>>;
-
-// How many of the selected people are free in each slot of each date.
-export function teamCounts(
-  perMember: FreeByMember,
-  selected: string[],
-  dates: string[],
-): Record<string, number[]> {
-  const counts: Record<string, number[]> = {};
-  for (const date of dates) {
-    const row = new Array<number>(SLOTS_PER_DAY).fill(0);
-    for (const person of selected) {
-      for (const index of perMember[person]?.[date] ?? []) row[index] += 1;
-    }
-    counts[date] = row;
-  }
-  return counts;
-}
-
-export type CommonRange = { date: string; start: string; end: string };
-
-// Consecutive slots in which every selected person is free.
-export function commonFreeRanges(
-  perMember: FreeByMember,
-  selected: string[],
-  dates: string[],
-): CommonRange[] {
-  if (selected.length === 0) return [];
-  const counts = teamCounts(perMember, selected, dates);
-  const ranges: CommonRange[] = [];
-  for (const date of dates) {
-    let runStart: number | null = null;
-    for (let i = 0; i <= SLOTS_PER_DAY; i++) {
-      const all = i < SLOTS_PER_DAY && counts[date][i] === selected.length;
-      if (all && runStart === null) runStart = i;
-      if (!all && runStart !== null) {
-        ranges.push({
-          date,
-          start: minutesToTime(slotStart(runStart)),
-          end: minutesToTime(slotStart(i)),
-        });
-        runStart = null;
-      }
     }
   }
   return ranges;
