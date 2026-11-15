@@ -34,9 +34,15 @@ export const TEAM: TeamMember[] = [
   {
     name: "Iván",
     role: "Talleres y charlas",
+    photo: "/team/ivan.webp",
     linkedinUrl: "https://www.linkedin.com/in/ivan-jesus-sevillano-plaza",
   },
   { name: "José", role: "Talleres y charlas" },
-  { name: "Cristina", role: "Comunicación y redes" },
+  {
+    name: "Cristina",
+    role: "Comunicación y redes",
+    photo: "/team/cristina.webp",
+    linkedinUrl: "https://www.linkedin.com/in/cristina-garcia-dominguez",
+  },
   { name: "Ray", role: "Logística y eventos" },
 ];
