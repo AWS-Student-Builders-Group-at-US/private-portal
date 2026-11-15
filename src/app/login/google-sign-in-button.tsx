@@ -28,7 +28,7 @@ export function GoogleSignInButton() {
         size="lg"
         onClick={signIn}
         disabled={pending}
-        className="w-full font-semibold focus-visible:ring-offset-[var(--aws-squid)]"
+        className="bg-[var(--aws-orange)] font-semibold text-[var(--aws-ink)] hover:bg-[var(--aws-orange-strong)]"
       >
         {pending ? "Redirigiendo…" : "Entrar con Google"}
       </Button>

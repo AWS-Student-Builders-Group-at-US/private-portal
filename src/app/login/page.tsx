@@ -7,23 +7,25 @@ export const metadata: Metadata = { title: "Iniciar sesión · Core Team" };
 
 export default function LoginPage() {
   return (
-    <main className="theme-light flex flex-1 flex-col items-center justify-center gap-6 bg-grid p-4 text-foreground sm:p-6">
-      <div className="on-dark flex w-full max-w-sm animate-rise-in flex-col gap-8 bg-[var(--aws-squid)] p-8 text-white">
-        <div className="flex flex-col gap-4">
-          <ChipMark className="size-12 bg-[var(--aws-ink)]" />
-          <p className="font-mono text-xs tracking-[0.12em] text-white/70 uppercase">
-            <span className="text-[var(--aws-orange)]">Acceso</span> / Miembros
-          </p>
-          <h1 className="text-3xl font-semibold">Core Team</h1>
-          <p className="text-sm text-white/75">
-            AWS Student Builder Group at Universidad de Sevilla
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-6 overflow-hidden bg-[var(--aws-squid)] p-6 text-white">
+      {/* Soft orange glow; decorative only. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 size-[36rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(255_153_0/0.28),transparent)]"
+      />
+      <div className="relative flex w-full max-w-sm animate-rise-in flex-col gap-6 rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur">
+        <div className="flex flex-col items-center gap-3">
+          <ChipMark className="size-12 rounded-xl bg-[var(--aws-ink)]" />
+          <h1 className="text-2xl font-semibold">Core Team</h1>
+          <p className="text-sm text-white/70">
+            AWS Student Builder Group · Universidad de Sevilla
           </p>
         </div>
         <GoogleSignInButton />
       </div>
       <Link
         href="/"
-        className="font-mono text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        className="relative text-sm text-white/70 underline-offset-4 hover:text-white hover:underline"
       >
         ← Volver a la web
       </Link>

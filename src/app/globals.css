@@ -3,13 +3,13 @@
 @import "shadcn/tailwind.css";
 
 /* Dark mode follows the operating system preference (no theme toggle in T1).
-   The public site opts out with `.theme-light` (see below). */
+   The public site (`.theme-light`, see below) is always light. */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Noto Sans for body copy, Noto Sans Mono for headings, labels, nav and buttons
+  /* Noto Sans for body copy, Noto Sans Mono for headings and labels
      (variables set by next/font in src/app/layout.tsx). */
   --font-sans: var(--font-noto-sans);
   --font-mono: var(--font-noto-sans-mono);
@@ -54,9 +54,8 @@
 
 /* AWS palette: Squid Ink (#232F3E), deep navy (#161E2D), Smile orange
    (#FF9900, only ever with dark text), sky blue accent (#4DB8FF).
-   Hard edges: a 2px radius scales every rounded-* utility down to near-square. */
-:root,
-.theme-light {
+   Shared by the member panel and the public site. */
+:root {
   --aws-orange: #ff9900;
   --aws-orange-strong: #ec7211;
   /* Orange dark enough for text on white (AA, ~5:1). */
@@ -65,7 +64,84 @@
   --aws-squid: #232f3e;
   --aws-navy: #161e2d;
   --aws-ink: #0f141a;
+}
 
+/* Member panel and login: rounded, Squid Ink primary. Tokens only;
+   components read them through Tailwind. */
+:root {
+  --background: #ffffff;
+  --foreground: #16191f;
+  --card: #ffffff;
+  --card-foreground: #16191f;
+  --popover: #ffffff;
+  --popover-foreground: #16191f;
+  --primary: var(--aws-squid);
+  --primary-foreground: #ffffff;
+  --secondary: #f2f3f3;
+  --secondary-foreground: var(--aws-squid);
+  --muted: #f2f3f3;
+  --muted-foreground: #5f6b7a;
+  --accent: #fff4e5;
+  --accent-foreground: #8d4a00;
+  --destructive: #d13212;
+  --border: #e3e6e8;
+  --input: #d1d5db;
+  --ring: var(--aws-orange);
+  --grid-line: rgb(35 47 62 / 8%);
+  --grid-line-faint: rgb(35 47 62 / 4.5%);
+  --chart-1: #ff9900;
+  --chart-2: #0972d3;
+  --chart-3: #037f0c;
+  --chart-4: #8456ce;
+  --chart-5: #232f3e;
+  --radius: 0.625rem;
+  --sidebar: var(--aws-squid);
+  --sidebar-foreground: #d5dbdb;
+  --sidebar-primary: var(--aws-orange);
+  --sidebar-primary-foreground: var(--aws-ink);
+  --sidebar-accent: rgb(255 255 255 / 8%);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: var(--aws-orange);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--aws-ink);
+    --foreground: #e9ebed;
+    --card: var(--aws-navy);
+    --card-foreground: #e9ebed;
+    --popover: var(--aws-navy);
+    --popover-foreground: #e9ebed;
+    --primary: var(--aws-orange);
+    --primary-foreground: var(--aws-ink);
+    --secondary: #1f2937;
+    --secondary-foreground: #e9ebed;
+    --muted: #1b2433;
+    --muted-foreground: #9ba7b6;
+    --accent: rgb(255 153 0 / 14%);
+    --accent-foreground: #ffc266;
+    --destructive: #ff5d64;
+    --border: rgb(255 255 255 / 10%);
+    --input: rgb(255 255 255 / 16%);
+    --ring: var(--aws-orange);
+    --grid-line: rgb(255 255 255 / 6%);
+    --grid-line-faint: rgb(255 255 255 / 3.5%);
+    --sidebar: var(--aws-navy);
+    --sidebar-foreground: #c6ccd4;
+    --sidebar-primary: var(--aws-orange);
+    --sidebar-primary-foreground: var(--aws-ink);
+    --sidebar-accent: rgb(255 255 255 / 7%);
+    --sidebar-accent-foreground: #ffffff;
+    --sidebar-border: rgb(255 255 255 / 8%);
+    --sidebar-ring: var(--aws-orange);
+  }
+}
+
+/* Public site (/, /noticias, /checkin, /privacidad): always light, hard edges
+   (a 2px radius scales every rounded-* utility down to near-square), orange
+   primary with dark text. Applied by `SitePage` and the standalone public pages. */
+.theme-light {
   color-scheme: light;
   --background: #ffffff;
   --foreground: #16191f;
@@ -88,59 +164,10 @@
   --ring: var(--aws-squid);
   --grid-line: rgb(35 47 62 / 8%);
   --grid-line-faint: rgb(35 47 62 / 4.5%);
-  --chart-1: #ff9900;
-  --chart-2: #0972d3;
-  --chart-3: #037f0c;
-  --chart-4: #8456ce;
-  --chart-5: #232f3e;
   --radius: 0.125rem;
-  --sidebar: var(--aws-squid);
-  --sidebar-foreground: #d5dbdb;
-  --sidebar-primary: var(--aws-orange);
-  --sidebar-primary-foreground: var(--aws-ink);
-  --sidebar-accent: rgb(255 255 255 / 8%);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgb(255 255 255 / 10%);
-  --sidebar-ring: var(--aws-orange);
 }
 
-/* Panel dark tokens. Only :root changes, so `.theme-light` subtrees (public
-   pages, login, check-in) keep the light design. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: var(--aws-ink);
-    --foreground: #e9ebed;
-    --card: var(--aws-navy);
-    --card-foreground: #e9ebed;
-    --popover: var(--aws-navy);
-    --popover-foreground: #e9ebed;
-    --primary: var(--aws-orange);
-    --primary-foreground: var(--aws-ink);
-    --secondary: #2c3b4f;
-    --secondary-foreground: #ffffff;
-    --muted: #1b2433;
-    --muted-foreground: #9ba7b6;
-    --accent: rgb(255 153 0 / 14%);
-    --accent-foreground: #ffc266;
-    --destructive: #ff5d64;
-    --border: rgb(255 255 255 / 12%);
-    --input: rgb(255 255 255 / 22%);
-    --ring: var(--aws-orange);
-    --grid-line: rgb(255 255 255 / 6%);
-    --grid-line-faint: rgb(255 255 255 / 3.5%);
-    --sidebar: var(--aws-navy);
-    --sidebar-foreground: #c6ccd4;
-    --sidebar-primary: var(--aws-orange);
-    --sidebar-primary-foreground: var(--aws-ink);
-    --sidebar-accent: rgb(255 255 255 / 7%);
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: rgb(255 255 255 / 8%);
-    --sidebar-ring: var(--aws-orange);
-  }
-}
-
-/* Dark blocks (Squid Ink cards, footer, sidebar): keep focus outlines visible. */
+/* Dark blocks (Squid Ink cards, footer): keep focus outlines visible. */
 .on-dark {
   --ring: var(--aws-orange);
   --label-accent: var(--aws-orange);
@@ -201,15 +228,19 @@
   html {
     @apply font-sans;
   }
-  /* Headings use the mono face everywhere; utilities can still override it. */
+  /* Page headings use the mono face (panel and public site); utilities can
+     still override it. The public site also sets h3 and buttons in mono. */
   h1,
   h2,
-  h3 {
+  .theme-light h3 {
     font-family: var(--font-heading);
     letter-spacing: -0.01em;
   }
-  /* Visible keyboard focus on links and other native controls. */
-  :focus-visible {
+  .theme-light [data-slot="button"] {
+    font-family: var(--font-mono);
+  }
+  /* Public site: visible keyboard focus on links and other native controls. */
+  .theme-light :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
