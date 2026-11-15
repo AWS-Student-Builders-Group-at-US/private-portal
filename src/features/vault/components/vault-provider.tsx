@@ -1,18 +1,18 @@
 "use client";
 
 import { createContext, use, useCallback, useEffect, useRef, useState } from "react";
-import { checkVerifier, deriveKey } from "../crypto";
 import {
   createVault,
   deleteItem,
   fetchItems,
   fetchMeta,
-  rotateVault,
+  onPassphraseChanged,
   saveItem,
   type VaultItem,
   type VaultMeta,
   VaultError,
 } from "../data";
+import { verifyPassphrase } from "../rotation";
 import type { VaultPayload } from "../schema";
 
 const AUTO_LOCK_MS = 10 * 60 * 1000;
@@ -35,7 +35,6 @@ type VaultContextValue = {
   lock: () => void;
   save: (input: ItemInput) => Promise<void>;
   remove: (id: string) => Promise<void>;
-  changePassphrase: (current: string, next: string) => Promise<void>;
 };
 
 const VaultContext = createContext<VaultContextValue | null>(null);
@@ -47,6 +46,8 @@ export function useVault() {
 }
 
 const WRONG_PASSPHRASE = "La contraseña de la bóveda no es correcta.";
+const PASSPHRASE_CHANGED =
+  "La contraseña de la bóveda ha cambiado. Desbloquéala con la nueva contraseña.";
 
 // Holds the derived key in memory only (a ref, never persisted, never sent to
 // the server). Locking drops the key and every decrypted item.
@@ -75,6 +76,20 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     setItems([]);
     setStatus(metaRef.current ? "locked" : "setup");
   }, []);
+
+  // A passphrase change (Ajustes, possibly in another tab) invalidates the key.
+  useEffect(
+    () =>
+      onPassphraseChanged(() => {
+        fetchMeta()
+          .then((meta) => {
+            metaRef.current = meta;
+          })
+          .catch(() => {})
+          .finally(lock);
+      }),
+    [lock],
+  );
 
   // Auto-lock after AUTO_LOCK_MS without interaction while unlocked.
   useEffect(() => {
@@ -111,8 +126,22 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     const meta = await fetchMeta();
     if (!meta) throw new VaultError("La bóveda no existe.");
     metaRef.current = meta;
-    const key = await deriveKey(passphrase, meta.salt, meta.kdf_iterations);
-    if (!(await checkVerifier(key, meta.verifier))) throw new VaultError(WRONG_PASSPHRASE);
+    const key = await verifyPassphrase(passphrase, meta);
+    if (!key) throw new VaultError(WRONG_PASSPHRASE);
+    return key;
+  };
+
+  // Before writing, make sure nobody changed the passphrase since unlocking
+  // (e.g. another member in Ajustes); otherwise the item would be encrypted
+  // with a stale key. Lock so the user re-unlocks with the new passphrase.
+  const requireCurrentKey = async () => {
+    const key = requireKey();
+    const meta = await fetchMeta();
+    if (!meta || meta.salt !== metaRef.current?.salt) {
+      metaRef.current = meta;
+      lock();
+      throw new VaultError(PASSPHRASE_CHANGED);
+    }
     return key;
   };
 
@@ -127,19 +156,13 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
     },
     unlock: async (passphrase) => openWith(await verify(passphrase)),
     save: async (input) => {
-      const key = requireKey();
+      const key = await requireCurrentKey();
       await saveItem(key, input);
       setItems(await fetchItems(key));
     },
     remove: async (id) => {
       await deleteItem(id);
       setItems(await fetchItems(requireKey()));
-    },
-    changePassphrase: async (current, next) => {
-      const oldKey = await verify(current);
-      const { key, meta } = await rotateVault(oldKey, next);
-      metaRef.current = meta;
-      await openWith(key);
     },
   };
 

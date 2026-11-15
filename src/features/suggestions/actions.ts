@@ -8,8 +8,8 @@ import { getCurrentMember } from "@/lib/auth/member";
 import { suggestionFormSchema, suggestionStatusSchema } from "./schema";
 import type { SuggestionFormState } from "./types";
 
-// Runs with the user's session; RLS rejects non-members and only lets each
-// member sign or vote as themselves.
+// Runs with the user's session; RLS rejects non-members, requires every
+// suggestion to be signed by its author and only lets members vote as themselves.
 
 const PATHS = ["/panel/sugerencias", "/panel"];
 const revalidate = () => PATHS.forEach((path) => revalidatePath(path));
@@ -19,10 +19,7 @@ export async function createSuggestion(
   _prev: SuggestionFormState,
   formData: FormData,
 ): Promise<SuggestionFormState> {
-  const values = {
-    body: String(formData.get("body") ?? ""),
-    anonymous: formData.get("anonymous") === "on" ? "on" : "",
-  };
+  const values = { body: String(formData.get("body") ?? "") };
   const parsed = suggestionFormSchema.safeParse(values);
   if (!parsed.success) {
     return {
@@ -35,7 +32,7 @@ export async function createSuggestion(
   const supabase = await createClient();
   const { error } = await supabase.from("suggestions").insert({
     body: parsed.data.body,
-    author_email: parsed.data.anonymous ? null : email,
+    author_email: email,
   });
   if (error) return { message: "No se pudo enviar la sugerencia.", values };
   revalidate();

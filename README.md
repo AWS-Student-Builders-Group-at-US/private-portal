@@ -42,9 +42,14 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    8. `20261119020000_emails.sql`
    9. `20261119150000_availability.sql`
    10. `20261120000000_links_suggestions.sql`
+   11. `20261123000000_calendar_weights.sql`
+   12. `20261124000000_suggestions_signed.sql`
+   13. `20261124010000_member_admin.sql`
+   14. `20261125000000_app_settings.sql`
 4. **Seed the members privately.** Use `supabase/seed.example.sql` as a template, replace the
    placeholders with the real (lowercase) emails directly in the SQL editor and run it. Do not
-   commit the real seed (`supabase/seed.sql` is git-ignored).
+   commit the real seed (`supabase/seed.sql` is git-ignored). After that, members manage the list from
+   `/panel/ajustes`.
 5. **Configure Vercel.** Import the repo and set these environment variables. *Public* values
    are embedded in the browser bundle; *secret* values are server-only and must never get a
    `NEXT_PUBLIC_` prefix.
@@ -59,6 +64,8 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    | `GMAIL_USER` | secret | Sender Gmail address (see *Community emails*) |
    | `GMAIL_APP_PASSWORD` | secret | Gmail app password for that account |
    | `CRON_SECRET` | secret | Random string (at least 16 characters); Vercel sends it to the daily cron |
+   | `GOOGLE_SERVICE_ACCOUNT_KEY` | secret | Service account JSON key, base64-encoded (see *Drive folder in Recursos*) |
+   | `GOOGLE_DRIVE_FOLDER_ID` | secret | Optional fallback Drive folder id when none is set in Ajustes |
 6. **Add redirect URLs.** In Supabase *Authentication → URL Configuration*, set the Site URL to
    the production URL and add these redirect URLs:
    - `https://<your-app>.vercel.app/auth/callback`
@@ -73,6 +80,11 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - After sign-in (and when a signed-in user opens `/login`) users land on `/panel`.
 - Signed-in users whose email is not in `public.members` are redirected to `/no-access`.
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
+- `/panel/ajustes` groups the settings. Members add, edit and remove panel accounts there through
+  the `add_member`, `update_member` and `remove_member` security definer functions (members only
+  read `public.members` directly). Nobody can remove themselves or the last member. Removing a
+  member deletes only their own votes, availability and calendars; their tasks become unassigned
+  and their suggestions stay, shown as "Antiguo miembro". Suggestions are always signed.
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
   outside the gate. Check-in writes attendees with the server-only secret key
   (`src/lib/supabase/admin.ts`), rate-limited per hashed IP (5 per minute).
@@ -99,6 +111,29 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - `/baja/<token>` is the public unsubscribe page for community emails (outside the gate,
   `noindex`). Opening it never unsubscribes; the visitor confirms with a button. Mail clients use
   the RFC 8058 one-click endpoint `POST /api/baja/<token>` from the `List-Unsubscribe` header.
+
+## Drive folder in Recursos
+
+`/panel/recursos` lists one Google Drive folder (and its subfolders, via `?carpeta=<id>`) for every
+member, without making the folder public. The server reads it with a Google **service account**
+(`src/features/drive`, server-only, scope `drive.readonly`); the key never reaches the browser.
+Listings are cached for 5 minutes; «Actualizar» refreshes them. Members still need their own Drive
+access to open the files.
+
+The folder is chosen in **Ajustes → Carpeta de Drive (Recursos)** (stored in
+`app_settings.drive_folder_id`); `GOOGLE_DRIVE_FOLDER_ID` is only a fallback.
+
+1. In Google Cloud Console, open the group's project and enable the **Google Drive API**
+   (*APIs & Services → Library*).
+2. Create a service account (*IAM & Admin → Service Accounts → Create*). It needs no project roles.
+3. Open it, go to *Keys → Add key → Create new key → JSON* and download the file.
+4. Encode it on one line: `base64 -w0 key.json` (macOS: `base64 -i key.json`). Store the output as
+   the secret `GOOGLE_SERVICE_ACCOUNT_KEY` in Vercel (and in `.env.local` for development), then
+   delete the downloaded file. Never commit it.
+5. The folder owner shares the folder with the service account email
+   (`<name>@<project>.iam.gserviceaccount.com`) as **Viewer**. The folder stays private.
+6. Redeploy, then paste the folder link (`https://drive.google.com/drive/folders/<id>`) in
+   Ajustes. The card shows whether the service account can read it.
 
 ## Community emails
 

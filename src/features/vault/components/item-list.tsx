@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, ExternalLink, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { errorMessage, type VaultItem } from "../data";
-import { isSafeUrl } from "../schema";
+import { isSafeUrl, type VaultCustomField } from "../schema";
 import { useVault } from "./vault-provider";
+
+const MESSAGE_MS = 4000;
 
 function mask(value: string) {
   if (!value) return "—";
@@ -39,11 +41,18 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
   const [pending, setPending] = useState(false);
   const payload = item.payload;
 
+  // Copy/status messages disappear after a few seconds.
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => setMessage(null), MESSAGE_MS);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   // Must run inside the click handler (clipboard needs a user gesture).
   async function copy(value: string, what: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage(`${what} copiado.`);
+      setMessage(`Copiado: ${what}.`);
     } catch {
       setMessage("No se pudo copiar. Muestra el valor y cópialo manualmente.");
     }
@@ -105,6 +114,17 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
               <Trash2 /> Eliminar
             </Button>
           </div>
+          {payload.fields.length > 0 && (
+            <dl className="flex flex-col gap-2 border-t pt-2">
+              {payload.fields.map((field, index) => (
+                <CustomFieldRow
+                  key={`${index}-${field.name}`}
+                  field={field}
+                  onCopy={() => copy(field.value, field.name)}
+                />
+              ))}
+            </dl>
+          )}
           {payload.notes && (
             <p className="text-sm whitespace-pre-wrap text-muted-foreground">{payload.notes}</p>
           )}
@@ -143,5 +163,29 @@ function ItemRow({ item, onEdit }: { item: VaultItem; onEdit: () => void }) {
         </p>
       )}
     </li>
+  );
+}
+
+function CustomFieldRow({ field, onCopy }: { field: VaultCustomField; onCopy: () => void }) {
+  const [shown, setShown] = useState(false);
+  const hidden = field.secret && !shown;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <dt className="text-sm text-muted-foreground">{field.name}:</dt>
+      <dd className="min-w-0 flex-1 font-mono text-sm break-all">
+        {hidden ? mask(field.value) : field.value || "—"}
+      </dd>
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={onCopy} aria-label={`Copiar ${field.name}`}>
+          <Copy /> Copiar
+        </Button>
+        {field.secret && (
+          <Button size="sm" variant="outline" onClick={() => setShown((v) => !v)}>
+            {shown ? <EyeOff /> : <Eye />}
+            {shown ? "Ocultar" : "Mostrar"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

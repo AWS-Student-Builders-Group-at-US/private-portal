@@ -17,8 +17,4 @@ export const suggestionFormSchema = z.object({
     .trim()
     .min(1, "Escribe tu sugerencia.")
     .max(2000, "La sugerencia admite como máximo 2000 caracteres."),
-  anonymous: z.preprocess(
-    (value) => value === "on" || value === "true" || value === true,
-    z.boolean(),
-  ),
 });
