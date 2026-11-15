@@ -44,7 +44,16 @@ function nextKey(fields: FormField[]) {
   return `campo_${n}`;
 }
 
-export function FormEditor({ initial }: { initial: EditorInitial }) {
+export function FormEditor({
+  formId,
+  initial,
+  disabled = false,
+}: {
+  formId: string;
+  initial: EditorInitial;
+  // Archived forms cannot get new versions.
+  disabled?: boolean;
+}) {
   const [title, setTitle] = useState(initial.title);
   const [intro, setIntro] = useState(initial.intro);
   const [fields, setFields] = useState(initial.fields);
@@ -81,7 +90,7 @@ export function FormEditor({ initial }: { initial: EditorInitial }) {
   function publish() {
     setResult(null);
     startTransition(async () => {
-      const response = await publishCheckinForm({
+      const response = await publishCheckinForm(formId, {
         title,
         intro,
         fields: cleanFields(fields),
@@ -89,7 +98,7 @@ export function FormEditor({ initial }: { initial: EditorInitial }) {
       });
       setResult(
         response.ok
-          ? { ok: true, message: "Nueva versión publicada y activada." }
+          ? { ok: true, message: "Nueva versión publicada." }
           : { ok: false, message: response.message },
       );
     });
@@ -252,7 +261,7 @@ export function FormEditor({ initial }: { initial: EditorInitial }) {
             {result.message}
           </p>
         )}
-        <Button onClick={publish} disabled={pending}>
+        <Button onClick={publish} disabled={pending || disabled}>
           {pending ? "Publicando…" : "Publicar nueva versión"}
         </Button>
       </div>

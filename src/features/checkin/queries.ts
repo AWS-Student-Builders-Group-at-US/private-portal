@@ -10,11 +10,11 @@ export const CHECKIN_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
 // Public check-in page (no session): admin client, by token, minimal columns.
 export async function getCheckinEventByToken(
   token: string,
-): Promise<(PublicCheckinEvent & { id: string }) | null> {
+): Promise<(PublicCheckinEvent & { id: string; checkin_form_id: string | null }) | null> {
   if (!CHECKIN_TOKEN_PATTERN.test(token)) return null;
   const { data, error } = await createAdminClient()
     .from("events")
-    .select("id, title, starts_at, location, checkin_open")
+    .select("id, title, starts_at, location, checkin_open, checkin_form_id")
     .eq("checkin_token", token)
     .maybeSingle();
   if (error) throw new Error("No se pudo cargar el evento.");

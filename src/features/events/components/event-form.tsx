@@ -18,7 +18,12 @@ export type EventFormValues = {
   meetup_url: string;
   expected_attendees: string;
   is_public: boolean;
+  // "" = default check-in form.
+  checkin_form_id: string;
 };
+
+// A check-in form the event may pick.
+export type EventFormOption = { id: string; name: string; archived: boolean };
 
 const EMPTY: EventFormValues = {
   title: "",
@@ -29,6 +34,7 @@ const EMPTY: EventFormValues = {
   meetup_url: "",
   expected_attendees: "",
   is_public: false,
+  checkin_form_id: "",
 };
 
 function Field({
@@ -62,6 +68,8 @@ type Props = {
   initialValues?: EventFormValues;
   submitLabel: string;
   cancelHref: string;
+  formOptions: EventFormOption[];
+  defaultFormName: string | null;
 };
 
 export function EventForm({
@@ -69,6 +77,8 @@ export function EventForm({
   initialValues = EMPTY,
   submitLabel,
   cancelHref,
+  formOptions,
+  defaultFormName,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   // After a failed submit, show what the user typed instead of the initial values.
@@ -162,6 +172,26 @@ export function EventForm({
           className={fieldClass}
           {...invalid("expected_attendees")}
         />
+      </Field>
+      <Field
+        name="checkin_form_id"
+        label="Formulario de registro"
+        errors={errors("checkin_form_id")}
+      >
+        <select
+          id="checkin_form_id"
+          name="checkin_form_id"
+          defaultValue={value("checkin_form_id")}
+          className={fieldClass}
+          {...invalid("checkin_form_id")}
+        >
+          <option value="">Por defecto ({defaultFormName ?? "sin formulario"})</option>
+          {formOptions.map((form) => (
+            <option key={form.id} value={form.id}>
+              {form.archived ? `${form.name} (archivado)` : form.name}
+            </option>
+          ))}
+        </select>
       </Field>
       <label className="flex items-center gap-2 text-sm">
         <input

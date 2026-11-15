@@ -7,7 +7,7 @@ describe("vaultItemFormSchema", () => {
     expect(result).toEqual({
       label: "Cuenta de Google",
       category: null,
-      payload: { username: "", password: "", url: "", notes: "", fields: [] },
+      payload: { kind: "account", username: "", password: "", url: "", notes: "", fields: [] },
     });
   });
 
@@ -22,6 +22,7 @@ describe("vaultItemFormSchema", () => {
     });
     expect(result.category).toBe("Infra");
     expect(result.payload).toEqual({
+      kind: "account",
       username: "admin",
       password: "s3cret",
       url: "https://example.com",
@@ -46,6 +47,7 @@ describe("vaultItemFormSchema", () => {
 describe("vaultPayloadSchema", () => {
   it("defaults missing fields of a decrypted payload", () => {
     expect(vaultPayloadSchema.parse({ password: "p" })).toEqual({
+      kind: "account",
       username: "",
       password: "p",
       url: "",
@@ -56,6 +58,45 @@ describe("vaultPayloadSchema", () => {
 
   it("rejects non-string fields", () => {
     expect(vaultPayloadSchema.safeParse({ password: 1 }).success).toBe(false);
+  });
+});
+
+describe("item kind", () => {
+  it("treats payloads saved before kinds existed as accounts", () => {
+    const legacy = { username: "u", password: "p", url: "", notes: "", fields: [] };
+    expect(vaultPayloadSchema.parse(legacy).kind).toBe("account");
+  });
+
+  it("keeps the secret kind inside the encrypted payload", () => {
+    expect(vaultPayloadSchema.parse({ kind: "secret" }).kind).toBe("secret");
+    const result = vaultItemFormSchema.parse({ label: "Stripe", kind: "secret" });
+    expect(result).not.toHaveProperty("kind");
+    expect(result.payload.kind).toBe("secret");
+  });
+
+  it("rejects unknown kinds", () => {
+    expect(vaultPayloadSchema.safeParse({ kind: "note" }).success).toBe(false);
+    expect(vaultItemFormSchema.safeParse({ label: "x", kind: "note" }).success).toBe(false);
+  });
+
+  it("drops account-only values from secret items", () => {
+    const result = vaultItemFormSchema.parse({
+      label: "Stripe",
+      kind: "secret",
+      username: "admin",
+      password: "pw",
+      url: "https://example.com",
+      notes: "Claves de producción.",
+      fields: [{ name: "STRIPE_KEY", value: "sk_live_x", secret: true }],
+    });
+    expect(result.payload).toEqual({
+      kind: "secret",
+      username: "",
+      password: "",
+      url: "",
+      notes: "Claves de producción.",
+      fields: [{ name: "STRIPE_KEY", value: "sk_live_x", secret: true }],
+    });
   });
 });
 

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PrivacyNotice } from "@/features/checkin-forms/components/privacy-notice";
+import { parsePrivacyQuery } from "@/features/checkin-forms/privacy-query";
 import {
-  getActiveCheckinForm,
   getCheckinFormByVersion,
+  getCheckinFormForEvent,
+  getLatestVersionOfForm,
 } from "@/features/checkin/form-queries";
 import { EVENT_TIME_ZONE } from "@/features/events/time";
 
@@ -16,7 +18,9 @@ const dateFormatter = new Intl.DateTimeFormat("es-ES", {
 });
 
 // Privacy notice for attendee data collected at /checkin/<token>. The text is
-// edited and versioned from the panel; `?v=N` shows an older version.
+// edited and versioned per named form from the panel. No query: the default
+// form's latest version; `?f=<form id>`: that form's latest version; `?v=N`:
+// an exact (possibly older) version, which must belong to `f` when both are set.
 export default function PrivacyPage({ searchParams }: PageProps<"/privacidad">) {
   return (
     <main className="flex flex-1 justify-center p-4 sm:p-6">
@@ -38,21 +42,26 @@ export default function PrivacyPage({ searchParams }: PageProps<"/privacidad">) 
 async function PrivacyContent({
   searchParams,
 }: Pick<PageProps<"/privacidad">, "searchParams">) {
-  const { v } = await searchParams;
-  const requested = typeof v === "string" && /^\d{1,9}$/.test(v) ? Number(v) : null;
-  if (v !== undefined && requested === null) notFound();
+  const query = parsePrivacyQuery(await searchParams);
+  if (!query.ok) notFound();
 
-  const form = requested
-    ? await getCheckinFormByVersion(requested)
-    : await getActiveCheckinForm();
-  if (!form) notFound();
+  const form =
+    query.version !== null
+      ? await getCheckinFormByVersion(query.version)
+      : query.formId !== null
+        ? await getLatestVersionOfForm(query.formId)
+        : await getCheckinFormForEvent(null);
+  if (!form || (query.formId !== null && form.form_id !== query.formId)) notFound();
+
+  const latest = query.version !== null ? await getLatestVersionOfForm(form.form_id) : form;
+  const isOlder = latest !== null && latest.id !== form.id;
 
   return (
     <>
       <p className="text-sm text-muted-foreground">
         Registro de asistencia a eventos · Versión {form.version} ·{" "}
         {dateFormatter.format(new Date(form.created_at))}
-        {!form.is_active && " (versión anterior)"}
+        {isOlder && " (versión anterior)"}
       </p>
       <PrivacyNotice text={form.privacy_notice} />
     </>

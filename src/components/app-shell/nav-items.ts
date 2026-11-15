@@ -1,9 +1,12 @@
 import {
   CalendarDays,
-  Ellipsis,
+  FolderOpen,
   House,
+  KeyRound,
+  Lightbulb,
   ListTodo,
   Megaphone,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,30 +19,31 @@ export type NavItem = {
 // Root of the member-only area.
 export const PANEL_HOME = "/panel";
 
-// Primary navigation: sidebar on desktop, bottom bar on mobile.
-export const NAV_ITEMS: NavItem[] = [
+// Sections pinned to the mobile bottom bar.
+export const BOTTOM_NAV_ITEMS: NavItem[] = [
   { href: PANEL_HOME, label: "Inicio", icon: House },
   { href: "/panel/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/panel/tareas", label: "Tareas", icon: ListTodo },
   { href: "/panel/eventos", label: "Eventos", icon: Megaphone },
-  { href: "/panel/mas", label: "Más", icon: Ellipsis },
 ];
 
-// Secondary sections, listed on /panel/mas.
-export const MORE_ITEMS = [
-  { href: "/panel/recursos", label: "Recursos" },
-  { href: "/panel/sugerencias", label: "Sugerencias" },
-  { href: "/panel/boveda", label: "Bóveda" },
-  { href: "/panel/mas/formulario-qr", label: "Formulario QR" },
-  { href: "/panel/ajustes", label: "Ajustes" },
+// Sections behind the "Menú" drawer on mobile.
+export const MENU_ITEMS: NavItem[] = [
+  { href: "/panel/recursos", label: "Recursos", icon: FolderOpen },
+  { href: "/panel/sugerencias", label: "Sugerencias", icon: Lightbulb },
+  { href: "/panel/boveda", label: "Bóveda", icon: KeyRound },
+  { href: "/panel/ajustes", label: "Ajustes", icon: Settings },
 ];
 
-const MORE_PATHS = ["/panel/mas", ...MORE_ITEMS.map((item) => item.href)];
+// Primary navigation: every section, shown in the desktop sidebar.
+export const NAV_ITEMS: NavItem[] = [...BOTTOM_NAV_ITEMS, ...MENU_ITEMS];
 
 export function isActive(href: string, pathname: string) {
   if (href === PANEL_HOME) return pathname === PANEL_HOME;
-  if (href === "/panel/mas") {
-    return MORE_PATHS.some((p) => pathname.startsWith(p));
-  }
-  return pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+// True when the current page belongs to a section inside the mobile menu.
+export function isMenuActive(pathname: string) {
+  return MENU_ITEMS.some((item) => isActive(item.href, pathname));
 }

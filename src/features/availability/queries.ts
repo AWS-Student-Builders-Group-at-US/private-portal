@@ -8,56 +8,15 @@ import {
   slotOccupationForDay,
   type OccupationByMember,
 } from "./occupation";
-import {
-  addDays,
-  busyBlocksToRanges,
-  weekDates,
-  type OverrideRange,
-  type TemplateRange,
-} from "./slots";
-import type { MyAvailability, MyWeek, Override, TeamWeek } from "./types";
+import { addDays, busyBlocksToRanges, weekDates } from "./slots";
+import type { AvailabilityNote, MyWeek, TeamWeek } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
+// Occupation comes only from Google calendars; the legacy
+// availability_template/availability_override tables are no longer read.
 
-const hhmm = (time: string) => time.slice(0, 5);
-
-function toTemplate(row: TemplateRange): TemplateRange {
-  return { weekday: row.weekday, start_time: hhmm(row.start_time), end_time: hhmm(row.end_time) };
-}
-
-function toOverride(row: Override): Override {
-  return { ...row, start_time: hhmm(row.start_time), end_time: hhmm(row.end_time) };
-}
-
-// The member's weekly template and their overrides from `fromDate` on.
-export async function getMyAvailability(
-  email: string,
-  fromDate: string,
-): Promise<MyAvailability> {
-  const supabase = await createClient();
-  const [template, overrides] = await Promise.all([
-    supabase
-      .from("availability_template")
-      .select("weekday, start_time, end_time")
-      .eq("member_email", email)
-      .order("weekday")
-      .order("start_time"),
-    supabase
-      .from("availability_override")
-      .select("id, date, start_time, end_time, kind")
-      .eq("member_email", email)
-      .gte("date", fromDate)
-      .order("date")
-      .order("start_time"),
-  ]);
-  if (template.error || overrides.error) {
-    throw new Error("No se pudo cargar tu disponibilidad.");
-  }
-  return {
-    template: template.data.map(toTemplate),
-    overrides: (overrides.data as Override[]).map(toOverride),
-  };
-}
+const NOTE_COLUMNS =
+  "id, member_email, start_date, end_date, start_minute, end_minute, title, body";
 
 function weekBounds(monday: string) {
   return {
@@ -66,66 +25,51 @@ function weekBounds(monday: string) {
   };
 }
 
-function toOverrideRange(o: OverrideRange): OverrideRange {
-  return {
-    date: o.date,
-    start_time: hhmm(o.start_time),
-    end_time: hhmm(o.end_time),
-    kind: o.kind,
-  };
+// Notes overlapping the week of `dates`, optionally only one member's.
+async function getWeekNotes(dates: string[], email?: string): Promise<AvailabilityNote[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("availability_notes")
+    .select(NOTE_COLUMNS)
+    .lte("start_date", dates[6])
+    .gte("end_date", dates[0]);
+  if (email) query = query.eq("member_email", email);
+  const { data, error } = await query
+    .order("start_date")
+    .order("start_minute")
+    .order("created_at");
+  if (error) throw new Error("No se pudieron cargar las notas.");
+  return data as AvailabilityNote[];
 }
 
 // The member's own occupation per slot for the week starting on `monday`,
-// including Google busy blocks (refreshed first when stale).
+// from their Google busy blocks (refreshed first when stale), plus their notes.
 export async function getMyWeek(email: string, monday: string): Promise<MyWeek> {
   const dates = weekDates(monday);
-  const supabase = await createClient();
   const { from, to } = weekBounds(monday);
-  const [template, overrides, blocks] = await Promise.all([
-    supabase
-      .from("availability_template")
-      .select("weekday, start_time, end_time")
-      .eq("member_email", email),
-    supabase
-      .from("availability_override")
-      .select("date, start_time, end_time, kind")
-      .eq("member_email", email)
-      .gte("date", monday)
-      .lte("date", dates[6]),
+  const [blocks, notes] = await Promise.all([
     getBusyBlocks(email, from, to).catch(() => []),
+    getWeekNotes(dates, email),
   ]);
-  if (template.error || overrides.error) {
-    throw new Error("No se pudo cargar tu disponibilidad.");
-  }
-  const data = {
-    template: template.data.map(toTemplate),
-    overrides: (overrides.data as OverrideRange[]).map(toOverrideRange),
-    busy: busyBlocksToRanges(blocks),
-  };
+  const data = { busy: busyBlocksToRanges(blocks) };
   return {
     dates,
     days: Object.fromEntries(dates.map((date) => [date, slotOccupationForDay(date, data)])),
+    notes,
     outsideGoogleWindow: isOutsideGoogleWindow(from, to),
   };
 }
 
-// Occupation (0, 0.5 or 1) of every member per slot for the week starting on `monday`.
+// Occupation (0, 0.5 or 1) of every member per slot for the week starting on
+// `monday`, plus every member's notes for that week.
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const dates = weekDates(monday);
-  const sunday = dates[6];
   const supabase = await createClient();
-  const [members, templates, overrides] = await Promise.all([
+  const [members, notes] = await Promise.all([
     supabase.from("members").select("email, name").order("name"),
-    supabase
-      .from("availability_template")
-      .select("member_email, weekday, start_time, end_time"),
-    supabase
-      .from("availability_override")
-      .select("member_email, date, start_time, end_time, kind")
-      .gte("date", monday)
-      .lte("date", sunday),
+    getWeekNotes(dates),
   ]);
-  if (members.error || templates.error || overrides.error) {
+  if (members.error) {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
   }
 
@@ -136,18 +80,9 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
 
   const occupation: OccupationByMember = {};
   members.data.forEach((member, i) => {
-    const template = templates.data
-      .filter((t) => t.member_email === member.email)
-      .map((t) => toTemplate(t as TemplateRange));
-    const memberOverrides = overrides.data
-      .filter((o) => o.member_email === member.email)
-      .map((o) => toOverrideRange(o as OverrideRange));
-    const busy = busyBlocksToRanges(busyByMember[i]);
+    const data = { busy: busyBlocksToRanges(busyByMember[i]) };
     occupation[member.email] = Object.fromEntries(
-      dates.map((date) => [
-        date,
-        occupationForDay(date, { template, overrides: memberOverrides, busy }),
-      ]),
+      dates.map((date) => [date, occupationForDay(date, data)]),
     );
   });
 
@@ -155,6 +90,7 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
     dates,
     members: members.data,
     occupation,
+    notes,
     outsideGoogleWindow: isOutsideGoogleWindow(from, to),
   };
 }

@@ -31,6 +31,7 @@ describe("eventFormSchema", () => {
       meetup_url: "https://www.meetup.com/example-group/events/123/",
       expected_attendees: 40,
       is_public: true,
+      checkin_form_id: null,
     });
   });
 
@@ -85,6 +86,21 @@ describe("eventFormSchema", () => {
       meetup_url: null,
       expected_attendees: null,
       is_public: false,
+      checkin_form_id: null,
     });
+  });
+
+  it("accepts a check-in form id and treats blank as the default form", () => {
+    const formId = "6f1c1d2e-3b4a-4c5d-8e9f-0a1b2c3d4e5f";
+    expect(eventFormSchema.parse({ ...valid, checkin_form_id: formId }).checkin_form_id).toBe(
+      formId,
+    );
+    expect(eventFormSchema.parse({ ...valid, checkin_form_id: "" }).checkin_form_id).toBeNull();
+  });
+
+  it("rejects an invalid check-in form id", () => {
+    expect(issuePaths({ ...valid, checkin_form_id: "general" })).toContain(
+      "checkin_form_id",
+    );
   });
 });

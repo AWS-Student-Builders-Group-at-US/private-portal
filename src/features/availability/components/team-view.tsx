@@ -9,13 +9,16 @@ import {
   occupationColor,
   teamOccupation,
 } from "../occupation";
+import { notesForCell } from "../notes";
 import { SLOTS_PER_DAY, minutesToTime, slotStart } from "../slots";
 import type { TeamWeek } from "../types";
+import { NoteList } from "./note-list";
 
 const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 
 // Week map: each cell is the sum of the selected members' occupation
-// (0 = everyone free, green … n = everyone busy, red).
+// (0 = everyone free, green … n = everyone busy, red). Cells covered by a
+// selected member's note show a dot; the notes are listed below the legend.
 export function TeamView({ week }: { week: TeamWeek }) {
   const [selected, setSelected] = useState(
     () => new Set(week.members.map((m) => m.email)),
@@ -26,6 +29,8 @@ export function TeamView({ week }: { week: TeamWeek }) {
   const sums = teamOccupation(week.occupation, people, week.dates);
   const common = commonFreeRanges(week.occupation, people, week.dates);
   const total = people.length;
+  const notes = week.notes.filter((note) => selected.has(note.member_email));
+  const names = new Map(week.members.map((m) => [m.email, m.name]));
 
   function toggle(email: string) {
     setSelected((current) => {
@@ -80,7 +85,14 @@ export function TeamView({ week }: { week: TeamWeek }) {
                 </div>
                 {week.dates.map((date) => {
                   const sum = sums[date][slot];
-                  const label = `${formatDay(date)} ${time}: ocupación ${formatOccupation(sum)} de ${total}`;
+                  const cellNotes = notesForCell(notes, date, slot);
+                  const noteText =
+                    cellNotes.length > 0
+                      ? ` · Notas: ${cellNotes
+                          .map((n) => `${names.get(n.member_email) ?? n.member_email}: ${n.title}`)
+                          .join(", ")}`
+                      : "";
+                  const label = `${formatDay(date)} ${time}: ocupación ${formatOccupation(sum)} de ${total}${noteText}`;
                   return (
                     <div
                       key={date}
@@ -88,12 +100,18 @@ export function TeamView({ week }: { week: TeamWeek }) {
                       title={label}
                       aria-label={label}
                       className={cn(
-                        "h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-medium text-neutral-900 tabular-nums",
+                        "relative h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-medium text-neutral-900 tabular-nums",
                         slot % 2 === 0 && "mt-px",
                       )}
                       style={{ backgroundColor: occupationColor(sum, total) }}
                     >
                       {formatOccupation(sum)}
+                      {cellNotes.length > 0 && (
+                        <span
+                          aria-hidden
+                          className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-neutral-900"
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -103,6 +121,15 @@ export function TeamView({ week }: { week: TeamWeek }) {
         </div>
       </div>
       <Legend total={total} />
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Notas del equipo</h2>
+        <NoteList
+          notes={notes}
+          authors={names}
+          empty="Las personas seleccionadas no tienen notas esta semana."
+        />
+      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Huecos en los que estáis todos</h2>
@@ -146,7 +173,7 @@ function Legend({ total }: { total: number }) {
       <p>
         Cada franja suma la ocupación de las personas seleccionadas: 1 si no puede moverlo, 0,5
         si podría moverlo. 0 (verde) = todos libres; {formatOccupation(total)} (rojo) = todos
-        ocupados.
+        ocupados. Un punto en la franja indica que alguien dejó una nota.
       </p>
     </div>
   );

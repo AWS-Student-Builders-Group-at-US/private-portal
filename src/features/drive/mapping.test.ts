@@ -58,6 +58,7 @@ describe("toDriveItem", () => {
       id: "file1",
       name: "Acta.pdf",
       kind: "pdf",
+      mimeType: "application/pdf",
       modified: "01/07/2026 12:00",
       modifiedTime: "2026-07-01T10:00:00.000Z",
       size: "2 KB",

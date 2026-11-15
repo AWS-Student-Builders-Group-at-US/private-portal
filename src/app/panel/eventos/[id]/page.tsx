@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
+import { listCheckinForms } from "@/features/checkin-forms/queries";
 import { AttendanceSection } from "@/features/checkin/components/attendance-section";
 import { EmailSection } from "@/features/emails/components/email-section";
 import { DeleteEventButton } from "@/features/events/components/delete-event-button";
@@ -19,7 +20,11 @@ export default async function EventDetailPage({
   const [{ id }, { estado }] = await Promise.all([params, searchParams]);
   const event = await getEvent(id);
   if (!event) notFound();
-  const files = await listEventFiles(event.id);
+  const [files, forms] = await Promise.all([listEventFiles(event.id), listCheckinForms()]);
+  // Same rule as the check-in page: its own form if it has a version, else the default.
+  const ownForm = forms.find((form) => form.id === event.checkin_form_id);
+  const defaultForm = forms.find((form) => form.is_default);
+  const usedForm = ownForm?.latest_version != null ? ownForm : defaultForm;
 
   const details: [string, React.ReactNode][] = [
     ["Inicio", formatMadridDateTime(event.starts_at)],
@@ -41,6 +46,19 @@ export default async function EventDetailPage({
       ),
     ],
     ["Asistentes previstos", event.expected_attendees ?? "—"],
+    [
+      "Formulario de registro",
+      usedForm ? (
+        <Link
+          href={`/panel/eventos/formularios/${usedForm.id}`}
+          className="underline underline-offset-4"
+        >
+          {usedForm === ownForm ? usedForm.name : `Por defecto (${usedForm.name})`}
+        </Link>
+      ) : (
+        "—"
+      ),
+    ],
     ["Web pública", event.is_public ? "Visible" : "Oculto"],
     ["Creado por", event.created_by],
   ];

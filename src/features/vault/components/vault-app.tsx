@@ -60,7 +60,7 @@ function UnlockedVault() {
         <Button variant="outline" onClick={lock}>
           <Lock /> Bloquear
         </Button>
-        <Link href="/panel/ajustes#boveda" className={buttonVariants({ variant: "ghost" })}>
+        <Link href="/panel/ajustes#ajustes-boveda" className={buttonVariants({ variant: "ghost" })}>
           <KeyRound /> Cambiar contraseña de la bóveda
         </Link>
       </div>

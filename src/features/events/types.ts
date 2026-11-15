@@ -18,6 +18,8 @@ export type EventDetail = {
   meetup_url: string | null;
   expected_attendees: number | null;
   is_public: boolean;
+  // Named check-in form; null = the default form.
+  checkin_form_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

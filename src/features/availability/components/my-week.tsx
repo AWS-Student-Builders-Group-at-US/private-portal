@@ -1,8 +1,23 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StickyNote, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createNote } from "../actions";
 import { formatDay } from "../dates";
+import {
+  noteCoversCell,
+  notesForCell,
+  rectFromCorners,
+  type CellRef,
+  type NoteRect,
+} from "../notes";
 import { formatOccupation, occupationColor, type SlotOccupation } from "../occupation";
 import { SLOTS_PER_DAY, minutesToTime, slotStart } from "../slots";
 import type { MyWeek } from "../types";
+import { NoteForm } from "./note-form";
+import { NoteList } from "./note-list";
 
 const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 
@@ -21,13 +36,20 @@ function describe(slot: SlotOccupation, feedLabels: Map<string, string>) {
     if (!seen.has(text)) parts.push(text);
     seen.add(text);
   }
-  if (slot.manual > 0) parts.push("Ocupado (semana habitual o cambio por fecha)");
   if (parts.length === 0) parts.push("Libre");
   return parts.join(" · ");
 }
 
-// The member's own week: 0 = free, 0,5 = could move it, 1 = can't move it.
-// Cells whose value comes from Google show a "G".
+const sameCell = (a: CellRef | null, b: CellRef | null) =>
+  !!a && !!b && a.date === b.date && a.slot === b.slot;
+
+// The member's own week, from their Google calendars: 0 = free,
+// 0,5 = could move it, 1 = can't move it. Cells with a Google block show a
+// "G"; cells covered by a note show a dot.
+//
+// "Añadir nota" mode: two corners define a rectangle of cells. Mouse: click
+// two cells or drag from one to the other. Touch: tap two cells. Keyboard:
+// arrow keys move, Enter/Space picks each corner, Escape cancels.
 export function MyWeekGrid({
   week,
   feeds,
@@ -36,12 +58,143 @@ export function MyWeekGrid({
   feeds: { id: string; label: string }[];
 }) {
   const feedLabels = new Map(feeds.map((feed) => [feed.id, feed.label]));
+  const [selecting, setSelecting] = useState(false);
+  const [anchor, setAnchor] = useState<CellRef | null>(null);
+  const [hover, setHover] = useState<CellRef | null>(null);
+  const [selection, setSelection] = useState<NoteRect | null>(null);
+  const [focus, setFocus] = useState({ day: 0, slot: 0 });
+  const gridRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const pointerType = useRef("mouse");
+
+  const preview: NoteRect | null =
+    selection ?? (anchor ? rectFromCorners(anchor, hover ?? anchor) : null);
+
+  const reset = useCallback(() => {
+    setSelecting(false);
+    setAnchor(null);
+    setHover(null);
+    setSelection(null);
+    dragging.current = false;
+  }, []);
+
+  // A drag released outside the grid keeps the first corner.
+  useEffect(() => {
+    const stop = () => (dragging.current = false);
+    window.addEventListener("pointerup", stop);
+    return () => window.removeEventListener("pointerup", stop);
+  }, []);
+
+  function finish(from: CellRef, to: CellRef) {
+    setSelection(rectFromCorners(from, to));
+    setAnchor(null);
+    setHover(null);
+    dragging.current = false;
+  }
+
+  function pick(cell: CellRef) {
+    if (selection) return;
+    if (anchor) finish(anchor, cell);
+    else {
+      setAnchor(cell);
+      setHover(cell);
+    }
+  }
+
+  function moveFocus(day: number, slot: number) {
+    const next = {
+      day: Math.min(Math.max(day, 0), week.dates.length - 1),
+      slot: Math.min(Math.max(slot, 0), SLOTS_PER_DAY - 1),
+    };
+    setFocus(next);
+    if (anchor) setHover({ date: week.dates[next.day], slot: next.slot });
+    gridRef.current
+      ?.querySelector<HTMLElement>(`[data-cell="${next.day}:${next.slot}"]`)
+      ?.focus();
+  }
+
+  function onKeyDown(event: React.KeyboardEvent, day: number, slot: number) {
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [day - 1, slot],
+      ArrowRight: [day + 1, slot],
+      ArrowUp: [day, slot - 1],
+      ArrowDown: [day, slot + 1],
+      Home: [day, 0],
+      End: [day, SLOTS_PER_DAY - 1],
+    };
+    if (moves[event.key]) {
+      event.preventDefault();
+      moveFocus(...moves[event.key]);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      pick({ date: week.dates[day], slot });
+    } else if (event.key === "Escape" && anchor) {
+      event.preventDefault();
+      setAnchor(null);
+      setHover(null);
+    }
+  }
+
+  function onPointerDown(event: React.PointerEvent, cell: CellRef) {
+    pointerType.current = event.pointerType;
+    if (selection || event.pointerType !== "mouse" || event.button !== 0) return;
+    event.preventDefault();
+    if (anchor) {
+      finish(anchor, cell);
+      return;
+    }
+    setAnchor(cell);
+    setHover(cell);
+    dragging.current = true;
+  }
+
+  function onPointerUp(event: React.PointerEvent, cell: CellRef) {
+    if (event.pointerType !== "mouse" || !dragging.current) return;
+    dragging.current = false;
+    // A plain click keeps the first corner and waits for the second one.
+    if (anchor && !sameCell(anchor, cell)) finish(anchor, cell);
+  }
+
+  // Touch and pen taps; mouse presses are handled by the pointer events.
+  function onClick(cell: CellRef) {
+    if (pointerType.current === "mouse") return;
+    pick(cell);
+  }
+
+  const status = selection
+    ? "Escribe la nota para la franja seleccionada."
+    : anchor
+      ? "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para empezar de nuevo)."
+      : "Elige la primera esquina: haz clic o toca una franja, o arrastra sobre varias.";
+
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {selecting ? (
+          <Button variant="outline" size="sm" onClick={reset}>
+            <X data-icon="inline-start" />
+            Cancelar nota
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setSelecting(true)}>
+            <StickyNote data-icon="inline-start" />
+            Añadir nota
+          </Button>
+        )}
+        {selecting && (
+          <p className="text-sm text-muted-foreground" role="status">
+            {status}
+          </p>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <div
-          className="grid min-w-[36rem] grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px"
-          role="table"
+          ref={gridRef}
+          className={cn(
+            "grid min-w-[36rem] grid-cols-[3rem_repeat(7,minmax(0,1fr))] gap-px",
+            selecting && !selection && "cursor-crosshair select-none",
+          )}
+          role={selecting ? "grid" : "table"}
           aria-label="Tu ocupación por franja"
         >
           <div role="columnheader" />
@@ -57,27 +210,53 @@ export function MyWeekGrid({
                 <div className="pr-1 text-right text-[0.65rem] leading-5 text-muted-foreground">
                   {index % 2 === 0 ? time : ""}
                 </div>
-                {week.dates.map((date) => {
+                {week.dates.map((date, day) => {
                   const slot = week.days[date][index];
-                  const fromGoogle =
-                    slot.google.length > 0 &&
-                    Math.max(...slot.google.map((hit) => hit.weight)) >= slot.manual;
-                  const label = `${formatDay(date)} ${time}: ${formatOccupation(slot.value)} · ${describe(slot, feedLabels)}`;
+                  const cell = { date, slot: index };
+                  const fromGoogle = slot.google.length > 0;
+                  const notes = notesForCell(week.notes, date, index);
+                  const selected = !!preview && noteCoversCell(preview, date, index);
+                  const noteText =
+                    notes.length > 0 ? ` · Notas: ${notes.map((n) => n.title).join(", ")}` : "";
+                  const label = `${formatDay(date)} ${time}: ${formatOccupation(slot.value)} · ${describe(slot, feedLabels)}${noteText}`;
+                  const focusable = focus.day === day && focus.slot === index;
                   return (
                     <div
                       key={date}
-                      role="cell"
+                      role={selecting ? "gridcell" : "cell"}
                       title={label}
                       aria-label={label}
+                      aria-selected={selecting ? selected : undefined}
+                      data-cell={`${day}:${index}`}
+                      tabIndex={selecting && !selection ? (focusable ? 0 : -1) : undefined}
+                      onKeyDown={
+                        selecting && !selection ? (e) => onKeyDown(e, day, index) : undefined
+                      }
+                      onFocus={selecting ? () => setFocus({ day, slot: index }) : undefined}
+                      onPointerDown={selecting ? (e) => onPointerDown(e, cell) : undefined}
+                      onPointerEnter={
+                        selecting && anchor && !selection ? () => setHover(cell) : undefined
+                      }
+                      onPointerUp={selecting ? (e) => onPointerUp(e, cell) : undefined}
+                      onClick={selecting ? () => onClick(cell) : undefined}
                       className={cn(
-                        "h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-semibold text-neutral-900",
-                        slot.value === 0 && "opacity-35",
+                        "relative h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-semibold text-neutral-900",
+                        slot.value === 0 && !selected && "opacity-35",
                         fromGoogle && "ring-1 ring-inset ring-neutral-900/50",
+                        selected && "ring-2 ring-inset ring-neutral-900",
+                        selecting &&
+                          "outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         index % 2 === 0 && "mt-px",
                       )}
                       style={{ backgroundColor: occupationColor(slot.value, 1) }}
                     >
                       {fromGoogle ? "G" : ""}
+                      {notes.length > 0 && (
+                        <span
+                          aria-hidden
+                          className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-neutral-900"
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -110,7 +289,31 @@ export function MyWeekGrid({
           </span>
           Viene de tus calendarios de Google
         </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden className="size-1.5 rounded-full bg-current" />
+          Tiene una nota
+        </li>
       </ul>
+
+      {selection && (
+        <NoteForm
+          key={JSON.stringify(selection)}
+          action={createNote}
+          rect={selection}
+          submitLabel="Guardar nota"
+          onDone={reset}
+          onCancel={reset}
+        />
+      )}
+
+      <section className="flex flex-col gap-2">
+        <h3 className="text-base font-semibold">Tus notas de esta semana</h3>
+        <NoteList
+          notes={week.notes}
+          editable
+          empty="No tienes notas esta semana. Usa «Añadir nota» para avisar al equipo, por ejemplo «No puedo presencial»."
+        />
+      </section>
     </div>
   );
 }

@@ -1,58 +1,82 @@
 import { describe, expect, it } from "vitest";
-import { overrideFormSchema, templateRangesSchema } from "./schema";
+import { noteFormSchema, noteTextSchema } from "./schema";
 
+// Form values arrive as strings (FormData).
 const valid = {
-  date: "2026-11-20",
-  start_time: "10:00",
-  end_time: "12:30",
-  kind: "busy",
+  start_date: "2026-11-17",
+  end_date: "2026-11-18",
+  start_minute: "600",
+  end_minute: "720",
+  title: "No puedo presencial",
+  body: "Solo online esa semana.",
 };
 
 function issuePaths(input: Record<string, unknown>) {
-  const result = overrideFormSchema.safeParse(input);
+  const result = noteFormSchema.safeParse(input);
   expect(result.success).toBe(false);
   return result.error!.issues.map((issue) => issue.path.join("."));
 }
 
-describe("overrideFormSchema", () => {
-  it("parses a valid override", () => {
-    expect(overrideFormSchema.parse(valid)).toEqual(valid);
+describe("noteFormSchema", () => {
+  it("parses a valid rectangle and coerces minutes to numbers", () => {
+    expect(noteFormSchema.parse(valid)).toEqual({
+      ...valid,
+      start_minute: 600,
+      end_minute: 720,
+    });
   });
 
-  it("rejects an impossible date", () => {
-    expect(issuePaths({ ...valid, date: "2026-02-30" })).toContain("date");
+  it("trims the text and defaults an empty body", () => {
+    const parsed = noteFormSchema.parse({ ...valid, title: "  Viaje  ", body: undefined });
+    expect(parsed.title).toBe("Viaje");
+    expect(parsed.body).toBe("");
   });
 
-  it("rejects malformed times", () => {
-    expect(issuePaths({ ...valid, start_time: "25:00" })).toContain("start_time");
-    expect(issuePaths({ ...valid, end_time: "9" })).toContain("end_time");
+  it("accepts a one-day, one-slot note", () => {
+    const parsed = noteFormSchema.parse({
+      ...valid,
+      end_date: valid.start_date,
+      start_minute: "1290",
+      end_minute: "1320",
+    });
+    expect(parsed.end_minute - parsed.start_minute).toBe(30);
   });
 
-  it("requires the end after the start", () => {
-    expect(issuePaths({ ...valid, end_time: "10:00" })).toContain("end_time");
+  it("rejects impossible dates and an end date before the start", () => {
+    expect(issuePaths({ ...valid, start_date: "2026-02-30" })).toContain("start_date");
+    expect(issuePaths({ ...valid, end_date: "2026-11-16" })).toContain("end_date");
   });
 
-  it("rejects an unknown kind", () => {
-    expect(issuePaths({ ...valid, kind: "maybe" })).toContain("kind");
+  it("rejects ranges longer than 31 days", () => {
+    expect(issuePaths({ ...valid, end_date: "2026-12-19" })).toContain("end_date");
+  });
+
+  it("rejects minutes off the grid, outside it, or inverted", () => {
+    expect(issuePaths({ ...valid, start_minute: "610" })).toContain("start_minute");
+    expect(issuePaths({ ...valid, start_minute: "420" })).toContain("start_minute");
+    expect(issuePaths({ ...valid, end_minute: "1350" })).toContain("end_minute");
+    expect(issuePaths({ ...valid, end_minute: "600" })).toContain("end_minute");
+    expect(issuePaths({ ...valid, start_minute: "abc" })).toContain("start_minute");
+  });
+
+  it("requires a title of at most 120 characters", () => {
+    expect(issuePaths({ ...valid, title: "   " })).toContain("title");
+    expect(issuePaths({ ...valid, title: "x".repeat(121) })).toContain("title");
+    expect(noteFormSchema.safeParse({ ...valid, title: "x".repeat(120) }).success).toBe(true);
+  });
+
+  it("limits the content to 2000 characters", () => {
+    expect(issuePaths({ ...valid, body: "x".repeat(2001) })).toContain("body");
+    expect(noteFormSchema.safeParse({ ...valid, body: "x".repeat(2000) }).success).toBe(true);
   });
 });
 
-describe("templateRangesSchema", () => {
-  it("accepts ranges on the grid", () => {
-    const ranges = [{ weekday: 0, start_time: "10:00", end_time: "11:00" }];
-    expect(templateRangesSchema.parse(ranges)).toEqual(ranges);
-  });
-
-  it("rejects bad weekdays and inverted ranges", () => {
-    expect(
-      templateRangesSchema.safeParse([
-        { weekday: 7, start_time: "10:00", end_time: "11:00" },
-      ]).success,
-    ).toBe(false);
-    expect(
-      templateRangesSchema.safeParse([
-        { weekday: 1, start_time: "11:00", end_time: "10:00" },
-      ]).success,
-    ).toBe(false);
+describe("noteTextSchema", () => {
+  it("validates only the title and content of an edit", () => {
+    expect(noteTextSchema.parse({ title: " Viaje ", body: "" })).toEqual({
+      title: "Viaje",
+      body: "",
+    });
+    expect(noteTextSchema.safeParse({ title: "", body: "" }).success).toBe(false);
   });
 });

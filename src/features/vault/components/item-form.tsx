@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, FileInput, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { errorMessage, type VaultItem } from "../data";
-import { MAX_CUSTOM_FIELDS, vaultItemFormSchema } from "../schema";
+import { mergeEnvFields, parseEnv } from "../env";
+import { MAX_CUSTOM_FIELDS, vaultItemFormSchema, type VaultItemKind } from "../schema";
 import { NO_AUTOFILL, NO_AUTOFILL_FORM, SecretInput, inputClass } from "./secret-input";
 import { FormError } from "./vault-gate";
 import { useVault } from "./vault-provider";
@@ -15,8 +16,12 @@ import { useVault } from "./vault-provider";
 const TEXT_FIELDS = [
   { name: "item-title", key: "label", label: "Nombre", type: "text" },
   { name: "item-group", key: "category", label: "Categoría (opcional)", type: "text" },
-  { name: "item-account", key: "username", label: "Usuario", type: "text" },
 ] as const;
+
+const KIND_OPTIONS: { value: VaultItemKind; label: string }[] = [
+  { value: "account", label: "Cuenta" },
+  { value: "secret", label: "Secret / API key" },
+];
 
 type DraftField = { uid: string; name: string; value: string; secret: boolean };
 
@@ -34,9 +39,18 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
   const { save } = useVault();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [kind, setKind] = useState<VaultItemKind>(item?.payload?.kind ?? "account");
   const [fields, setFields] = useState<DraftField[]>(() =>
     (item?.payload?.fields ?? []).map((field) => ({ uid: newUid(), ...field })),
   );
+  const [envText, setEnvText] = useState<string | null>(null);
+  const [envMessage, setEnvMessage] = useState<string | null>(null);
+  const isSecret = kind === "secret";
+  // Switching an existing account to a secret item discards these values on save.
+  const dropsAccountValues =
+    isSecret &&
+    item?.payload?.kind === "account" &&
+    Boolean(item.payload.username || item.payload.password || item.payload.url);
   const defaults: Record<string, string> = {
     label: item?.label ?? "",
     category: item?.category ?? "",
@@ -59,6 +73,34 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
       [...list, ...added.map((field) => ({ uid: newUid(), ...field }))].slice(0, MAX_CUSTOM_FIELDS),
     );
 
+  // Imports pasted `.env` text into the fields (same names are overwritten).
+  function importEnv() {
+    const { entries, invalid } = parseEnv(envText ?? "");
+    if (entries.length === 0) {
+      setEnvMessage(
+        invalid.length > 0
+          ? `No se encontró ninguna variable válida (líneas ${invalid.join(", ")}).`
+          : "Pega líneas con el formato NOMBRE=valor.",
+      );
+      return;
+    }
+    const merged = mergeEnvFields(
+      fields.map(({ name, value, secret }) => ({ name, value, secret })),
+      entries,
+    );
+    if (!merged.ok) {
+      setEnvMessage(merged.error);
+      return;
+    }
+    // Merged fields keep the existing order and append new ones, so uids line up.
+    setFields(merged.fields.map((field, index) => ({ uid: fields[index]?.uid ?? newUid(), ...field })));
+    setEnvText(null);
+    setEnvMessage(
+      `Importadas ${entries.length} variables.` +
+        (invalid.length > 0 ? ` Se ignoraron las líneas ${invalid.join(", ")}.` : ""),
+    );
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -66,9 +108,11 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
     const parsed = vaultItemFormSchema.safeParse({
       label: get("item-title"),
       category: get("item-group"),
-      username: get("item-account"),
-      password: get("item-secret"),
-      url: get("item-link"),
+      kind,
+      // Hidden account inputs are not validated for secret items.
+      username: isSecret ? "" : get("item-account"),
+      password: isSecret ? "" : get("item-secret"),
+      url: isSecret ? "" : get("item-link"),
       notes: get("item-memo"),
       fields: fields.map(({ name, value, secret }) => ({ name, value, secret })),
     });
@@ -113,24 +157,62 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
           />
         </div>
       ))}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="item-secret" className="text-sm font-medium">
-          Contraseña
-        </label>
-        <SecretInput id="item-secret" name="item-secret" defaultValue={defaults.password} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="item-link" className="text-sm font-medium">
-          URL
-        </label>
-        <input
-          id="item-link"
-          name="item-link"
-          type="url"
-          defaultValue={defaults.url}
-          className={inputClass}
-          {...NO_AUTOFILL}
-        />
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">Tipo</legend>
+        <div className="flex flex-wrap gap-4">
+          {KIND_OPTIONS.map((option) => (
+            <label key={option.value} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="item-kind"
+                value={option.value}
+                checked={kind === option.value}
+                onChange={() => setKind(option.value)}
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {dropsAccountValues && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Al guardar como Secret / API key se descartan el usuario, la contraseña y la URL.
+        </p>
+      )}
+      {/* Account inputs stay mounted (hidden) so switching type back keeps what was typed. */}
+      <div className={isSecret ? "hidden" : "flex flex-col gap-4"}>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="item-account" className="text-sm font-medium">
+            Usuario
+          </label>
+          <input
+            id="item-account"
+            name="item-account"
+            type="text"
+            defaultValue={defaults.username}
+            className={inputClass}
+            {...NO_AUTOFILL}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="item-secret" className="text-sm font-medium">
+            Contraseña
+          </label>
+          <SecretInput id="item-secret" name="item-secret" defaultValue={defaults.password} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="item-link" className="text-sm font-medium">
+            URL
+          </label>
+          <input
+            id="item-link"
+            name="item-link"
+            type="url"
+            defaultValue={defaults.url}
+            className={inputClass}
+            {...NO_AUTOFILL}
+          />
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="item-memo" className="text-sm font-medium">
@@ -147,16 +229,19 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
       </div>
 
       <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
-        <legend className="px-1 text-sm font-medium">Campos adicionales</legend>
+        <legend className="px-1 text-sm font-medium">
+          {isSecret ? "Claves y valores" : "Campos adicionales"}
+        </legend>
         <p className="text-xs text-muted-foreground">
-          Por ejemplo, para Google OAuth: client ID, client secret, proyecto y URI de
-          redirección. Marca como secretos los valores que deban ocultarse.
+          {isSecret
+            ? "Una entrada por clave (por ejemplo, STRIPE_SECRET_KEY). Los valores se ocultan por defecto. Puedes importar un archivo .env pegando su contenido."
+            : "Por ejemplo, para Google OAuth: client ID, client secret, proyecto y URI de redirección. Marca como secretos los valores que deban ocultarse."}
         </p>
         {fields.map((field, index) => (
           <div key={field.uid} className="flex flex-col gap-2 rounded-lg bg-muted/40 p-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor={`cf-name-${field.uid}`} className="text-xs font-medium">
-                Nombre del campo
+                {isSecret ? "Clave" : "Nombre del campo"}
               </label>
               <input
                 id={`cf-name-${field.uid}`}
@@ -235,23 +320,80 @@ export function ItemForm({ item, onDone }: { item?: VaultItem; onDone: () => voi
             size="sm"
             variant="outline"
             disabled={fields.length >= MAX_CUSTOM_FIELDS}
-            onClick={() => addFields([{ name: "", value: "", secret: false }])}
+            onClick={() => addFields([{ name: "", value: "", secret: isSecret }])}
           >
-            <Plus /> Añadir campo
+            <Plus /> {isSecret ? "Añadir clave" : "Añadir campo"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            disabled={fields.length + GOOGLE_OAUTH.length > MAX_CUSTOM_FIELDS}
-            onClick={() => addFields(GOOGLE_OAUTH)}
-          >
-            <Plus /> Campos de Google OAuth
-          </Button>
+          {isSecret ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-expanded={envText !== null}
+              aria-controls="env-import"
+              onClick={() => {
+                setEnvText((text) => (text === null ? "" : null));
+                setEnvMessage(null);
+              }}
+            >
+              <FileInput /> Importar .env
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={fields.length + GOOGLE_OAUTH.length > MAX_CUSTOM_FIELDS}
+              onClick={() => addFields(GOOGLE_OAUTH)}
+            >
+              <Plus /> Campos de Google OAuth
+            </Button>
+          )}
         </div>
+        {isSecret && envText !== null && (
+          <div id="env-import" className="flex flex-col gap-2">
+            <label htmlFor="env-text" className="text-xs font-medium">
+              Contenido del archivo .env
+            </label>
+            <textarea
+              id="env-text"
+              rows={5}
+              value={envText}
+              onChange={(event) => setEnvText(event.target.value)}
+              placeholder={"API_KEY=valor\nexport REGION=\"eu-west-1\""}
+              className={`${inputClass} font-mono`}
+              {...NO_AUTOFILL}
+            />
+            <p className="text-xs text-muted-foreground">
+              Se ignoran los comentarios y las líneas vacías. Las claves que ya existen se
+              sobrescriben.
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={importEnv}>
+                Importar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEnvText(null);
+                  setEnvMessage(null);
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        )}
+        {envMessage && (
+          <p className="text-xs text-muted-foreground" role="status">
+            {envMessage}
+          </p>
+        )}
         {fields.length >= MAX_CUSTOM_FIELDS && (
           <p className="text-xs text-muted-foreground">
-            Se admiten como máximo {MAX_CUSTOM_FIELDS} campos adicionales.
+            Se admiten como máximo {MAX_CUSTOM_FIELDS} {isSecret ? "claves" : "campos adicionales"}.
           </p>
         )}
       </fieldset>

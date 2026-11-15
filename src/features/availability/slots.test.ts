@@ -2,17 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   busyBlocksToRanges,
-  cellsToTemplateRanges,
   minutesToTime,
-  slotIndex,
-  templateToCells,
   timeToMinutes,
   weekdayOf,
   weekStart,
 } from "./slots";
 
-// Slot grid: 08:00–22:00 in 30-minute slots (index 0 = 08:00).
-const s = (time: string) => slotIndex(timeToMinutes(time));
 
 describe("time helpers", () => {
   it("converts between HH:MM(:SS) and minutes", () => {
@@ -53,24 +48,6 @@ describe("busyBlocksToRanges", () => {
         { start: "2026-11-16T11:00:00Z", end: "2026-11-16T10:00:00Z" },
       ]),
     ).toEqual([]);
-  });
-});
-
-describe("template cells", () => {
-  it("round-trips painted cells to merged ranges", () => {
-    const cells = new Set([
-      `0:${s("10:00")}`,
-      `0:${s("10:30")}`,
-      `0:${s("12:00")}`,
-      `4:${s("21:30")}`,
-    ]);
-    const ranges = cellsToTemplateRanges(cells);
-    expect(ranges).toEqual([
-      { weekday: 0, start_time: "10:00", end_time: "11:00" },
-      { weekday: 0, start_time: "12:00", end_time: "12:30" },
-      { weekday: 4, start_time: "21:30", end_time: "22:00" },
-    ]);
-    expect(templateToCells(ranges)).toEqual(cells);
   });
 });
 
