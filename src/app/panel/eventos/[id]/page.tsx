@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { AttendanceSection } from "@/features/checkin/components/attendance-section";
+import { EmailSection } from "@/features/emails/components/email-section";
 import { DeleteEventButton } from "@/features/events/components/delete-event-button";
 import { EventFiles } from "@/features/events/components/event-files";
 import { StatusMessage } from "@/features/events/components/status-message";
@@ -86,6 +87,11 @@ export default async function EventDetailPage({
         fallback={<p className="text-sm text-muted-foreground">Cargando tareas…</p>}
       >
         <EventTasks eventId={event.id} />
+      </Suspense>
+      <Suspense
+        fallback={<p className="text-sm text-muted-foreground">Cargando correo…</p>}
+      >
+        <EmailSection event={event} />
       </Suspense>
       <EventFiles eventId={event.id} files={files} />
       <DeleteEventButton eventId={event.id} />

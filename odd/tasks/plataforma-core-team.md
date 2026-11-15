@@ -134,6 +134,15 @@ Workflow for two people:
     (parent spot check); parent checked grants and the unsubscribe route.
   - All three: lint and placeholder build pass (writers). Not run against real Supabase/Gmail.
   - Follow-up: `src/lib/supabase/admin.ts` comment still names only check-in as admin user.
+- 2026-11-15: vault (#5), calendars (#6) and emails (#7) merged into `main` after resolving
+  conflicts with José's T4–T6 (187/187 tests, lint and build on `main`). José's #9, #10, #11
+  reviewed (not commented by user decision); #10 must not merge before fixing self-approval
+  (`created_by` not forced on insert) and public image overwrite/delete.
+- Maintenance bundle on `feat/maintenance` (one PR, user asked for fewer PRs): daily Vercel cron
+  `/api/cron/diario` (`CRON_SECRET`, constant-time check; deletes `checkin_attempts` > 24 h,
+  keep-alive read, calendar refresh within 40 s budget), `noindex` on `/panel`, admin client
+  comment, README deployment checklist, ESLint ignores `.claude/**`. Tests 199/199, lint clean
+  (parent re-ran both); parent read the cron auth and route.
 - Engram mirror: pending (save call could not be reviewed by auto mode).
 
 ## Next step
