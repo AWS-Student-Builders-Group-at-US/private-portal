@@ -52,3 +52,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Branching and delivery
+
+- `main` is production: Vercel deploys every merge to `main`, and the "Database migrations"
+  workflow applies new files in `supabase/migrations/` to the production Supabase project.
+- `trunk` is the integration branch. Feature branches start from `trunk` and open a PR into
+  `trunk`; when `trunk` is ready, open a PR `trunk` -> `main`.
+- Nobody pushes to `main` or `trunk` directly; both require a PR with the `checks` CI job
+  (lint, tests, build) green, and PRs into `main` must come from `trunk` (`source-branch` job).
+- Migrations must be backward compatible with the code that is still live while Vercel deploys:
+  add columns with defaults or new tables; never drop or rename in the same release.
