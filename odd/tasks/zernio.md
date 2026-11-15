@@ -63,6 +63,9 @@ Route for Z1–Z3: delegated direct (writer trigger: 2+ non-trivial files).
 - Checks: `npm run lint` clean; `npm test` 51 files / 400 tests passed; `npx tsc --noEmit` clean;
   `npm run build` (placeholder env) compiled, `/api/webhooks/zernio` dynamic.
 
+- Commits: Z1 `282fcf1`, Z2 `b4a5896`, Z3 `9a40f76` (branch `feat/zernio`, not pushed).
+  Final checks ran on the full tree, not per commit.
+
 ## Not verified
 
 - Zernio response shapes (`GET /posts/{id}` wrapper, list pagination cursor, accounts fields) and
