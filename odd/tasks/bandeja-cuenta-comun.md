@@ -24,7 +24,7 @@ member can read that account's inbox, read-only, from `/panel/correo` (#31).
 - [x] B1 (#32) Common account hidden + only manager of members: migration
       `20261129000000_common_account.sql`, `ensureCommonAccountSetting()` (cron + Ajustes render),
       server-side filtering of people lists, read-only Ajustes → Miembros for everyone else.
-- [ ] B2 (#31) Read-only inbox: `imapflow` + `mailparser`, `src/features/inbox`, `/panel/correo`
+- [x] B2 (#31) Read-only inbox: `imapflow` + `mailparser`, `src/features/inbox`, `/panel/correo`
       list + detail, nav item "Correo", docs.
 
 ## Acceptance criteria
@@ -70,3 +70,23 @@ Route for B1 and B2: delegated direct (writer trigger: 2+ non-trivial files).
   assigned to the common account) can still show the address; the common account is not expected
   to create tasks.
 - Checks: lint clean, `npm test` 52 files / 410 tests passed, `tsc --noEmit` clean, build OK.
+- Commit: `832494b` feat(members): common account hidden and sole manager of members.
+
+### B2 (#31)
+
+- Test-first: `nav-items.test.ts` updated ("Correo" before "Ajustes") and
+  `src/features/inbox/inbox.test.ts` written first; RED observed (3 nav tests failed, inbox module
+  missing), then GREEN (22 tests).
+- Dependencies: `imapflow@^2.12.0`, `mailparser@^3.14.4` (both ship types; no `@types/*`).
+- `src/features/inbox/imap.ts` (server-only): one connection per request to `imap.gmail.com:993`
+  (TLS, 10 s connection/greeting timeouts, logger off, auto-IDLE off), INBOX via
+  `getMailboxLock(…, { readOnly: true })` (EXAMINE, verified in imapflow `select.js`), bodies via
+  `source` (BODY.PEEK, verified in imapflow `fetch.js`), logout in `finally`. Errors return
+  `not_configured` / `unavailable` and log only a generic line.
+- `/panel/correo`: 25 per page newest first, "Más antiguos"/"Más recientes", search (IMAP OR
+  subject/from), unread dot. `/panel/correo/[uid]`: uid validated (`parseUid`, else 404), headers,
+  HTML in `<iframe sandbox="">` with the CSP meta first, else plain text; attachments names + sizes.
+- Docs: AGENTS.md (Gmail readers, inbox safety rules), README (inbox section).
+- Not verified: a live Gmail IMAP session (no credentials in this environment).
+- Checks: lint clean, `npm test` 53 files / 426 tests passed, `tsc --noEmit` clean, build OK
+  (`/panel/correo`, `/panel/correo/[uid]` partial prerender).

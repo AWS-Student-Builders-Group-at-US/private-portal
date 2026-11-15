@@ -162,9 +162,28 @@ recipient). A daily cap of 450 recipients in 24 h keeps the account under Gmail'
 
 Server-only environment variables (never `NEXT_PUBLIC_*`):
 
-- `GMAIL_USER` — the group's Gmail address used as sender.
+- `GMAIL_USER` — the group's Gmail address used as sender (also the common account and the
+  inbox shown in `/panel/correo`).
 - `GMAIL_APP_PASSWORD` — a Gmail app password for that account (requires 2-Step Verification).
 - `NEXT_PUBLIC_SITE_URL` is required for sending: unsubscribe links are built from it.
+
+## Common account inbox
+
+`/panel/correo` ("Correo" in the menu) shows the inbox of the group's common account (the Gmail in
+`GMAIL_USER`, which the AWS account is registered with) to every member, read-only. It reuses
+`GMAIL_USER` and `GMAIL_APP_PASSWORD` (no new variables) and reads Gmail live over IMAP
+(`imap.gmail.com:993`, TLS, 10 s connection timeout; `src/features/inbox`):
+
+- INBOX is opened read-only (EXAMINE) and messages are fetched with BODY.PEEK, so nothing is marked
+  as read; the app never moves, deletes, flags or sends anything. Emails are not stored.
+- The list shows 25 messages per page, newest first, with "Más antiguos" and an optional search by
+  subject or sender. The detail page shows headers, the text body, and attachment names and sizes
+  (no downloads).
+- HTML bodies render in `<iframe sandbox="">` with a Content Security Policy
+  (`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:`): no scripts,
+  forms or navigation, and remote images (trackers) never load.
+- Gmail must allow IMAP for that account; if the credentials are missing or
+  Gmail is unreachable, the page shows a friendly error.
 
 ## Daily maintenance
 

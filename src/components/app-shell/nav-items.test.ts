@@ -19,6 +19,7 @@ describe("navigation items", () => {
       "Recursos",
       "Sugerencias",
       "Bóveda",
+      "Correo",
       "Ajustes",
     ]);
     expect(NAV_ITEMS.some((item) => item.href.startsWith("/panel/mas"))).toBe(false);
@@ -36,6 +37,7 @@ describe("navigation items", () => {
       "Recursos",
       "Sugerencias",
       "Bóveda",
+      "Correo",
       "Ajustes",
     ]);
   });
@@ -64,6 +66,7 @@ describe("isMenuActive", () => {
     expect(isMenuActive("/panel/ajustes")).toBe(true);
     expect(isMenuActive("/panel/recursos/abc-1")).toBe(true);
     expect(isMenuActive("/panel/publicaciones/nueva")).toBe(true);
+    expect(isMenuActive("/panel/correo/42")).toBe(true);
     expect(isMenuActive("/panel/eventos/formularios")).toBe(false);
     expect(isMenuActive("/panel")).toBe(false);
   });
