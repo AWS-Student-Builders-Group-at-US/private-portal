@@ -2,11 +2,11 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBusyBlocks } from "./ics-parse";
 import { parseGoogleIcalUrl } from "./url";
+import { googleWindow } from "./window";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_ICS_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 class FeedError extends Error {}
 
@@ -61,26 +61,34 @@ export async function fetchIcs(url: string): Promise<string> {
   throw new FeedError("Redirección no permitida.");
 }
 
-type FeedRow = { id: string; ics_url: string };
+type FeedRow = { id: string; ics_url: string; weight: number | string | null };
 
 /**
  * Re-fetches every feed of one member with the admin client and replaces that
- * feed's busy blocks (window: yesterday to +60 days). Failures are recorded in
- * `last_error` per feed and the previous blocks are kept; never throws.
+ * feed's busy blocks (window: GOOGLE_WINDOW_DAYS back and ahead), copying the
+ * feed weight.
+ * Failures are recorded in `last_error` per feed and the previous blocks are
+ * kept; never throws.
  */
 export async function refreshBusyBlocks(email: string): Promise<void> {
   const memberEmail = email.toLowerCase();
+  let admin: ReturnType<typeof createAdminClient>;
   try {
-    const admin = createAdminClient();
+    admin = createAdminClient();
+  } catch {
+    console.error(
+      "refreshBusyBlocks: cannot create the Supabase admin client (check the server secret key configuration); keeping cached busy blocks.",
+    );
+    return;
+  }
+  try {
     const { data: feeds, error } = await admin
       .from("calendar_feeds")
-      .select("id, ics_url")
+      .select("id, ics_url, weight")
       .eq("member_email", memberEmail);
     if (error || !feeds) return;
 
-    const now = new Date();
-    const from = new Date(now.getTime() - DAY_MS);
-    const to = new Date(now.getTime() + 60 * DAY_MS);
+    const { from, to } = googleWindow();
 
     await Promise.all(
       (feeds as FeedRow[]).map(async (feed) => {
@@ -99,6 +107,7 @@ export async function refreshBusyBlocks(email: string): Promise<void> {
                 feed_id: feed.id,
                 starts_at: block.start.toISOString(),
                 ends_at: block.end.toISOString(),
+                weight: Number(feed.weight) === 0.5 ? 0.5 : 1,
               })),
             );
             if (insertError) throw new FeedError("No se pudieron guardar los horarios.");
@@ -114,6 +123,6 @@ export async function refreshBusyBlocks(email: string): Promise<void> {
       }),
     );
   } catch {
-    // Missing configuration or network failure: keep the cached blocks.
+    // Network or database failure: keep the cached blocks.
   }
 }

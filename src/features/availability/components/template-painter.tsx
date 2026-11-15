@@ -76,8 +76,10 @@ export function TemplatePainter({ initial }: { initial: TemplateRange[] }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        Pinta las franjas en las que sueles estar libre cada semana. Pulsa y
-        arrastra; si empiezas sobre una franja pintada, la borras.
+        Pinta las franjas en las que sueles estar libre cada semana; el resto
+        de ese día contará como ocupado (1). Si no pintas nada, solo cuentan tus
+        calendarios de Google y tus cambios por fecha. Pulsa y arrastra; si
+        empiezas sobre una franja pintada, la borras.
       </p>
       <div className="overflow-x-auto">
         <div

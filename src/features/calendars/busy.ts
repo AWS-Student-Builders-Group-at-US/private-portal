@@ -4,13 +4,16 @@ import { refreshBusyBlocks } from "./refresh";
 
 const STALE_AFTER = "15 minutes";
 
+export type BusyBlockRow = { start: Date; end: Date; weight: number; feedId: string };
+
 /**
  * Busy intervals of one member between `from` and `to`, for the team
  * availability view.
  *
  * - Server-only; reads `calendar_busy_blocks` with the caller's session, so the
  *   caller must be a signed-in member (non-members get `[]`).
- * - Returns only times (no titles, descriptions or locations), sorted by
+ * - Returns only times plus the feed weight (1 = can't move, 0.5 = could
+ *   move) and feed id (no titles, descriptions or locations), sorted by
  *   start and clipped to [from, to). Blocks from different feeds of the same
  *   member are not merged and may overlap.
  * - If any of that member's feeds was last fetched more than 15 minutes ago,
@@ -23,7 +26,7 @@ export async function getBusyBlocks(
   email: string,
   from: Date,
   to: Date,
-): Promise<{ start: Date; end: Date }[]> {
+): Promise<BusyBlockRow[]> {
   const memberEmail = email.toLowerCase();
   const supabase = await createClient();
 
@@ -35,7 +38,7 @@ export async function getBusyBlocks(
 
   const { data, error } = await supabase
     .from("calendar_busy_blocks")
-    .select("starts_at, ends_at")
+    .select("starts_at, ends_at, weight, feed_id")
     .eq("member_email", memberEmail)
     .lt("starts_at", to.toISOString())
     .gt("ends_at", from.toISOString())
@@ -45,5 +48,7 @@ export async function getBusyBlocks(
   return data.map((row) => ({
     start: new Date(Math.max(new Date(row.starts_at).getTime(), from.getTime())),
     end: new Date(Math.min(new Date(row.ends_at).getTime(), to.getTime())),
+    weight: Number(row.weight) === 0.5 ? 0.5 : 1,
+    feedId: row.feed_id,
   }));
 }

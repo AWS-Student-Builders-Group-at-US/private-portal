@@ -4,9 +4,13 @@ import { maskIcsUrl } from "./url";
 
 export const MAX_FEEDS_PER_MEMBER = 5;
 
+// 1 = "No lo puedo mover", 0.5 = "Lo podría mover".
+export type FeedWeight = 1 | 0.5;
+
 export type FeedSummary = {
   id: string;
   label: string;
+  weight: FeedWeight;
   masked_url: string;
   last_fetched_at: string | null;
   last_error: string | null;
@@ -18,10 +22,14 @@ export async function listMyFeeds(): Promise<FeedSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendar_feeds")
-    .select("id, label, ics_url, last_fetched_at, last_error")
+    .select("id, label, weight, ics_url, last_fetched_at, last_error")
     .order("created_at", { ascending: true });
   if (error) throw new Error("No se pudieron cargar tus calendarios.");
-  return data.map(({ ics_url, ...feed }) => ({ ...feed, masked_url: maskIcsUrl(ics_url) }));
+  return data.map(({ ics_url, weight, ...feed }) => ({
+    ...feed,
+    weight: Number(weight) === 0.5 ? 0.5 : 1,
+    masked_url: maskIcsUrl(ics_url),
+  }));
 }
 
 // The member's export token, created on first use.
