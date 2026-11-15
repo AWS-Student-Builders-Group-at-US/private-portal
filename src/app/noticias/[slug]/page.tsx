@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { previewText } from "@/features/posts/content";
 import { publicMediaUrl } from "@/features/posts/media";
 import { SITE } from "@/features/site/config";
-import { formatNewsDate } from "@/features/site/components/news-card";
+import { formatNewsDate, PlatformLinks } from "@/features/site/components/news-card";
 import { SitePage } from "@/features/site/components/primitives";
 import { SiteFooter, SiteHeader } from "@/features/site/components/site-chrome";
 import { getNewsItem } from "@/features/site/queries";
@@ -54,6 +54,7 @@ async function Article({ params }: { params: PageProps<"/noticias/[slug]">["para
           <time dateTime={item.published_on}>{formatNewsDate(item.published_on)}</time> · {readingMinutes(item.body)} min de lectura
         </p>
         <h1 className="text-3xl font-semibold break-words sm:text-4xl">{item.title}</h1>
+        <PlatformLinks urls={item.platform_urls} className="flex flex-wrap gap-x-5 gap-y-1" />
       </header>
       {item.image_path && (
         // eslint-disable-next-line @next/next/no-img-element -- public bucket image
