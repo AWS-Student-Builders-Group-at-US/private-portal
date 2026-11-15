@@ -68,6 +68,8 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
    | `CRON_SECRET` | secret | Random string (at least 16 characters); Vercel sends it to the daily cron |
    | `GOOGLE_SERVICE_ACCOUNT_KEY` | secret | Service account JSON key, base64-encoded (see *Drive folder in Recursos*) |
    | `GOOGLE_DRIVE_FOLDER_ID` | secret | Optional fallback Drive folder id when none is set in Ajustes |
+   | `ZERNIO_API_KEY` | secret | Zernio API key (`sk_…`); the server fetches posts and accounts with it (see *Zernio*) |
+   | `ZERNIO_WEBHOOK_SECRET` | secret | Shared secret of the Zernio webhook; signs every delivery |
 6. **Add redirect URLs.** In Supabase *Authentication → URL Configuration*, set the Site URL to
    the production URL and add these redirect URLs:
    - `https://<your-app>.vercel.app/auth/callback`
@@ -166,9 +168,42 @@ missing every request is rejected. The job:
 
 - deletes `checkin_attempts` rows (hashed IPs) older than 24 hours;
 - makes a small read so the Supabase Free project does not pause for inactivity;
-- refreshes every member's Google calendar busy blocks, in parallel within a time budget.
+- refreshes every member's Google calendar busy blocks, in parallel within a time budget;
+- deletes Zernio webhook dedupe rows (`zernio_webhook_events`) older than 30 days and, when
+  `ZERNIO_API_KEY` is set, re-syncs Zernio posts updated in the last 48 hours (fallback for
+  missed webhooks), within the same budget.
 
-It returns `{ ok, deletedAttempts, refreshedMembers, failedMembers }` and logs counts only.
+It returns `{ ok, deletedAttempts, deletedWebhookEvents, refreshedMembers, failedMembers, zernio }`
+and logs counts only.
+
+## Zernio
+
+Social posts for Instagram and LinkedIn are planned in [Zernio](https://zernio.com). Every
+planned post is copied into `public.posts` (`source = 'zernio'`, read-only in the panel) and,
+once Zernio publishes it, it appears in the public news section with "Ver en Instagram /
+LinkedIn" links. Members can hide any post from the website with "Mostrar en la web".
+
+- `POST /api/webhooks/zernio` is public; it only accepts requests whose `X-Zernio-Signature` is
+  the lowercase hex HMAC-SHA256 of the raw body with `ZERNIO_WEBHOOK_SECRET` (otherwise `401`).
+  Each event id is stored once (`zernio_webhook_events`), so retries answer `200 duplicate`.
+  The post is then fetched from the Zernio API after the response and upserted with the
+  server-only client; its first image is copied to the `public-media` bucket
+  (`posts/zernio-<id>.<ext>`, JPEG/PNG/WebP up to 5 MB).
+- Status mapping: scheduled → *Aprobada*; published or partial with at least one live
+  platform → *Publicada* (shown on the site); failed → *Borrador* with an error; draft or
+  cancelled → *Borrador*. Rows are never deleted by the sync.
+- *Ajustes → Publicaciones* shows whether the key is set (never the key), the connected
+  accounts, the last webhook event, the webhook URL and a "Sincronizar ahora" button (last 30
+  days).
+
+Setup:
+
+1. Create an API key in Zernio and set it as `ZERNIO_API_KEY` in Vercel (server-only).
+2. Generate a random secret (`openssl rand -hex 32`) and set it as `ZERNIO_WEBHOOK_SECRET`.
+3. In Zernio, create a webhook pointing to `<site>/api/webhooks/zernio` with that secret and the
+   post events (`post.*`), then redeploy.
+4. Connect the group's Instagram professional account and LinkedIn page in Zernio, and use
+   "Sincronizar ahora" once to import already planned posts.
 
 ## Post-deploy smoke tests
 

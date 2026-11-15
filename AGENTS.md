@@ -19,7 +19,7 @@ Guidance for humans and coding agents working on this repository.
 - `src/app/panel/` — member-only routes (`/panel/*`) behind the access gate
   (`src/lib/auth/member.ts`). Only `/panel/*` requires login (`src/lib/supabase/proxy.ts`).
 - `src/app/page.tsx` (`/`), `src/app/login`, `src/app/no-access`, `src/app/auth/callback` — public,
-  outside the gate, as do `/checkin/*`, `/baja/*`, `/api/baja/*`, `/api/cron/*` and `/privacidad`. Future public routes (`/noticias*`) also stay outside it.
+  outside the gate, as do `/checkin/*`, `/baja/*`, `/api/baja/*`, `/api/cron/*`, `/api/webhooks/*` and `/privacidad`. Future public routes (`/noticias*`) also stay outside it.
 - `src/features/<feature>/` — code for each future feature (components, server actions, queries).
 - `src/components/ui/` — generated shadcn/ui components; `src/components/` — shared app components.
 - `supabase/migrations/` — one plain SQL migration per feature, named `<timestamp>_<feature>.sql`.
@@ -33,8 +33,12 @@ Guidance for humans and coding agents working on this repository.
   public check-in flow (`src/features/checkin`, which also serves `/privacidad`), the calendar
   feeds (`src/features/calendars` refresh, `src/app/api/calendario.ics`) and community emails
   (`src/features/emails`: public unsubscribe by token, and server-only tables written after a
-  membership check) and the daily maintenance cron (`src/app/api/cron/diario`, authorized by
-  `CRON_SECRET`) may use that client. Keep this list in sync with the comment in `admin.ts`.
+  membership check), the daily maintenance cron (`src/app/api/cron/diario`, authorized by
+  `CRON_SECRET`) and the Zernio sync (`src/features/zernio`: the signed webhook
+  `src/app/api/webhooks/zernio`, the cron fallback and the member-only "Sincronizar ahora"
+  action) may use that client. Keep this list in sync with the comment in `admin.ts`.
+- Zernio secrets (`ZERNIO_API_KEY`, `ZERNIO_WEBHOOK_SECRET`) are server-only; only
+  `src/features/zernio` and its webhook route read them. Never log them or webhook payloads.
 - Gmail credentials (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) are server-only and only
   `src/features/emails/mailer.ts` reads them. Never log credentials or recipient lists.
 
