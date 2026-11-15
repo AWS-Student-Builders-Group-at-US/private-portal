@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Form from "next/form";
 import Link from "next/link";
 import { ExternalLink, Pencil, Plus } from "lucide-react";
@@ -11,6 +12,7 @@ import {
   parseLinkFilters,
 } from "@/features/links/filter";
 import { listLinks } from "@/features/links/queries";
+import { DriveSection, DriveSectionSkeleton } from "@/features/drive/components/drive-section";
 
 const fieldClass =
   "rounded-lg border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -28,18 +30,26 @@ export default async function ResourcesPage({ searchParams }: PageProps<"/panel/
   const groups = groupByCategory(filterLinks(links, filters));
   const categoryParam =
     filters.category === "" ? NO_CATEGORY_PARAM : (filters.category ?? "");
+  const folder = typeof params.carpeta === "string" ? params.carpeta : undefined;
+  const folderQuery = folder ? `?carpeta=${encodeURIComponent(folder)}` : "";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Recursos</h1>
+      <h1 className="text-2xl font-semibold">Recursos</h1>
+      <StatusBanner status={params.estado} messages={MESSAGES} />
+      <Suspense fallback={<DriveSectionSkeleton />}>
+        <DriveSection folder={folder} />
+      </Suspense>
+
+      <div className="flex items-center justify-between gap-2 border-t pt-6">
+        <h2 className="text-xl font-semibold">Enlaces</h2>
         <Link href="/panel/recursos/nuevo" className={buttonVariants()}>
           <Plus />
           Nuevo enlace
         </Link>
       </div>
-      <StatusBanner status={params.estado} messages={MESSAGES} />
       <Form action="/panel/recursos" className="flex flex-wrap items-end gap-2" role="search">
+        {folder && <input type="hidden" name="carpeta" value={folder} />}
         <div className="flex flex-1 flex-col gap-1">
           <label htmlFor="q" className="text-xs text-muted-foreground">
             Buscar
@@ -64,7 +74,7 @@ export default async function ResourcesPage({ searchParams }: PageProps<"/panel/
           Filtrar
         </Button>
         {(filters.q || filters.category !== null) && (
-          <Link href="/panel/recursos" className={buttonVariants({ variant: "ghost" })}>
+          <Link href={`/panel/recursos${folderQuery}`} className={buttonVariants({ variant: "ghost" })}>
             Quitar filtros
           </Link>
         )}
@@ -79,7 +89,7 @@ export default async function ResourcesPage({ searchParams }: PageProps<"/panel/
       ) : (
         groups.map(([category, items]) => (
           <section key={category ?? "-"} className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">{category ?? "Sin categoría"}</h2>
+            <h3 className="text-lg font-semibold">{category ?? "Sin categoría"}</h3>
             <ul className="divide-y rounded-lg border">
               {items.map((link) => (
                 <li key={link.id} className="flex items-start justify-between gap-3 px-4 py-3">
