@@ -84,9 +84,16 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - After sign-in (and when a signed-in user opens `/login`) users land on `/panel`.
 - Signed-in users whose email is not in `public.members` are redirected to `/no-access`.
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
-- `/panel/ajustes` groups the settings. Members add, edit and remove panel accounts there through
+- `/panel/ajustes` groups the settings. Panel accounts are added, edited and removed there through
   the `add_member`, `update_member` and `remove_member` security definer functions (members only
-  read `public.members` directly). Nobody can remove themselves or the last member. Removing a
+  read `public.members` directly). Nobody can remove themselves or the last member.
+- The group's common account is the Gmail address in `GMAIL_USER` (the AWS account is registered
+  with it). The server copies it into `public.private_settings` (RLS on, no member access) from
+  the daily cron and whenever Ajustes is opened; once there, only the common account can call the
+  member functions (`public.is_common_account()`), it cannot be removed, and everyone else sees
+  Ajustes → Miembros read-only. Until it is configured any member can manage members. The common
+  account is hidden on the server from every people list (members, task assignees, team
+  availability); its address is never committed nor sent to the browser. Removing a
   member deletes only their own votes, availability and calendars; their tasks become unassigned
   and their suggestions stay, shown as "Antiguo miembro". Suggestions are always signed.
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
@@ -171,9 +178,11 @@ missing every request is rejected. The job:
 - refreshes every member's Google calendar busy blocks, in parallel within a time budget;
 - deletes Zernio webhook dedupe rows (`zernio_webhook_events`) older than 30 days and, when
   `ZERNIO_API_KEY` is set, re-syncs Zernio posts updated in the last 48 hours (fallback for
-  missed webhooks), within the same budget.
+  missed webhooks), within the same budget;
+- copies the common account address (`GMAIL_USER`) into `public.private_settings`.
 
-It returns `{ ok, deletedAttempts, deletedWebhookEvents, refreshedMembers, failedMembers, zernio }`
+It returns `{ ok, deletedAttempts, deletedWebhookEvents, refreshedMembers, failedMembers, zernio,
+commonAccount }` (`commonAccount` is `configured`, `missing` or `error`)
 and logs counts only.
 
 ## Zernio

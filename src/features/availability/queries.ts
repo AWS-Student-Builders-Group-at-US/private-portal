@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBusyBlocks } from "@/features/calendars/busy";
 import { isOutsideGoogleWindow } from "@/features/calendars/window";
 import { madridLocalToUtcIso } from "@/features/events/time";
+import { hideCommonAccount } from "@/features/members/common-account";
 import {
   occupationForDay,
   slotOccupationForDay,
@@ -65,13 +66,16 @@ export async function getMyWeek(email: string, monday: string): Promise<MyWeek> 
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const dates = weekDates(monday);
   const supabase = await createClient();
-  const [members, notes] = await Promise.all([
+  const [membersResult, allNotes] = await Promise.all([
     supabase.from("members").select("email, name").order("name"),
     getWeekNotes(dates),
   ]);
-  if (members.error) {
+  if (membersResult.error) {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
   }
+  // The group's common account is not a person: hide it and its notes.
+  const members = { data: hideCommonAccount(membersResult.data) };
+  const notes = hideCommonAccount(allNotes, (note) => note.member_email);
 
   const { from, to } = weekBounds(monday);
   const busyByMember = await Promise.all(

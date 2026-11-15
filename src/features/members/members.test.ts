@@ -70,6 +70,13 @@ describe("memberErrorMessage", () => {
     expect(memberErrorMessage("member_not_found")).toMatch(/no existe|no encontr/i);
   });
 
+  it("explains the common account rules", () => {
+    expect(memberErrorMessage("not_common_account")).toBe(
+      "Solo la cuenta común del grupo puede gestionar miembros.",
+    );
+    expect(memberErrorMessage("cannot_remove_common_account")).toMatch(/cuenta común/);
+  });
+
   it("falls back to a generic message", () => {
     expect(memberErrorMessage("something else")).toBe("No se pudo completar la operación.");
     expect(memberErrorMessage(undefined)).toBe("No se pudo completar la operación.");
