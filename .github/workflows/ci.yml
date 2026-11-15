@@ -1,0 +1,51 @@
+name: CI
+
+# Feature branches -> PR into `trunk`; `trunk` -> PR into `main` (production).
+# Both PR targets run the same checks. Vercel deploys `main` to production.
+on:
+  pull_request:
+    branches: [trunk, main]
+  push:
+    branches: [trunk]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholders: the build must not depend on real secrets.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder
+          SUPABASE_SECRET_KEY: placeholder
+          CHECKIN_IP_SALT: placeholder
+
+  # `main` only accepts changes that already went through `trunk`.
+  source-branch:
+    name: source-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only trunk may be merged into main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && github.head_ref != 'trunk'
+        run: |
+          echo "Pull requests into main must come from trunk (got: ${{ github.head_ref }})."
+          exit 1
+      - run: echo "Source branch OK"
