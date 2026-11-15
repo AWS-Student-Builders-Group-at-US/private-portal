@@ -57,9 +57,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 - `main` is production: Vercel deploys every merge to `main`, and the "Database migrations"
   workflow applies new files in `supabase/migrations/` to the production Supabase project.
-- `trunk` is the integration branch. Feature branches start from `trunk` and open a PR into
-  `trunk`; when `trunk` is ready, open a PR `trunk` -> `main`.
-- Nobody pushes to `main` or `trunk` directly; both require a PR with the `checks` CI job
-  (lint, tests, build) green, and PRs into `main` must come from `trunk` (`source-branch` job).
+- Feature branches (`feat/*`, `fix/*`, `chore/*`) start from an up-to-date `main` and open a PR
+  into `main`. Vercel builds a preview for every PR; test there before merging.
+- Nobody pushes to `main` directly; it requires a PR with the `checks` CI job (lint, tests,
+  build) green.
 - Migrations must be backward compatible with the code that is still live while Vercel deploys:
   add columns with defaults or new tables; never drop or rename in the same release.
