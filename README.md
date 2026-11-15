@@ -84,9 +84,16 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
 - After sign-in (and when a signed-in user opens `/login`) users land on `/panel`.
 - Signed-in users whose email is not in `public.members` are redirected to `/no-access`.
 - Row Level Security is enabled on every table; `public.is_member()` is the access check.
-- `/panel/ajustes` groups the settings. Members add, edit and remove panel accounts there through
+- `/panel/ajustes` groups the settings. Panel accounts are added, edited and removed there through
   the `add_member`, `update_member` and `remove_member` security definer functions (members only
-  read `public.members` directly). Nobody can remove themselves or the last member. Removing a
+  read `public.members` directly). Nobody can remove themselves or the last member.
+- The group's common account is the Gmail address in `GMAIL_USER` (the AWS account is registered
+  with it). The server copies it into `public.private_settings` (RLS on, no member access) from
+  the daily cron and whenever Ajustes is opened; once there, only the common account can call the
+  member functions (`public.is_common_account()`), it cannot be removed, and everyone else sees
+  Ajustes → Miembros read-only. Until it is configured any member can manage members. The common
+  account is hidden on the server from every people list (members, task assignees, team
+  availability); its address is never committed nor sent to the browser. Removing a
   member deletes only their own votes, availability and calendars; their tasks become unassigned
   and their suggestions stay, shown as "Antiguo miembro". Suggestions are always signed.
 - `/checkin/<token>` is the public QR check-in page and `/privacidad` its privacy notice. Both are
@@ -155,9 +162,28 @@ recipient). A daily cap of 450 recipients in 24 h keeps the account under Gmail'
 
 Server-only environment variables (never `NEXT_PUBLIC_*`):
 
-- `GMAIL_USER` — the group's Gmail address used as sender.
+- `GMAIL_USER` — the group's Gmail address used as sender (also the common account and the
+  inbox shown in `/panel/correo`).
 - `GMAIL_APP_PASSWORD` — a Gmail app password for that account (requires 2-Step Verification).
 - `NEXT_PUBLIC_SITE_URL` is required for sending: unsubscribe links are built from it.
+
+## Common account inbox
+
+`/panel/correo` ("Correo" in the menu) shows the inbox of the group's common account (the Gmail in
+`GMAIL_USER`, which the AWS account is registered with) to every member, read-only. It reuses
+`GMAIL_USER` and `GMAIL_APP_PASSWORD` (no new variables) and reads Gmail live over IMAP
+(`imap.gmail.com:993`, TLS, 10 s connection timeout; `src/features/inbox`):
+
+- INBOX is opened read-only (EXAMINE) and messages are fetched with BODY.PEEK, so nothing is marked
+  as read; the app never moves, deletes, flags or sends anything. Emails are not stored.
+- The list shows 25 messages per page, newest first, with "Más antiguos" and an optional search by
+  subject or sender. The detail page shows headers, the text body, and attachment names and sizes
+  (no downloads).
+- HTML bodies render in `<iframe sandbox="">` with a Content Security Policy
+  (`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:`): no scripts,
+  forms or navigation, and remote images (trackers) never load.
+- Gmail must allow IMAP for that account; if the credentials are missing or
+  Gmail is unreachable, the page shows a friendly error.
 
 ## Daily maintenance
 
@@ -171,9 +197,11 @@ missing every request is rejected. The job:
 - refreshes every member's Google calendar busy blocks, in parallel within a time budget;
 - deletes Zernio webhook dedupe rows (`zernio_webhook_events`) older than 30 days and, when
   `ZERNIO_API_KEY` is set, re-syncs Zernio posts updated in the last 48 hours (fallback for
-  missed webhooks), within the same budget.
+  missed webhooks), within the same budget;
+- copies the common account address (`GMAIL_USER`) into `public.private_settings`.
 
-It returns `{ ok, deletedAttempts, deletedWebhookEvents, refreshedMembers, failedMembers, zernio }`
+It returns `{ ok, deletedAttempts, deletedWebhookEvents, refreshedMembers, failedMembers, zernio,
+commonAccount }` (`commonAccount` is `configured`, `missing` or `error`)
 and logs counts only.
 
 ## Zernio

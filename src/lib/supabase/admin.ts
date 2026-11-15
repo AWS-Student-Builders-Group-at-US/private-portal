@@ -15,6 +15,9 @@ import { getSupabaseEnv } from "./env";
 // - Zernio sync (src/features/zernio): the signed webhook
 //   (src/app/api/webhooks/zernio), the cron fallback and the member-only
 //   "Sincronizar ahora" action; Zernio rows in posts are server-owned.
+// - Common account sync (src/features/members/common-account.ts): writes
+//   GMAIL_USER into public.private_settings from the daily cron and the
+//   member-only Ajustes render; members cannot read or write that table.
 // Never expose the key (no NEXT_PUBLIC_). Create one per request, inside
 // functions.
 export function createAdminClient() {

@@ -36,11 +36,21 @@ Guidance for humans and coding agents working on this repository.
   membership check), the daily maintenance cron (`src/app/api/cron/diario`, authorized by
   `CRON_SECRET`) and the Zernio sync (`src/features/zernio`: the signed webhook
   `src/app/api/webhooks/zernio`, the cron fallback and the member-only "Sincronizar ahora"
-  action) may use that client. Keep this list in sync with the comment in `admin.ts`.
+  action) and the common account sync (`src/features/members/common-account.ts`, from the cron
+  and the member-only Ajustes render) may use that client. Keep this list in sync with the
+  comment in `admin.ts`.
 - Zernio secrets (`ZERNIO_API_KEY`, `ZERNIO_WEBHOOK_SECRET`) are server-only; only
   `src/features/zernio` and its webhook route read them. Never log them or webhook payloads.
 - Gmail credentials (`GMAIL_USER`, `GMAIL_APP_PASSWORD`) are server-only and only
-  `src/features/emails/mailer.ts` reads them. Never log credentials or recipient lists.
+  `src/features/emails/mailer.ts` (SMTP) and `src/features/inbox` (read-only IMAP) read them;
+  `src/features/members/common-account.ts` reads only the address. Never log credentials,
+  recipient lists, addresses or message content.
+- The inbox (`/panel/correo`) is read-only: open INBOX with `readOnly` (EXAMINE), fetch bodies with
+  BODY.PEEK, never move, delete, flag or send, and never store emails. Render email HTML only in
+  `<iframe sandbox="">` through `buildSandboxedHtml()` (restrictive CSP, no remote images).
+- `GMAIL_USER` is also the group's common account: hidden from every people list (filtered on
+  the server with `hideCommonAccount()`, its address never reaches the browser) and, once synced
+  into `public.private_settings`, the only account the member RPCs accept. Never commit it.
 
 ## Language
 

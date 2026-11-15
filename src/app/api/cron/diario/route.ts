@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { refreshBusyBlocks } from "@/features/calendars/refresh";
 import { isAuthorizedCron } from "@/features/maintenance/cron-auth";
 import { retentionCutoff, settleWithin } from "@/features/maintenance/retention";
+import { ensureCommonAccountSetting } from "@/features/members/common-account";
 import { isZernioConfigured } from "@/features/zernio/client";
 import { syncRecentZernioPosts, type BulkSyncResult } from "@/features/zernio/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,6 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // 4. Deletes Zernio webhook dedupe rows older than 30 days and, when
 //    ZERNIO_API_KEY is set, re-syncs Zernio posts updated in the last 48 h
 //    (fallback for missed webhooks), in parallel with step 3.
+// 5. Syncs the group's common account (GMAIL_USER) into private_settings so
+//    the member management RPCs only accept it (never logs the address).
 
 export const maxDuration = 60;
 
@@ -80,23 +83,26 @@ export async function GET(request: NextRequest) {
         zernioState.result = r;
       })
     : null;
-  const [{ fulfilled, failed }, zernioRun] = await Promise.all([
+  // ensureCommonAccountSetting never throws.
+  const [{ fulfilled, failed }, zernioRun, commonAccount] = await Promise.all([
     settleWithin(
       emails.map((email) => refreshBusyBlocks(email)),
       REFRESH_BUDGET_MS,
     ),
     settleWithin(zernioTask ? [zernioTask] : [], REFRESH_BUDGET_MS),
+    ensureCommonAccountSetting(),
   ]);
   const zernio = zernioTask && zernioRun.failed > 0 ? "timeout" : zernioState.result;
   const zernioOk = typeof zernio === "string" ? zernio === "not_configured" : zernio.ok;
 
   const result = {
-    ok: ok && failed === 0 && zernioOk,
+    ok: ok && failed === 0 && zernioOk && commonAccount !== "error",
     deletedAttempts,
     deletedWebhookEvents,
     refreshedMembers: fulfilled,
     failedMembers: failed,
     zernio,
+    commonAccount,
   };
   // Counts only: never log emails, hashes or error details.
   console.info("cron/diario", JSON.stringify(result));

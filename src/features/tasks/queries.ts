@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { hideCommonAccount } from "@/features/members/common-account";
 import { createClient } from "@/lib/supabase/server";
 import type { EventOption, MemberOption, Task, TaskCardData } from "./types";
 
@@ -64,7 +65,8 @@ export async function listMemberOptions(): Promise<MemberOption[]> {
     .select("email, name")
     .order("name", { ascending: true });
   if (error) throw new Error("No se pudo cargar el equipo.");
-  return data;
+  // The group's common account is not a person to assign tasks to.
+  return hideCommonAccount(data);
 }
 
 export async function listEventOptions(): Promise<EventOption[]> {

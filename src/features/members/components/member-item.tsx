@@ -19,10 +19,12 @@ export function MemberItem({
   member,
   me,
   memberCount,
+  canManage,
 }: {
   member: MemberRow;
   me: string;
   memberCount: number;
+  canManage: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -55,7 +57,7 @@ export function MemberItem({
             {memberAreaLabel(member.area)} · Añadido el {formatMadridDateTimeShort(member.created_at)}
           </p>
         </div>
-        {!editing && (
+        {canManage && !editing && (
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -82,7 +84,7 @@ export function MemberItem({
         )}
       </div>
 
-      {confirming && (
+      {canManage && confirming && (
         <div
           role="alertdialog"
           aria-label="Confirmar eliminación"
@@ -103,7 +105,7 @@ export function MemberItem({
         </div>
       )}
 
-      {editing && <EditMemberForm member={member} onDone={() => setEditing(false)} />}
+      {canManage && editing && <EditMemberForm member={member} onDone={() => setEditing(false)} />}
 
       {error && (
         <p role="alert" className="text-xs text-destructive">

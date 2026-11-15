@@ -24,6 +24,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_name: "Escribe un nombre de como máximo 80 caracteres.",
   invalid_area: "Elige un área.",
   not_member: "No tienes acceso a esta acción.",
+  not_common_account: "Solo la cuenta común del grupo puede gestionar miembros.",
+  cannot_remove_common_account: "No se puede eliminar la cuenta común del grupo.",
 };
 
 const FALLBACK = "No se pudo completar la operación.";

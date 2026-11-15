@@ -3,7 +3,6 @@ export type MemberRow = {
   name: string;
   area: string | null;
   created_at: string;
-  added_by: string | null;
 };
 
 // State returned by the add/edit member server actions (useActionState).

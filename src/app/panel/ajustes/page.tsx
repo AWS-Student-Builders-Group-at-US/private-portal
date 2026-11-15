@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ensureCommonAccountSetting } from "@/features/members/common-account";
 import { MembersSection } from "@/features/members/components/members-section";
 import {
   AccountSettings,
@@ -23,6 +24,8 @@ const SECTIONS = [
 // Request-time data is covered by the Suspense boundary in the panel layout.
 export default async function SettingsPage() {
   const me = await getCurrentMember();
+  // Keeps the database copy of the common account in sync with GMAIL_USER.
+  const commonAccountStatus = await ensureCommonAccountSetting();
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,7 +37,7 @@ export default async function SettingsPage() {
             <AccountSettings email={me.email} />
           </Anchor>
           <Anchor id="miembros">
-            <MembersSection me={me.email} />
+            <MembersSection me={me.email} commonAccountStatus={commonAccountStatus} />
           </Anchor>
           <Anchor id="ajustes-boveda">
             <VaultPasswordSettings />

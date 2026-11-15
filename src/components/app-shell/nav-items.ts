@@ -5,6 +5,7 @@ import {
   KeyRound,
   Lightbulb,
   ListTodo,
+  Mail,
   Megaphone,
   Newspaper,
   Settings,
@@ -34,6 +35,7 @@ export const MENU_ITEMS: NavItem[] = [
   { href: "/panel/recursos", label: "Recursos", icon: FolderOpen },
   { href: "/panel/sugerencias", label: "Sugerencias", icon: Lightbulb },
   { href: "/panel/boveda", label: "Bóveda", icon: KeyRound },
+  { href: "/panel/correo", label: "Correo", icon: Mail },
   { href: "/panel/ajustes", label: "Ajustes", icon: Settings },
 ];
 
