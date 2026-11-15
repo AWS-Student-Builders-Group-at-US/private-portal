@@ -29,10 +29,10 @@ jobs:
         with:
           version: latest
       - name: Show pending migrations
-        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+        run: supabase migration list --remote "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       - name: Apply migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        run: supabase db push --remote "$SUPABASE_DB_URL" --yes
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
