@@ -6,6 +6,7 @@ import {
 } from "@/features/settings/components/account-settings";
 import { DriveFolderSettings } from "@/features/settings/components/drive-folder-settings";
 import { SettingsSectionNav } from "@/features/settings/components/settings-section-nav";
+import { ZernioSettings } from "@/features/settings/components/zernio-settings";
 import { VaultPasswordSettings } from "@/features/settings/components/vault-password-settings";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -49,11 +50,7 @@ export default async function SettingsPage() {
             />
           </Anchor>
           <Anchor id="publicaciones">
-            <UpcomingSettings
-              id="publicaciones-titulo"
-              title="Publicaciones"
-              description="Aquí podrás configurar la publicación automática de anuncios en redes sociales."
-            />
+            <ZernioSettings />
           </Anchor>
         </div>
       </div>

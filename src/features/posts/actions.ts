@@ -87,10 +87,13 @@ export async function updatePost(
   const supabase = await createClient();
   const { data: before, error: readError } = await supabase
     .from("posts")
-    .select("status, image_path")
+    .select("status, image_path, source")
     .eq("id", id)
     .maybeSingle();
   if (readError || !before) return { message: "Publicación no encontrada.", values: parsed.values };
+  if (before.source === "zernio") {
+    return { message: "Las publicaciones de Zernio se editan en Zernio.", values: parsed.values };
+  }
   if (before.status === "approved" || before.status === "published") {
     return {
       message: "Una publicación aprobada no se puede editar. Retira la aprobación primero.",
@@ -118,10 +121,13 @@ export async function changePostStatus(id: string, to: string): Promise<ActionRe
   const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
-    .select("status, created_by")
+    .select("status, created_by, source")
     .eq("id", id)
     .maybeSingle();
   if (!post) return { ok: false, message: "Publicación no encontrada." };
+  if (post.source === "zernio") {
+    return { ok: false, message: "El estado de las publicaciones de Zernio lo gestiona Zernio." };
+  }
 
   const problem = checkTransition(
     { status: post.status as PostStatus, created_by: post.created_by },
@@ -139,6 +145,26 @@ export async function changePostStatus(id: string, to: string): Promise<ActionRe
   if (error || !data?.length) {
     return { ok: false, message: "No se pudo cambiar el estado. Recarga e inténtalo de nuevo." };
   }
+  refreshNews();
+  revalidatePath(POSTS_PATH);
+  revalidatePath(postPath(id));
+  return { ok: true };
+}
+
+// Any member can show or hide any post (panel or Zernio) on the website.
+// The column grant only allows show_on_site; the trigger keeps everything else.
+export async function setPostOnSite(id: string, show: boolean): Promise<ActionResult> {
+  if (!idSchema.safeParse(id).success || typeof show !== "boolean") {
+    return { ok: false, message: "Publicación no encontrada." };
+  }
+  await getCurrentMember();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .update({ show_on_site: show })
+    .eq("id", id)
+    .select("id");
+  if (error || !data?.length) return { ok: false, message: "No se pudo cambiar la visibilidad en la web." };
   refreshNews();
   revalidatePath(POSTS_PATH);
   revalidatePath(postPath(id));

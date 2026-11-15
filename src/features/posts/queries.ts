@@ -6,7 +6,7 @@ import type { Post } from "./types";
 // All reads use the user's session; RLS only returns rows to members.
 
 const SELECT =
-  "id, title, slug, body, image_path, targets, status, scheduled_at, event_id, created_by, approved_by, approved_at, published_at, publish_error, created_at, event:events(title)";
+  "id, title, slug, body, image_path, targets, status, scheduled_at, event_id, created_by, approved_by, approved_at, published_at, publish_error, created_at, source, platform_urls, show_on_site, event:events(title)";
 
 type Row = Omit<Post, "event_title"> & { event: { title: string } | null };
 

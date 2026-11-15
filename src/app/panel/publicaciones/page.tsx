@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatMadridDateTimeShort, utcIsoToMadridLocal } from "@/features/events/time";
 import { formatMonth, monthGrid, parseMonth, shiftMonth } from "@/features/posts/calendar";
 import { PostStatusBadge } from "@/features/posts/components/status-badge";
+import { ZernioBadge } from "@/features/posts/components/zernio-bits";
 import { listPosts } from "@/features/posts/queries";
 import { POST_STATUSES, POST_STATUS_LABELS, POST_TARGET_LABELS, type PostStatus } from "@/features/posts/schema";
 import type { Post } from "@/features/posts/types";
@@ -17,7 +18,11 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
   const [params, posts] = await Promise.all([searchParams, listPosts()]);
   const calendar = params.vista === "calendario";
   const status = POST_STATUSES.find((s) => s === params.estado_pub) ?? null;
-  const visible = status ? posts.filter((p) => p.status === status) : posts;
+  const zernioOnly = params.origen === "zernio";
+  const visible = posts.filter(
+    (p) => (!status || p.status === status) && (!zernioOnly || p.source === "zernio"),
+  );
+  const zernioCount = posts.filter((p) => p.source === "zernio").length;
   const thisMonth = utcIsoToMadridLocal(new Date().toISOString()).slice(0, 7);
   const month = parseMonth(params.mes, thisMonth);
 
@@ -26,6 +31,7 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
     const merged = {
       vista: calendar ? "calendario" : null,
       estado_pub: status,
+      origen: zernioOnly ? "zernio" : null,
       mes: calendar && month !== thisMonth ? month : null,
       ...next,
     };
@@ -54,6 +60,11 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
               <span className="text-xs opacity-70">{posts.filter((p) => p.status === s).length}</span>
             </Chip>
           ))}
+          {zernioCount > 0 && (
+            <Chip href={href({ origen: zernioOnly ? null : "zernio" })} active={zernioOnly}>
+              Planificadas en Zernio <span className="text-xs opacity-70">{zernioCount}</span>
+            </Chip>
+          )}
         </nav>
         <nav className="flex rounded-lg border p-0.5" aria-label="Vista">
           <Chip href={href({ vista: null, mes: null })} active={!calendar}>Lista</Chip>
@@ -78,8 +89,10 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
                     {post.scheduled_at ? formatMadridDateTimeShort(post.scheduled_at) : "Sin fecha"} ·{" "}
                     {post.targets.map((t) => POST_TARGET_LABELS[t]).join(", ")}
                     {post.event_title && ` · ${post.event_title}`}
+                    {!post.show_on_site && " · Oculta en la web"}
                   </span>
                 </span>
+                {post.source === "zernio" && <ZernioBadge />}
                 <PostStatusBadge status={post.status} />
               </Link>
             </li>
