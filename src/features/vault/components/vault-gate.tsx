@@ -1,49 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "../data";
+import { MIN_PASSPHRASE, newPassphraseError } from "../rotation";
+import { NO_AUTOFILL_FORM, PassphraseField } from "./secret-input";
 import { useVault } from "./vault-provider";
-
-export const MIN_PASSPHRASE = 12;
-
-export const inputClass =
-  "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-export function PassphraseInput({
-  id,
-  label,
-  autoComplete,
-}: {
-  id: string;
-  label: string;
-  autoComplete: "current-password" | "new-password";
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        type="password"
-        required
-        autoComplete={autoComplete}
-        className={inputClass}
-      />
-    </div>
-  );
-}
-
-/** Returns an error for a new passphrase + confirmation, or null. */
-export function newPassphraseError(passphrase: string, confirmation: string) {
-  if (passphrase.length < MIN_PASSPHRASE) {
-    return `La contraseña debe tener al menos ${MIN_PASSPHRASE} caracteres.`;
-  }
-  if (passphrase !== confirmation) return "Las contraseñas no coinciden.";
-  return null;
-}
 
 export const LOSS_WARNING =
   "Si se pierde la contraseña de la bóveda, los datos no se pueden recuperar: nadie, ni siquiera un administrador de la base de datos, puede descifrarlos.";
@@ -79,49 +42,76 @@ export function FormError({ error }: { error: string | null }) {
   );
 }
 
+// Shown as the only content of /panel/boveda while vault_meta has no row:
+// nothing can be stored until the shared passphrase exists.
 export function CreateVaultForm() {
   const { create } = useVault();
   const { error, pending, onSubmit } = usePassphraseForm(async (form) => {
-    const passphrase = String(form.get("passphrase") ?? "");
-    const problem = newPassphraseError(passphrase, String(form.get("confirmation") ?? ""));
+    const passphrase = String(form.get("vk-create") ?? "");
+    const problem = newPassphraseError(passphrase, String(form.get("vk-create-repeat") ?? ""));
     if (problem) return problem;
     await create(passphrase);
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4" noValidate>
-      <h2 className="text-lg font-semibold">Crear bóveda</h2>
-      <p className="text-sm text-muted-foreground">
-        Elige una contraseña compartida para el Core Team (mínimo {MIN_PASSPHRASE}{" "}
-        caracteres). Se usa en tu navegador para cifrar los datos y nunca se envía al
-        servidor.
+    <section
+      aria-labelledby="crear-boveda"
+      className="flex max-w-xl flex-col gap-4 rounded-lg border-2 border-primary/40 p-5"
+    >
+      <div className="flex items-center gap-2">
+        <KeyRound className="size-5" aria-hidden />
+        <h2 id="crear-boveda" className="text-xl font-semibold">
+          Crear la bóveda
+        </h2>
+      </div>
+      <p className="text-sm">
+        La bóveda todavía no tiene contraseña. Antes de guardar ningún dato hay que crearla.
       </p>
+      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-muted-foreground">
+        <li>
+          Es una contraseña <strong>compartida por todo el equipo</strong>: compártela con el
+          resto por un canal seguro.
+        </li>
+        <li>
+          Cifra los datos en tu navegador y nunca se envía al servidor, por lo que{" "}
+          <strong>no se puede recuperar</strong>.
+        </li>
+        <li>Guárdala en tu gestor de contraseñas personal.</li>
+        <li>Debe tener al menos {MIN_PASSPHRASE} caracteres.</li>
+      </ul>
       <p
         role="note"
         className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm"
       >
         {LOSS_WARNING}
       </p>
-      <PassphraseInput id="passphrase" label="Contraseña de la bóveda" autoComplete="new-password" />
-      <PassphraseInput id="confirmation" label="Repite la contraseña" autoComplete="new-password" />
-      <FormError error={error} />
-      <Button type="submit" disabled={pending} className="self-start">
-        {pending ? "Creando…" : "Crear bóveda"}
-      </Button>
-    </form>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate {...NO_AUTOFILL_FORM}>
+        <PassphraseField id="vk-create" label="Contraseña de la bóveda" />
+        <PassphraseField id="vk-create-repeat" label="Repite la contraseña" />
+        <FormError error={error} />
+        <Button type="submit" disabled={pending} className="self-start">
+          {pending ? "Creando…" : "Crear la bóveda"}
+        </Button>
+      </form>
+    </section>
   );
 }
 
 export function UnlockForm() {
   const { unlock } = useVault();
   const { error, pending, onSubmit } = usePassphraseForm((form) =>
-    unlock(String(form.get("passphrase") ?? "")),
+    unlock(String(form.get("vk-unlock") ?? "")),
   );
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4" noValidate>
+    <form
+      onSubmit={onSubmit}
+      className="flex max-w-md flex-col gap-4"
+      noValidate
+      {...NO_AUTOFILL_FORM}
+    >
       <h2 className="text-lg font-semibold">Bóveda bloqueada</h2>
-      <PassphraseInput id="passphrase" label="Contraseña de la bóveda" autoComplete="current-password" />
+      <PassphraseField id="vk-unlock" label="Contraseña de la bóveda" />
       <FormError error={error} />
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Desbloqueando…" : "Desbloquear"}

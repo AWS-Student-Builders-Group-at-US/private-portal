@@ -1,21 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { KeyRound, Lock, Plus } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { VaultItem } from "../data";
 import { ItemForm } from "./item-form";
 import { ItemList } from "./item-list";
-import {
-  CreateVaultForm,
-  FormError,
-  LOSS_WARNING,
-  PassphraseInput,
-  UnlockForm,
-  inputClass,
-  newPassphraseError,
-  usePassphraseForm,
-} from "./vault-gate";
+import { NO_AUTOFILL, inputClass } from "./secret-input";
+import { CreateVaultForm, UnlockForm } from "./vault-gate";
 import { VaultProvider, useVault } from "./vault-provider";
 
 export function VaultApp() {
@@ -46,7 +39,7 @@ function VaultScreen() {
   }
 }
 
-type Panel = { kind: "none" } | { kind: "add" } | { kind: "edit"; item: VaultItem } | { kind: "passphrase" };
+type Panel = { kind: "none" } | { kind: "add" } | { kind: "edit"; item: VaultItem };
 
 function UnlockedVault() {
   const { items, lock } = useVault();
@@ -67,17 +60,17 @@ function UnlockedVault() {
         <Button variant="outline" onClick={lock}>
           <Lock /> Bloquear
         </Button>
-        <Button variant="ghost" onClick={() => setPanel({ kind: "passphrase" })}>
-          Cambiar contraseña de la bóveda
-        </Button>
+        <Link href="/panel/ajustes#boveda" className={buttonVariants({ variant: "ghost" })}>
+          <KeyRound /> Cambiar contraseña de la bóveda
+        </Link>
       </div>
 
       {panel.kind === "add" && <ItemForm onDone={close} />}
       {panel.kind === "edit" && <ItemForm key={panel.item.id} item={panel.item} onDone={close} />}
-      {panel.kind === "passphrase" && <ChangePassphraseForm onDone={close} />}
 
       <input
         type="search"
+        {...NO_AUTOFILL}
         aria-label="Buscar por nombre"
         placeholder="Buscar por nombre…"
         value={query}
@@ -86,39 +79,5 @@ function UnlockedVault() {
       />
       <ItemList items={visible} onEdit={(item) => setPanel({ kind: "edit", item })} />
     </div>
-  );
-}
-
-// Re-encrypts every item under a new passphrase and salt (rotate_vault).
-function ChangePassphraseForm({ onDone }: { onDone: () => void }) {
-  const { changePassphrase } = useVault();
-  const { error, pending, onSubmit } = usePassphraseForm(async (form) => {
-    const next = String(form.get("new-passphrase") ?? "");
-    const problem = newPassphraseError(next, String(form.get("new-confirmation") ?? ""));
-    if (problem) return problem;
-    await changePassphrase(String(form.get("current-passphrase") ?? ""), next);
-    onDone();
-  });
-
-  return (
-    <form onSubmit={onSubmit} className="flex max-w-md flex-col gap-4 rounded-lg border p-4" noValidate>
-      <h2 className="text-lg font-semibold">Cambiar contraseña de la bóveda</h2>
-      <p className="text-sm text-muted-foreground">
-        Se vuelven a cifrar todos los elementos en tu navegador. Comparte la nueva contraseña con
-        el resto del equipo por un canal seguro. {LOSS_WARNING}
-      </p>
-      <PassphraseInput id="current-passphrase" label="Contraseña actual" autoComplete="current-password" />
-      <PassphraseInput id="new-passphrase" label="Nueva contraseña" autoComplete="new-password" />
-      <PassphraseInput id="new-confirmation" label="Repite la nueva contraseña" autoComplete="new-password" />
-      <FormError error={error} />
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Cifrando…" : "Cambiar contraseña"}
-        </Button>
-        <Button type="button" variant="outline" onClick={onDone} disabled={pending}>
-          Cancelar
-        </Button>
-      </div>
-    </form>
   );
 }

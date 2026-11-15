@@ -9,6 +9,7 @@ import {
   randomSalt,
   type Sealed,
 } from "./crypto";
+import { prepareRotation } from "./rotation";
 import { vaultPayloadSchema, type VaultPayload } from "./schema";
 
 // Browser-side vault data access. Everything sent to Supabase is already
@@ -130,47 +131,66 @@ export async function deleteItem(id: string): Promise<void> {
 }
 
 /**
- * Re-encrypts the verifier and every item under a key derived from the new
- * passphrase and a new salt, then swaps everything atomically via rotate_vault.
- * `oldKey` must already be verified against the current passphrase.
+ * Changes the vault passphrase. Verifies `current` against the stored verifier
+ * before touching any item, re-encrypts the verifier and every item under a
+ * key derived from `next` and a new salt (see rotation.ts), then swaps
+ * everything atomically via rotate_vault.
  */
-export async function rotateVault(oldKey: CryptoKey, newPassphrase: string) {
+export async function changeVaultPassphrase(input: {
+  current: string;
+  next: string;
+  confirmation: string;
+}) {
+  const meta = await fetchMeta();
+  if (!meta) throw new VaultError("La bóveda todavía no existe.");
   const { data, error } = await createClient()
     .from("vault_items")
     .select("id, iv, ciphertext");
   if (error) throw new VaultError(GENERIC_ERROR);
 
-  const meta = { salt: randomSalt(), kdf_iterations: KDF_ITERATIONS };
-  const newKey = await deriveKey(newPassphrase, meta.salt, meta.kdf_iterations);
-  const verifier = await createVerifier(newKey);
-
-  const items = [];
-  for (const row of data as Pick<ItemRow, "id" | "iv" | "ciphertext">[]) {
-    let plaintext: string;
-    try {
-      plaintext = await decrypt(oldKey, row, itemAad(row.id));
-    } catch {
-      // Re-encrypting would lose this row; stop instead.
-      throw new VaultError(
-        "Hay elementos que no se pueden descifrar con la contraseña actual. Revísalos antes de cambiarla.",
-      );
-    }
-    items.push({ id: row.id, ...(await encrypt(newKey, plaintext, itemAad(row.id))) });
-  }
+  const rotation = await prepareRotation({
+    meta,
+    rows: data as Pick<ItemRow, "id" | "iv" | "ciphertext">[],
+    ...input,
+  });
+  if (!rotation.ok) throw new VaultError(rotation.error);
 
   const { error: rpcError } = await createClient().rpc("rotate_vault", {
-    p_salt: meta.salt,
-    p_iterations: meta.kdf_iterations,
-    p_verifier_iv: verifier.iv,
-    p_verifier_ciphertext: verifier.ciphertext,
-    p_items: items,
+    p_salt: rotation.meta.salt,
+    p_iterations: rotation.meta.kdf_iterations,
+    p_verifier_iv: rotation.meta.verifier.iv,
+    p_verifier_ciphertext: rotation.meta.verifier.ciphertext,
+    p_items: rotation.items,
   });
   if (rpcError) {
     throw new VaultError(
+      // 40001: an item was added or deleted while re-encrypting.
       rpcError.code === "40001"
-        ? "Los elementos cambiaron mientras tanto. Vuelve a intentarlo."
+        ? "Los elementos de la bóveda cambiaron mientras se cifraban. Vuelve a intentarlo."
         : GENERIC_ERROR,
     );
   }
-  return { key: newKey, meta: { ...meta, verifier } satisfies VaultMeta };
+  notifyPassphraseChanged();
+  return { key: rotation.key, meta: rotation.meta satisfies VaultMeta };
+}
+
+// Tells other tabs of this browser that the passphrase changed so any unlocked
+// vault there locks itself (its key no longer matches the stored verifier).
+const CHANNEL = "core-team-vault";
+
+function notifyPassphraseChanged() {
+  if (typeof BroadcastChannel === "undefined") return;
+  const channel = new BroadcastChannel(CHANNEL);
+  channel.postMessage("passphrase-changed");
+  channel.close();
+}
+
+/** Subscribes to passphrase changes made in other tabs; returns unsubscribe. */
+export function onPassphraseChanged(callback: () => void): () => void {
+  if (typeof BroadcastChannel === "undefined") return () => {};
+  const channel = new BroadcastChannel(CHANNEL);
+  channel.onmessage = (event) => {
+    if (event.data === "passphrase-changed") callback();
+  };
+  return () => channel.close();
 }
