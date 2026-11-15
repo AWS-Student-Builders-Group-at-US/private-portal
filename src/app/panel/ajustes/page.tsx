@@ -1,4 +1,5 @@
 import { MembersSection } from "@/features/members/components/members-section";
+import { DriveFolderSettings } from "@/features/settings/components/drive-folder-settings";
 import { SettingsLinkCard } from "@/features/settings/components/settings-link-card";
 import { VaultPasswordSettings } from "@/features/settings/components/vault-password-settings";
 import { getCurrentMember } from "@/lib/auth/member";
@@ -27,6 +28,7 @@ export default async function SettingsPage() {
         linkLabel="Editar el formulario"
       />
       <VaultPasswordSettings />
+      <DriveFolderSettings />
     </div>
   );
 }
