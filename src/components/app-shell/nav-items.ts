@@ -6,6 +6,7 @@ import {
   Lightbulb,
   ListTodo,
   Megaphone,
+  Newspaper,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ export const BOTTOM_NAV_ITEMS: NavItem[] = [
 
 // Sections behind the "Menú" drawer on mobile.
 export const MENU_ITEMS: NavItem[] = [
+  { href: "/panel/publicaciones", label: "Publicaciones", icon: Newspaper },
   { href: "/panel/recursos", label: "Recursos", icon: FolderOpen },
   { href: "/panel/sugerencias", label: "Sugerencias", icon: Lightbulb },
   { href: "/panel/boveda", label: "Bóveda", icon: KeyRound },
