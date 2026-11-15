@@ -87,11 +87,12 @@ Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`
   The key lives only in memory and the vault locks after 10 minutes without interaction. A lost
   vault passphrase cannot be recovered. Changing it re-encrypts every item and calls
   `public.rotate_vault()` in one transaction.
-- Calendars (`/panel/perfil`): members paste the Google Calendar *secret address in iCal format*
-  of up to 5 calendars. Only `https://calendar.google.com/calendar/ical/…` URLs are fetched
+- Calendars ("Mis calendarios de Google" on `/panel/calendario`; `/panel/perfil` redirects
+  there): members paste the Google Calendar *secret address in iCal format* of up to 5
+  calendars, each with a weight (1 = can't move it, 0.5 = could move it). Only `https://calendar.google.com/calendar/ical/…` URLs are fetched
   (8 s timeout, 5 MB cap, no off-host redirects). The server stores only busy intervals
-  (`calendar_busy_blocks`, readable by all members, refreshed when older than 15 minutes); the
-  secret URLs are readable only by their owner. `/api/calendario.ics?token=…` is a public,
+  and their feed weight (`calendar_busy_blocks`, readable by all members, refreshed when older
+  than 15 minutes, window ±30 days); the secret URLs are readable only by their owner. `/api/calendario.ics?token=…` is a public,
   per-member token feed of the team events for Google Calendar subscriptions.
 - `/api/cron/diario` is the daily maintenance job (see *Daily maintenance*); it only answers
   requests carrying `Authorization: Bearer $CRON_SECRET`.
@@ -138,8 +139,8 @@ environment variables:
 4. **QR check-in from a phone:** scan the event QR on mobile data, submit the form and see the
    attendee in the panel.
 5. **Vault:** create the vault (or unlock it), add an item and unlock it again after reload.
-6. **Calendar feed:** add your Google iCal secret address at `/panel/perfil`, check busy blocks
-   in `/panel/calendario`, and subscribe to the exported team feed in Google Calendar.
+6. **Calendar feed:** add your Google iCal secret address in "Mis calendarios de Google" on
+   `/panel/calendario`, check your busy blocks in the week grid above it, and subscribe to the exported team feed in Google Calendar.
 7. **Test email to yourself:** before any real attendee consents, check in to a test event with
    your own email and the email consent ticked, send an announcement, and check the footer and
    unsubscribe link.

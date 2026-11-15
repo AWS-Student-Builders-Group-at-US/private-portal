@@ -6,8 +6,14 @@ import {
   addCalendarFeed,
   deleteCalendarFeed,
   refreshMyCalendars,
+  setCalendarFeedWeight,
   type FeedFormState,
 } from "../actions";
+
+export const WEIGHT_OPTIONS = [
+  { value: "1", label: "No lo puedo mover (1)" },
+  { value: "0.5", label: "Lo podría mover (0,5)" },
+] as const;
 
 const fieldClass =
   "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
@@ -61,6 +67,21 @@ export function AddFeedForm() {
           <p key={e} className="text-sm text-destructive">{e}</p>
         ))}
       </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 text-sm font-medium">Importancia de sus eventos</legend>
+        {WEIGHT_OPTIONS.map((option) => (
+          <label key={option.value} className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="weight"
+              value={option.value}
+              defaultChecked={option.value === "1"}
+              className="size-3.5"
+            />
+            {option.label}
+          </label>
+        ))}
+      </fieldset>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Guardando…" : "Añadir calendario"}
@@ -111,5 +132,34 @@ export function RefreshFeedsButton() {
     >
       {pending ? "Actualizando…" : "Actualizar ahora"}
     </Button>
+  );
+}
+
+export function FeedWeightSelect({ id, weight }: { id: string; weight: 1 | 0.5 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  return (
+    <div className="flex flex-col gap-1">
+      <select
+        aria-label="Importancia de sus eventos"
+        defaultValue={String(weight)}
+        disabled={pending}
+        onChange={(e) => {
+          const value = e.currentTarget.value;
+          startTransition(async () => {
+            const result = await setCalendarFeedWeight(id, value);
+            setError(result.ok ? null : result.message);
+          });
+        }}
+        className="w-fit rounded-lg border border-input bg-background px-2 py-1 text-xs"
+      >
+        {WEIGHT_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-xs text-destructive" role="alert">{error}</p>}
+    </div>
   );
 }
