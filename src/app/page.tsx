@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, Hammer, MapPin, MessageCircle, Clock } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Hammer, MapPin, MessageCircle, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SITE, TEAM } from "@/features/site/config";
@@ -210,18 +211,39 @@ function Team() {
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {TEAM.map((member, i) => (
           <Reveal as="li" key={member.name} delay={i * 70} className="flex items-center gap-4 border bg-white p-4 lg:flex-col lg:items-start">
-            <span
-              aria-hidden
-              className={cn(
-                "grid size-14 shrink-0 place-items-center font-mono text-lg font-semibold",
-                AVATAR_STYLES[i % AVATAR_STYLES.length],
-              )}
-            >
-              {initials(member.name)}
-            </span>
+            {member.photo ? (
+              <Image
+                src={member.photo}
+                alt={`Foto de ${member.name}`}
+                width={112}
+                height={112}
+                className="size-14 shrink-0 object-cover lg:size-20"
+              />
+            ) : (
+              <span
+                aria-hidden
+                className={cn(
+                  "grid size-14 shrink-0 place-items-center font-mono text-lg font-semibold lg:size-20",
+                  AVATAR_STYLES[i % AVATAR_STYLES.length],
+                )}
+              >
+                {initials(member.name)}
+              </span>
+            )}
             <div className="flex flex-col gap-0.5">
               <h3 className="font-semibold">{member.name}</h3>
               <p className="text-sm text-muted-foreground">{member.role}</p>
+              {member.linkedinUrl && (
+                <a
+                  href={member.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex w-fit items-center gap-1 font-mono text-xs font-medium underline-offset-4 hover:underline"
+                >
+                  LinkedIn <ArrowUpRight className="size-3" aria-hidden />
+                  <span className="sr-only">de {member.name} (se abre en una pestaña nueva)</span>
+                </a>
+              )}
             </div>
           </Reveal>
         ))}

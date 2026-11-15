@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { ChipMark } from "@/components/chip-mark";
 import { cn } from "@/lib/utils";
-import { SITE } from "../config";
+import { SITE, SOON } from "../config";
 import { CtaArrow, cta } from "./primitives";
 
 export function Logo({ light = false }: { light?: boolean }) {
@@ -70,18 +70,18 @@ export function SiteHeader() {
   );
 }
 
-type FooterLink = { label: string; href: string; external: boolean };
+type FooterLink = { label: string; href: string | null; external: boolean; soon?: boolean };
 
 export function SiteFooter() {
-  const links = [
+  const links: FooterLink[] = [
     { label: "Meetup", href: SITE.meetupUrl, external: true },
     { label: "WhatsApp", href: SITE.whatsappUrl, external: true },
     { label: "Builder Center", href: SITE.builderCenterUrl, external: true },
-    { label: "LinkedIn", href: SITE.linkedinUrl, external: true },
-    { label: "Instagram", href: SITE.instagramUrl, external: true },
+    { label: "LinkedIn", href: SITE.linkedinUrl, external: true, soon: SOON.linkedin },
+    { label: "Instagram", href: SITE.instagramUrl, external: true, soon: SOON.instagram },
     { label: "Noticias", href: "/noticias", external: false },
     { label: "Privacidad", href: "/privacidad", external: false },
-  ].filter((l): l is FooterLink => !!l.href);
+  ].filter((l) => l.href !== null || l.soon);
 
   return (
     <footer className="on-dark">
@@ -101,7 +101,11 @@ export function SiteFooter() {
           <ul className="grid grid-cols-2 gap-x-6 gap-y-2 font-mono text-sm font-medium">
             {links.map((l) => (
               <li key={l.label}>
-                {l.external ? (
+                {l.href === null ? (
+                  <span>
+                    {l.label} <span className="text-xs font-normal opacity-75">· próximamente</span>
+                  </span>
+                ) : l.external ? (
                   <a
                     href={l.href}
                     target="_blank"
