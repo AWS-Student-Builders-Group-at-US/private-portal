@@ -31,6 +31,7 @@ export const MORE_ITEMS = [
   { href: "/panel/sugerencias", label: "Sugerencias" },
   { href: "/panel/boveda", label: "Bóveda" },
   { href: "/panel/mas/formulario-qr", label: "Formulario QR" },
+  { href: "/panel/ajustes", label: "Ajustes" },
 ];
 
 const MORE_PATHS = ["/panel/mas", ...MORE_ITEMS.map((item) => item.href)];

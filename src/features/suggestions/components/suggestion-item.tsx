@@ -52,7 +52,7 @@ export function SuggestionItem({ suggestion }: { suggestion: Suggestion }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="text-sm whitespace-pre-line break-words">{suggestion.body}</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{suggestion.author_name ?? "Anónima"}</span>
+          <span className="font-medium text-foreground">{suggestion.author_name ?? "Antiguo miembro"}</span>
           <span>{formatMadridDateTimeShort(suggestion.created_at)}</span>
           <label className="flex items-center gap-1">
             <span className="sr-only">Estado</span>

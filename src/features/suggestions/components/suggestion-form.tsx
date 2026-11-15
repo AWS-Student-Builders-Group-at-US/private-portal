@@ -42,15 +42,9 @@ export function SuggestionForm() {
           {error}
         </p>
       ))}
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="anonymous"
-          defaultChecked={state.values?.anonymous === "on"}
-          className="size-4"
-        />
-        Enviar de forma anónima
-      </label>
+      <p className="text-xs text-muted-foreground">
+        Las sugerencias se publican con tu nombre.
+      </p>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? "Enviando…" : "Enviar"}
