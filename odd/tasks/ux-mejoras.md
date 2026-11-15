@@ -28,7 +28,7 @@ uses, and the check-in form is global although events need different questions.
       main nav (desktop sidebar; mobile: 5 fixed items + drawer for the rest); sign-out inside
       Ajustes; Ajustes split into sections (Cuentas, Bóveda, Google Drive, Web pública placeholder,
       Publicaciones placeholder); drop the calendars and form link cards.
-- [ ] T2 Calendar: remove "Semana habitual" and "Cambios por fecha" from the UI and from the
+- [x] T2 Calendar: remove "Semana habitual" and "Cambios por fecha" from the UI and from the
       occupation math; shared notes over a selected range of cells (title + content) shown in the
       team view.
 - [ ] T3 Per-event check-in form: named forms with versions; event picks a form (null → active
@@ -50,6 +50,19 @@ one PR into `trunk` unless the user asks for slices.
   Checks: `npm run lint`: pass (no output); `npm test`: 37 files, 288 tests passed;
   `npm run build` (placeholder env): pass. Commit: see `git log` (feat(panel) flat navigation).
 
+- T2 done. Route: delegated direct (writer trigger: 2+ non-trivial files). "Semana habitual" and
+  "Cambios por fecha" removed (TemplatePainter, OverridesPanel, their actions/schemas/slot helpers
+  deleted); occupation is Google-only (`MemberDayData = { busy }`, `SlotOccupation` without
+  `manual`); legacy tables untouched. New `availability_notes` table (migration
+  `20261126000000_availability_notes.sql`, RLS: members read all, write own) and pure helpers in
+  `notes.ts` (`rectFromCorners`, `notesInWeek`, `noteCoversCell`, `notesForCell`,
+  `formatNoteRange`). "Tu semana" has an «Añadir nota» mode (click/drag, two taps, or arrows +
+  Enter) and lists own notes with edit/delete; the team view marks note cells and lists "Notas del
+  equipo" for the selected people. Test-first: `notes.test.ts` RED (module missing),
+  `schema.test.ts` RED (9 failed), `occupation.test.ts` RED (8 failed), then GREEN.
+  Checks: `npm run lint`: pass (no output); `npm test`: 38 files, 297 tests passed;
+  `npm run build` (placeholder env): pass. Commit: see `git log` (feat(calendar) google-only week).
+
 ## Next step
 
-T2 (calendar).
+T3 (per-event check-in form).

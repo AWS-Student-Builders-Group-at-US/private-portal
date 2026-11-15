@@ -7,6 +7,7 @@ import {
   occupationRatio,
   slotOccupationForDay,
   teamOccupation,
+  type MemberDayData,
   type OccupationByMember,
 } from "./occupation";
 import { SLOTS_PER_DAY, busyBlocksToRanges, slotIndex, timeToMinutes } from "./slots";
@@ -15,10 +16,10 @@ import { SLOTS_PER_DAY, busyBlocksToRanges, slotIndex, timeToMinutes } from "./s
 const s = (time: string) => slotIndex(timeToMinutes(time));
 const m = (time: string) => timeToMinutes(time);
 const monday = "2026-11-16";
-const empty = { template: [], overrides: [], busy: [] };
+const empty: MemberDayData = { busy: [] };
 
 describe("occupationForDay", () => {
-  it("is 0 everywhere without template, overrides or Google blocks", () => {
+  it("is 0 everywhere without Google blocks", () => {
     const row = occupationForDay(monday, empty);
     expect(row).toHaveLength(SLOTS_PER_DAY);
     expect(row.every((v) => v === 0)).toBe(true);
@@ -57,61 +58,15 @@ describe("occupationForDay", () => {
     expect(row.every((v) => v === 0)).toBe(true);
   });
 
-  it("a busy override is 1, even over a lighter Google block", () => {
-    const row = occupationForDay(monday, {
-      ...empty,
-      overrides: [{ date: monday, start_time: "12:00", end_time: "12:45", kind: "busy" }],
-      busy: [{ date: monday, start: m("12:00"), end: m("13:00"), weight: 0.5 }],
-    });
-    expect(row[s("12:00")]).toBe(1);
-    expect(row[s("12:30")]).toBe(1); // partial overlap 12:30–12:45
-    expect(row[s("13:00")]).toBe(0);
-  });
-
-  it("with a template, slots outside the free windows of that weekday are 1", () => {
-    const row = occupationForDay(monday, {
-      ...empty,
-      template: [
-        { weekday: 0, start_time: "10:00", end_time: "12:00" },
-        { weekday: 1, start_time: "08:00", end_time: "22:00" },
-      ],
-    });
-    expect(row[s("09:30")]).toBe(1);
-    expect(row[s("10:00")]).toBe(0);
-    expect(row[s("11:30")]).toBe(0);
-    expect(row[s("12:00")]).toBe(1);
-  });
-
-  it("with a template but nothing painted for that weekday, the whole day is 1", () => {
-    const row = occupationForDay(monday, {
+  it("ignores the legacy weekly template and date overrides", () => {
+    // Older rows may still exist in availability_template/availability_override;
+    // they no longer count towards occupation.
+    const legacy = {
       ...empty,
       template: [{ weekday: 1, start_time: "08:00", end_time: "22:00" }],
-    });
-    expect(row.every((v) => v === 1)).toBe(true);
-  });
-
-  it("a free override sets the manual part to 0 but Google weights still apply", () => {
-    const row = occupationForDay(monday, {
-      template: [{ weekday: 1, start_time: "08:00", end_time: "22:00" }],
-      overrides: [{ date: monday, start_time: "16:00", end_time: "18:00", kind: "free" }],
-      busy: [{ date: monday, start: m("17:00"), end: m("17:30"), weight: 0.5 }],
-    });
-    expect(row[s("15:30")]).toBe(1);
-    expect(row[s("16:00")]).toBe(0);
-    expect(row[s("17:00")]).toBe(0.5);
-    expect(row[s("17:30")]).toBe(0);
-    expect(row[s("18:00")]).toBe(1);
-  });
-
-  it("busy wins over a free override in the same slot", () => {
-    const row = occupationForDay(monday, {
-      ...empty,
-      overrides: [
-        { date: monday, start_time: "10:00", end_time: "11:00", kind: "free" },
-        { date: monday, start_time: "10:00", end_time: "11:00", kind: "busy" },
-      ],
-    });
-    expect(row[s("10:00")]).toBe(1);
+      overrides: [{ date: monday, start_time: "12:00", end_time: "13:00", kind: "busy" }],
+    } as MemberDayData;
+    expect(occupationForDay(monday, legacy).every((v) => v === 0)).toBe(true);
   });
 
   it("clips ranges to the visible grid", () => {
@@ -142,23 +97,22 @@ describe("occupationForDay", () => {
 });
 
 describe("slotOccupationForDay", () => {
-  it("separates manual and Google parts and keeps the source of each block", () => {
+  it("keeps the source and weight of each Google block in the slot", () => {
     const detail = slotOccupationForDay(monday, {
-      template: [{ weekday: 0, start_time: "10:00", end_time: "12:00" }],
-      overrides: [],
-      busy: [{ date: monday, start: m("09:30"), end: m("10:30"), weight: 0.5, source: "feed-a" }],
+      busy: [
+        { date: monday, start: m("09:30"), end: m("10:30"), weight: 0.5, source: "feed-a" },
+        { date: monday, start: m("10:00"), end: m("10:30"), weight: 1 },
+      ],
     });
     expect(detail[s("09:30")]).toEqual({
-      value: 1,
-      manual: 1,
+      value: 0.5,
       google: [{ source: "feed-a", weight: 0.5 }],
     });
     expect(detail[s("10:00")]).toEqual({
-      value: 0.5,
-      manual: 0,
-      google: [{ source: "feed-a", weight: 0.5 }],
+      value: 1,
+      google: [{ source: "feed-a", weight: 0.5 }, { weight: 1 }],
     });
-    expect(detail[s("10:30")]).toEqual({ value: 0, manual: 0, google: [] });
+    expect(detail[s("10:30")]).toEqual({ value: 0, google: [] });
   });
 });
 
