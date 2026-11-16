@@ -30,7 +30,12 @@ export type TeamMember = {
 // agrees, a photo and their public LinkedIn profile. No surnames, emails or
 // phones (the repository is public).
 export const TEAM: TeamMember[] = [
-  { name: "Guille", role: "Organizador general" },
+  {
+    name: "Guille",
+    role: "Organizador general",
+    photo: "/team/guille.webp",
+    linkedinUrl: "https://www.linkedin.com/in/guillermogj",
+  },
   {
     name: "Iván",
     role: "Talleres y charlas",
@@ -44,5 +49,10 @@ export const TEAM: TeamMember[] = [
     photo: "/team/cristina.webp",
     linkedinUrl: "https://www.linkedin.com/in/cristina-garcia-dominguez",
   },
-  { name: "Ray", role: "Logística y eventos" },
+  {
+    name: "Ray",
+    role: "Logística y eventos",
+    photo: "/team/ray.webp",
+    linkedinUrl: "https://www.linkedin.com/in/raimundo-garcia-perez-4bb286268",
+  },
 ];
