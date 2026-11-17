@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { InboxErrorNotice } from "@/features/inbox/components/inbox-error";
 import { MessageView } from "@/features/inbox/components/message-view";
-import { getInboxMessage } from "@/features/inbox/imap";
+import { FixtureNotice } from "@/features/inbox/components/fixture-notice";
+import { loadInboxView } from "@/features/inbox/source";
 import { parseUid } from "@/features/inbox/logic";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -12,8 +13,8 @@ export default async function InboxMessagePage({ params }: PageProps<"/panel/cor
   const uid = parseUid(rawUid);
   if (uid === null) notFound();
 
-  const result = await getInboxMessage(uid);
-  if (result.ok && !result.data) notFound();
+  const { result, fixtures } = await loadInboxView({ page: 1, query: null, uid });
+  if (result.ok && !result.data.message) notFound();
 
   return (
     <div className="flex flex-col gap-6">
@@ -24,8 +25,9 @@ export default async function InboxMessagePage({ params }: PageProps<"/panel/cor
         <ArrowLeft className="size-4" />
         Correo AWS
       </Link>
-      {result.ok && result.data ? (
-        <MessageView message={result.data} />
+      {fixtures && <FixtureNotice />}
+      {result.ok && result.data.message ? (
+        <MessageView message={result.data.message} />
       ) : (
         !result.ok && <InboxErrorNotice error={result.error} />
       )}

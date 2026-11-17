@@ -1,5 +1,5 @@
 import { formatMadridDateTime } from "@/features/events/time";
-import type { InboxMessage } from "../imap";
+import type { InboxMessage } from "../types";
 import { buildSandboxedHtml, formatAddressList, formatBytes } from "../logic";
 
 export function MessageView({ message }: { message: InboxMessage }) {

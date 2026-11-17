@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatMadridDateTimeShort } from "@/features/events/time";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
-import type { InboxPage } from "../imap";
+import type { InboxPage } from "../types";
 
 function pageHref(page: number, query: string | null) {
   const params = new URLSearchParams();

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { InboxErrorNotice } from "@/features/inbox/components/inbox-error";
+import { FixtureNotice } from "@/features/inbox/components/fixture-notice";
 import { InboxList } from "@/features/inbox/components/inbox-list";
-import { listInbox } from "@/features/inbox/imap";
+import { loadInboxView } from "@/features/inbox/source";
 import { normalizeSearch, parsePage } from "@/features/inbox/logic";
 import { getCurrentMember } from "@/lib/auth/member";
 
@@ -11,7 +12,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/panel/corr
   const [params] = await Promise.all([searchParams, getCurrentMember()]);
   const page = parsePage(params.pagina);
   const query = normalizeSearch(params.q);
-  const result = await listInbox({ page, query });
+  const { result, fixtures } = await loadInboxView({ page, query, uid: null });
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,6 +22,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/panel/corr
           Bandeja de entrada de la cuenta común del grupo, solo lectura. Abrir un correo aquí no lo
           marca como leído.
         </p>
+        {fixtures && <FixtureNotice />}
       </div>
       <form action="/panel/correo" role="search" className="flex flex-wrap gap-2">
         <label htmlFor="inbox-search" className="sr-only">
@@ -40,7 +42,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/panel/corr
         </Button>
       </form>
       {result.ok ? (
-        <InboxList inbox={result.data} page={page} query={query} />
+        <InboxList inbox={result.data.page} page={page} query={query} />
       ) : (
         <InboxErrorNotice error={result.error} />
       )}

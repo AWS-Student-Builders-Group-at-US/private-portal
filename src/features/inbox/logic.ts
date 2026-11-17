@@ -71,3 +71,37 @@ export function formatBytes(bytes: number | undefined): string {
 export function buildSandboxedHtml(html: string): string {
   return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${INBOX_CSP}"><meta charset="utf-8"><base target="_blank">${html}`;
 }
+
+// The common account's own address never reaches the browser: it shows up
+// as a label instead (it is usually the "To" of every message).
+export function maskCommonAccount(values: Address[], account: string | undefined): Address[] {
+  const own = account?.trim().toLowerCase();
+  if (!own) return values;
+  return values.map((value) =>
+    value.address?.trim().toLowerCase() === own ? { name: "Cuenta común" } : value,
+  );
+}
+
+// Case-insensitive substring match on subject or sender, like IMAP
+// `SEARCH OR SUBJECT <q> FROM <q>` (FROM matches the name and the address).
+export function matchesSearch(
+  message: { subject: string; from: Address[] },
+  query: string,
+): boolean {
+  const needle = query.toLowerCase();
+  const haystacks = [
+    message.subject,
+    ...message.from.flatMap((sender) => [sender.name ?? "", sender.address ?? ""]),
+  ];
+  return haystacks.some((value) => value.toLowerCase().includes(needle));
+}
+
+// Local sample emails (src/features/inbox/fixtures.ts) instead of IMAP: only
+// with INBOX_FIXTURES=1 and never in a production build or deployment.
+export function isFixtureMode(env: Record<string, string | undefined>): boolean {
+  return (
+    env.INBOX_FIXTURES === "1" &&
+    env.NODE_ENV !== "production" &&
+    env.VERCEL_ENV !== "production"
+  );
+}

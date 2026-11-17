@@ -1,4 +1,4 @@
-import type { InboxError } from "../imap";
+import type { InboxError } from "../types";
 
 const MESSAGES: Record<InboxError, string> = {
   not_configured:
