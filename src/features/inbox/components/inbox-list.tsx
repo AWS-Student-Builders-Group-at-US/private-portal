@@ -1,77 +1,94 @@
 import Link from "next/link";
-import { formatMadridDateTimeShort } from "@/features/events/time";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
+import { formatInboxDate, inboxHref, isAwsSender } from "../logic";
 import type { InboxPage } from "../types";
-
-function pageHref(page: number, query: string | null) {
-  const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  if (page > 1) params.set("pagina", String(page));
-  const search = params.toString();
-  return search ? `/panel/correo?${search}` : "/panel/correo";
-}
+import { EmptyInbox, NoResults } from "./inbox-states";
+import { AwsBadge, SenderAvatar } from "./sender-avatar";
 
 export function InboxList({
   inbox,
   page,
   query,
+  selectedUid,
+  now,
 }: {
   inbox: InboxPage;
   page: number;
   query: string | null;
+  selectedUid: number | null;
+  now: Date;
 }) {
   if (inbox.messages.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {query ? "Ningún correo coincide con la búsqueda." : "No hay correos en esta página."}
-      </p>
-    );
+    return query ? <NoResults query={query} /> : <EmptyInbox />;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <ul className="divide-y rounded-lg border">
-        {inbox.messages.map((message) => (
-          <li key={message.uid}>
-            <Link
-              href={`/panel/correo/${message.uid}`}
-              className="flex flex-col gap-0.5 px-4 py-3 hover:bg-muted/50 sm:flex-row sm:items-baseline sm:gap-4"
-            >
-              <span
+    <nav aria-label="Correos">
+      <ul className="divide-y divide-border/70">
+        {inbox.messages.map((message) => {
+          const selected = message.uid === selectedUid;
+          const date = formatInboxDate(message.date, now);
+          return (
+            <li key={message.uid}>
+              <Link
+                href={inboxHref({ page, query, uid: message.uid })}
+                aria-current={selected ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 items-center gap-2 text-sm sm:w-56 sm:shrink-0",
-                  message.unread && "font-semibold",
+                  "relative flex gap-3 px-4 py-3 outline-none transition-colors",
+                  "hover:bg-muted/70 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  "before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-r-full",
+                  selected && "bg-accent before:bg-[var(--aws-orange)] hover:bg-accent",
                 )}
               >
-                {message.unread && (
-                  <span aria-hidden className="size-2 shrink-0 rounded-full bg-primary" />
-                )}
-                <span className="truncate">{message.from}</span>
-                {message.unread && <span className="sr-only">(no leído)</span>}
-              </span>
-              <span className={cn("min-w-0 flex-1 truncate text-sm", message.unread && "font-semibold")}>
-                {message.subject}
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {message.date ? formatMadridDateTimeShort(message.date) : ""}
-              </span>
-            </Link>
-          </li>
-        ))}
+                <SenderAvatar name={message.from} address={message.fromAddress} />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "truncate text-sm",
+                        message.unread ? "font-semibold text-foreground" : "text-foreground/85",
+                      )}
+                    >
+                      {message.from}
+                    </span>
+                    {isAwsSender(message.fromAddress) && <AwsBadge />}
+                    {date && (
+                      <time
+                        dateTime={message.date ?? undefined}
+                        className={cn(
+                          "ml-auto shrink-0 font-mono text-xs tabular-nums",
+                          message.unread ? "font-semibold text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {date}
+                      </time>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "truncate text-sm",
+                        message.unread ? "font-medium text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {message.subject}
+                    </span>
+                    {message.unread && (
+                      <>
+                        <span
+                          aria-hidden
+                          className="ml-auto size-2 shrink-0 rounded-full bg-[var(--aws-orange)]"
+                        />
+                        <span className="sr-only">(no leído)</span>
+                      </>
+                    )}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
-      <nav aria-label="Paginación" className="flex flex-wrap gap-2">
-        {page > 1 && (
-          <Link href={pageHref(page - 1, query)} className={buttonVariants({ variant: "outline" })}>
-            Más recientes
-          </Link>
-        )}
-        {inbox.hasOlder && (
-          <Link href={pageHref(page + 1, query)} className={buttonVariants({ variant: "outline" })}>
-            Más antiguos
-          </Link>
-        )}
-      </nav>
-    </div>
+    </nav>
   );
 }
