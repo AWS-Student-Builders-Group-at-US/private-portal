@@ -16,9 +16,17 @@ deployed on Vercel Hobby with Supabase Free.
 
 ```bash
 npm install
-cp .env.example .env.local   # then fill in the values
-npm run dev
+cp env.example .env.local   # then fill in the values
+npm run dev                 # http://localhost:3000
 ```
+
+- Values marked *Sensitive* in Vercel cannot be pulled with `vercel env pull`; copy them from the
+  team vault instead.
+- Sign-in works locally only if `http://localhost:3000/auth/callback` is in Supabase
+  *Authentication → URL Configuration → Redirect URLs* (see *Setup* step 6).
+- `INBOX_FIXTURES=1` shows sample emails in `/panel/correo` without Gmail credentials (ignored in
+  production).
+- Local runs use the production Supabase project: what you create locally is real data.
 
 Checks: `npm test` (Vitest, pure logic only), `npm run lint` and `npm run build`.
 
