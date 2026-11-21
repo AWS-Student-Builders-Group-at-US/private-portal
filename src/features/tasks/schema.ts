@@ -14,6 +14,18 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 
 export const MAX_ASSIGNEES = 20;
 
+// Optional; a task without priority shows "—".
+export const TASK_PRIORITIES = ["high", "medium", "low"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  high: "Alta",
+  medium: "Media",
+  low: "Baja",
+};
+
+export const TASK_LINK_MAX = 2000;
+
 export const taskStatusSchema = z.enum(TASK_STATUSES, "Estado no válido.");
 
 // Trims strings; blank values become null.
@@ -77,6 +89,18 @@ export const taskFormSchema = z.object({
   event_id: z.preprocess(
     blankToNull,
     z.uuid("Elige un evento de la lista.").nullable(),
+  ),
+  priority: z.preprocess(
+    blankToNull,
+    z.enum(TASK_PRIORITIES, "Elige una prioridad de la lista.").nullable(),
+  ),
+  // Only http(s) links: the table renders it as a clickable link.
+  link_url: z.preprocess(
+    blankToNull,
+    z
+      .url({ protocol: /^https?$/, error: "Pega un enlace que empiece por https://." })
+      .max(TASK_LINK_MAX, `El enlace admite como máximo ${TASK_LINK_MAX} caracteres.`)
+      .nullable(),
   ),
 });
 

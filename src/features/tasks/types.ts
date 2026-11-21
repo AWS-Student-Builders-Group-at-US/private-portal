@@ -1,4 +1,4 @@
-import type { TaskStatus } from "./schema";
+import type { TaskPriority, TaskStatus } from "./schema";
 
 export type Task = {
   id: string;
@@ -10,6 +10,8 @@ export type Task = {
   assignee_emails: string[];
   due_date: string | null; // "YYYY-MM-DD"
   event_id: string | null;
+  priority: TaskPriority | null;
+  link_url: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

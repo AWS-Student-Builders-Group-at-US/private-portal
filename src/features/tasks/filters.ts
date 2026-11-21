@@ -73,6 +73,13 @@ export function sortTasks<T extends FilterableTask>(tasks: T[]): T[] {
   });
 }
 
+// Table order: by status (Por hacer … Hecho, so finished work goes last),
+// then as sortTasks (due date, then creation).
+export function sortForTable<T extends FilterableTask>(tasks: T[]): T[] {
+  const rank = (status: TaskStatus) => TASK_STATUSES.indexOf(status);
+  return sortTasks(tasks).sort((a, b) => rank(a.status) - rank(b.status));
+}
+
 export function groupByStatus<T extends FilterableTask>(
   tasks: T[],
 ): Record<TaskStatus, T[]> {

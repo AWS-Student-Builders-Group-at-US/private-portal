@@ -8,9 +8,9 @@ import {
   PERSON_UNASSIGNED,
   filterTasks,
   parseTaskFilters,
-  sortTasks,
+  sortForTable,
 } from "@/features/tasks/filters";
-import { TaskBoard } from "@/features/tasks/components/task-board";
+import { TaskTable } from "@/features/tasks/components/task-table";
 import { TaskFilters } from "@/features/tasks/components/task-filters";
 import {
   listEventOptions,
@@ -36,7 +36,7 @@ export default async function TasksPage({
     listEventOptions(),
   ]);
   const filters = parseTaskFilters(params);
-  const visible = sortTasks(filterTasks(tasks, filters, member.email));
+  const visible = sortForTable(filterTasks(tasks, filters, member.email));
   const persona =
     filters.person === "me"
       ? PERSON_ME
@@ -74,7 +74,7 @@ export default async function TasksPage({
               Ninguna tarea coincide con los filtros.
             </p>
           )}
-          <TaskBoard tasks={visible} today={madridToday()} />
+          {visible.length > 0 && <TaskTable tasks={visible} today={madridToday()} />}
         </>
       )}
     </div>

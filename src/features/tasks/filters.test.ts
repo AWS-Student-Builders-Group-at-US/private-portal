@@ -4,6 +4,7 @@ import {
   groupByStatus,
   isOverdue,
   parseTaskFilters,
+  sortForTable,
   sortTasks,
 } from "./filters";
 
@@ -134,5 +135,18 @@ describe("isOverdue", () => {
       isOverdue(task({ due_date: "2026-11-13", status: "done" }), "2026-11-14"),
     ).toBe(false);
     expect(isOverdue(task({}), "2026-11-14")).toBe(false);
+  });
+});
+
+describe("sortForTable", () => {
+  it("orders by status first, then by due date", () => {
+    const sorted = sortForTable([
+      task({ id: "done", status: "done", due_date: "2026-11-01" }),
+      task({ id: "review", status: "review" }),
+      task({ id: "todo-late", due_date: "2026-12-01" }),
+      task({ id: "doing", status: "doing" }),
+      task({ id: "todo-soon", due_date: "2026-11-20" }),
+    ]);
+    expect(ids(sorted)).toEqual(["todo-soon", "todo-late", "doing", "review", "done"]);
   });
 });

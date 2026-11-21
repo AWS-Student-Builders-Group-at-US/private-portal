@@ -51,6 +51,8 @@ export default async function EditTaskPage({
           assignee_emails: task.assignee_emails.join(","),
           due_date: task.due_date ?? "",
           event_id: task.event_id ?? "",
+          priority: task.priority ?? "",
+          link_url: task.link_url ?? "",
         }}
         members={members}
         events={events}
