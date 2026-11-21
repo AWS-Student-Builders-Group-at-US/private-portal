@@ -173,9 +173,7 @@ export function MyWeekGrid({
   }
 
   const status = selection
-    ? mode === "edit"
-      ? "Elige cómo estás en la franja seleccionada."
-      : "Escribe la nota para la franja seleccionada."
+    ? "Escribe la nota para la franja seleccionada."
     : anchor
       ? "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para empezar de nuevo)."
       : "Elige la primera esquina: haz clic o toca una franja, o arrastra sobre varias.";
@@ -200,10 +198,14 @@ export function MyWeekGrid({
             </Button>
           </>
         )}
-        {selecting && (
-          <p className="text-sm text-muted-foreground" role="status">
-            {status}
-          </p>
+        {selection && mode === "edit" ? (
+          <ManualEditForm key={JSON.stringify(selection)} rect={selection} onDone={reset} />
+        ) : (
+          selecting && (
+            <p className="text-sm text-muted-foreground" role="status">
+              {status}
+            </p>
+          )
         )}
       </div>
       <div className="overflow-x-auto">
@@ -323,10 +325,6 @@ export function MyWeekGrid({
           Tiene una nota
         </li>
       </ul>
-
-      {selection && mode === "edit" && (
-        <ManualEditForm key={JSON.stringify(selection)} rect={selection} onDone={reset} />
-      )}
 
       {selection && mode === "note" && (
         <NoteForm

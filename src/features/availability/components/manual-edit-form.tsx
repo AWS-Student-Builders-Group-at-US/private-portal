@@ -13,9 +13,9 @@ const CHOICES: { choice: Exclude<ManualChoice, "google">; label: string; value: 
   { choice: "1", label: "No lo puedo mover", value: 1 },
 ];
 
-// Choices for a hand edit of the selected rectangle of the member's week. The
-// edit applies to those dates only and replaces Google there; "Usar Google"
-// removes the edits.
+// Inline choices for a hand edit of the selected rectangle of the member's
+// week, shown in the toolbar next to "Cancelar edición". The edit applies to
+// those dates only and replaces Google there; "Usar Google" removes the edits.
 export function ManualEditForm({ rect, onDone }: { rect: NoteRect; onDone: () => void }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -30,12 +30,8 @@ export function ManualEditForm({ rect, onDone }: { rect: NoteRect; onDone: () =>
   }
 
   return (
-    <div className="flex max-w-xl flex-col gap-3">
-      <p className="text-sm">
-        <span className="text-muted-foreground">Franja: </span>
-        <span className="font-medium">{formatNoteRange(rect)}</span>
-      </p>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Disponibilidad">
+    <>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Disponibilidad">
         {CHOICES.map((item) => (
           <Button
             key={item.choice}
@@ -52,19 +48,24 @@ export function ManualEditForm({ rect, onDone }: { rect: NoteRect; onDone: () =>
             {item.label}
           </Button>
         ))}
-        <Button variant="ghost" size="sm" disabled={pending} onClick={() => save("google")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() => save("google")}
+          title="Quita lo editado a mano en esta franja"
+        >
           Usar Google
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        El cambio vale solo para estos días y manda sobre tus calendarios de Google. «Usar
-        Google» quita lo editado a mano en esta franja.
+      <p className="text-sm text-muted-foreground" role="status">
+        {formatNoteRange(rect)}
       </p>
       {message && (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="w-full text-sm text-destructive" role="alert">
           {message}
         </p>
       )}
-    </div>
+    </>
   );
 }
