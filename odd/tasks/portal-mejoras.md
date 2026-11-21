@@ -44,7 +44,10 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   - [x] T4b Shared "AWS US - Student Builder Group" iCal feed with group meetings.
 - [x] T5 Posts insights from Zernio: stored per-post metrics (impressions, reach, interactions,
       engagement rate, per-network breakdown) on `/panel/publicaciones` and each post's detail.
-- [ ] T6 Mail-based reminders (pending decision: conflicts with "never store emails").
+- [x] T6 Outgoing email reminders (user decision 2026-11-22: "recordatorios" means emails the
+      portal SENDS; inbound emails are still never stored): a "Recordarme por correo" tick on
+      tasks (assignees emailed the day before the due date) and free reminders per member
+      (emailed to their owner on the chosen date), both sent by the daily cron.
 
 ## Delivery strategy
 
@@ -143,6 +146,33 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   migration against a database; the browser UI (needs Google sign-in). To get webhook-driven
   refreshes, `analytics.synced` must be enabled on the Zernio webhook (otherwise daily cron).
 
+- T6 (route: direct inline in a side session; ~900 authored lines over 3 work units, above the
+  ~400 heuristic because migration, cron and two UIs only make sense together). Migration
+  `20261205000000_email_reminders.sql`: `tasks.email_reminder boolean default false`;
+  server-only `task_reminder_sends` (PK task, member, due_date; RLS on, no policies, revoked
+  from anon/authenticated) so a (task, assignee, due date) is emailed once and a new due date
+  allows one new reminder; owner-only `reminders` (title 1–200, note ≤2000, `remind_on` date,
+  `sent_at` set only by the cron; members may update title/note/remind_on, a trigger clears
+  `sent_at` when the date changes). Pure rules in `src/features/reminders/logic.ts`
+  (`dueTaskReminders`: ticked, not done, due today or tomorrow in Madrid, deduped, common
+  account skipped; `dueReminders`: pending, due today, up to 7 days late after missed runs;
+  `groupByRecipient`: one email per member) and `email.ts` (subject without line breaks, HTML
+  escaped). `sendDailyReminders()` (`reminders/send.ts`, admin client, never throws, counts
+  only) runs in parallel inside `/api/cron/diario` (04:00 UTC, so emails arrive early in the
+  morning in Madrid) and claims each item in the database before sending (insert into
+  `task_reminder_sends` with ignore-duplicates / `sent_at` flip where null), releasing the
+  claim if SMTP fails. UI: "Recordarme por correo" checkbox in the task form and an "Avisar"
+  tick under the deadline in `TaskTable`; "Mis recordatorios" on the panel home (create, edit,
+  delete, "Enviado" badge; RLS: own rows only). AGENTS.md admin-client list and `admin.ts`
+  comment updated. RED: `logic.test.ts`, `email.test.ts`, `schema.test.ts` failed (modules
+  missing), then 2 task schema tests failed (no `email_reminder`); GREEN: all pass. Checks:
+  eslint clean on changed paths, `tsc --noEmit` clean, `npm test` 62 files / 505 tests
+  passed, `next build` with dummy Supabase env vars succeeded. Commits: `ca88acd` (migration,
+  logic, cron), `3ddd1f7` (task tick), `642f095` (Mis recordatorios). Not verified: the
+  migration against a database (SQL reviewed only); a real SMTP send (no Gmail credentials in
+  the sandbox); the browser UI (needs Google sign-in). The cron is daily on Vercel Hobby, so
+  "24 h before" means the morning of the day before the due date.
+
 ## Next step
 
-T6 (pending decision: conflicts with "never store emails").
+Open the PR into `main`; after merge, check the first `cron/diario` log for `reminders`.
