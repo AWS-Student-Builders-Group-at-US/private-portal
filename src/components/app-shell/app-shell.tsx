@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { BuildBadge } from "@/components/build-badge";
 import { ChipMark } from "@/components/chip-mark";
-import { BottomNav, SidebarNav } from "./nav-links";
+import { BackToSiteLink, BottomNav, SidebarNav } from "./nav-links";
 
 // Member layout: sidebar on desktop (md and up), bottom bar on mobile.
 export function AppShell({ children }: { children: ReactNode }) {
@@ -16,8 +16,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <SidebarNav />
-        {/* Muted foreground is too dark on the sidebar; use the sidebar text tone. */}
-        <BuildBadge className="mt-auto px-3 text-sidebar-foreground/70" />
+        <div className="mt-auto flex flex-col gap-3 border-t border-sidebar-border pt-3">
+          <BackToSiteLink />
+          {/* Muted foreground is too dark on the sidebar; use the sidebar text tone. */}
+          <BuildBadge className="px-3 text-sidebar-foreground/70" />
+        </div>
       </aside>
       <main className="min-w-0 flex-1 bg-grid-faint p-4 pb-24 md:p-8">
         <div className="mx-auto max-w-6xl animate-rise-in">{children}</div>
