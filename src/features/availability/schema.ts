@@ -61,8 +61,10 @@ export type NoteInput = z.output<typeof noteFormSchema>;
 export const noteTextSchema = z.object(noteText);
 
 // What a hand edit sets in every slot of the selected rectangle: a fixed
-// occupation, or "google" to drop the edits and use Google again.
-export const MANUAL_CHOICES = ["0", "0.5", "1", "google"] as const;
+// occupation, "google" to drop the edited value and use Google again, or
+// "online" / "not_online" to set or clear the "solo online" mark (which
+// complements the value and never changes it).
+export const MANUAL_CHOICES = ["0", "0.5", "1", "google", "online", "not_online"] as const;
 export type ManualChoice = (typeof MANUAL_CHOICES)[number];
 
 // A hand edit of the member's own week: a rectangle of the visible grid inside
@@ -90,13 +92,18 @@ export const manualEditSchema = z
 
 export type ManualEdit = z.output<typeof manualEditSchema>;
 
-// Rows of availability_manual for an edit (one per date and 30-minute slot).
-export function manualRows(edit: ManualEdit, email: string, value: number) {
-  const rows: { member_email: string; date: string; start_minute: number; value: number }[] =
-    [];
+// Rows of availability_manual for an edit (one per date and 30-minute slot),
+// each with the given column (`value` or `online_only`); an upsert of these
+// rows leaves the other column untouched.
+export function manualRows<T extends { value: number } | { online_only: boolean }>(
+  edit: ManualEdit,
+  email: string,
+  fields: T,
+) {
+  const rows: ({ member_email: string; date: string; start_minute: number } & T)[] = [];
   for (let date = edit.start_date; date <= edit.end_date; date = addDays(date, 1)) {
     for (let minute = edit.start_minute; minute < edit.end_minute; minute += SLOT_MINUTES) {
-      rows.push({ member_email: email, date, start_minute: minute, value });
+      rows.push({ member_email: email, date, start_minute: minute, ...fields });
     }
   }
   return rows;

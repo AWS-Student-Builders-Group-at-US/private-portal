@@ -14,8 +14,14 @@ import {
 // The team map shows availability: the number of selected members free in
 // each slot (n … 0), i.e. n minus the sum of their occupation.
 
-// A slot the member edited by hand (see availability_manual).
-export type ManualSlot = { date: string; start: number; value: number };
+// A slot the member edited by hand (see availability_manual): `value` replaces
+// Google when set; `onlineOnly` marks that they can only join online.
+export type ManualSlot = {
+  date: string;
+  start: number;
+  value: number | null;
+  onlineOnly: boolean;
+};
 
 export type MemberDayData = {
   busy: DayRange[];
@@ -23,8 +29,17 @@ export type MemberDayData = {
 };
 
 export type GoogleHit = { source?: string; weight: number };
-// `manual` is set when the member edited the slot; it is then the slot value.
-export type SlotOccupation = { value: number; google: GoogleHit[]; manual?: number };
+// `manual` is set when the member edited the slot's value; it is then the slot
+// value. `onlineOnly` complements the value.
+export type SlotOccupation = {
+  value: number;
+  google: GoogleHit[];
+  manual?: number;
+  onlineOnly?: boolean;
+};
+
+// Per member, per date, per slot: true when the member is only online there.
+export type OnlineByMember = Record<string, Record<string, boolean[]>>;
 
 // Occupation per member per date: { [person]: { [date]: number[] } }.
 export type OccupationByMember = Record<string, Record<string, number[]>>;
@@ -33,7 +48,7 @@ export type OccupationByMember = Record<string, Record<string, number[]>>;
 export function slotOccupationForDay(date: string, data: MemberDayData): SlotOccupation[] {
   const google = data.busy.filter((b) => b.date === date);
   const manual = new Map(
-    (data.manual ?? []).filter((m) => m.date === date).map((m) => [m.start, m.value]),
+    (data.manual ?? []).filter((m) => m.date === date).map((m) => [m.start, m]),
   );
   return Array.from({ length: SLOTS_PER_DAY }, (_, i) => {
     const from = slotStart(i);
@@ -41,11 +56,18 @@ export function slotOccupationForDay(date: string, data: MemberDayData): SlotOcc
     const hits: GoogleHit[] = google
       .filter((b) => b.start < to && b.end > from)
       .map((b) => (b.source ? { source: b.source, weight: b.weight } : { weight: b.weight }));
-    const edited = manual.get(from);
-    if (edited !== undefined) return { value: edited, google: hits, manual: edited };
+    const edit = manual.get(from);
+    const online = edit?.onlineOnly ? { onlineOnly: true } : {};
+    if (edit && edit.value !== null) {
+      return { value: edit.value, google: hits, manual: edit.value, ...online };
+    }
     const value = Math.max(0, ...hits.map((h) => h.weight));
-    return { value, google: hits };
+    return { value, google: hits, ...online };
   });
+}
+
+export function onlineForDay(date: string, data: MemberDayData): boolean[] {
+  return slotOccupationForDay(date, data).map((slot) => slot.onlineOnly === true);
 }
 
 export function occupationForDay(date: string, data: MemberDayData): number[] {
@@ -80,6 +102,27 @@ export function teamAvailability(
   return Object.fromEntries(
     dates.map((date) => [date, sums[date].map((sum) => selected.length - sum)]),
   );
+}
+
+// Part of teamAvailability that comes from members marked "solo online" in
+// each slot (each adds their availability: 1 free, 0.5 could move it).
+export function teamOnlineAvailability(
+  perMember: OccupationByMember,
+  online: OnlineByMember,
+  selected: string[],
+  dates: string[],
+): Record<string, number[]> {
+  const sums: Record<string, number[]> = {};
+  for (const date of dates) {
+    const row = new Array<number>(SLOTS_PER_DAY).fill(0);
+    for (const person of selected) {
+      online[person]?.[date]?.forEach((onlineOnly, i) => {
+        if (onlineOnly) row[i] += 1 - (perMember[person]?.[date]?.[i] ?? 0);
+      });
+    }
+    sums[date] = row;
+  }
+  return sums;
 }
 
 export type CommonRange = { date: string; start: string; end: string };

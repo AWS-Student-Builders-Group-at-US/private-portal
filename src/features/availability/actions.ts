@@ -66,9 +66,12 @@ export async function updateNote(
   return { ok: true };
 }
 
-// Hand edit of the member's own week: sets every slot of the rectangle to the
-// chosen occupation (replacing Google there), or with "google" removes the
-// edits so those slots follow Google again.
+// Hand edit of the member's own week, for every slot of the rectangle:
+// - "0" / "0.5" / "1": sets the occupation (replacing Google there);
+// - "google": drops the edited occupation so the slots follow Google again;
+// - "online" / "not_online": sets or clears the "solo online" mark, keeping
+//   the occupation as it is.
+// Rows left with no value and no online mark are removed.
 export async function editMyAvailability(input: unknown): Promise<ActionResult> {
   const parsed = manualEditSchema.safeParse(input);
   if (!parsed.success) {
@@ -77,27 +80,49 @@ export async function editMyAvailability(input: unknown): Promise<ActionResult> 
   const edit = parsed.data;
   const { email } = await getCurrentMember();
   const supabase = await createClient();
-  const { error } =
-    edit.choice === "google"
-      ? await supabase
-          .from("availability_manual")
-          .delete()
-          .eq("member_email", email)
-          .gte("date", edit.start_date)
-          .lte("date", edit.end_date)
-          .gte("start_minute", edit.start_minute)
-          .lt("start_minute", edit.end_minute)
-      : await supabase
-          .from("availability_manual")
-          .upsert(manualRows(edit, email, Number(edit.choice)), {
-            onConflict: "member_email,date,start_minute",
-          });
-  if (error) {
-    return { ok: false, message: "No se pudo guardar tu disponibilidad. Inténtalo de nuevo." };
+  const failed = {
+    ok: false as const,
+    message: "No se pudo guardar tu disponibilidad. Inténtalo de nuevo.",
+  };
+  const table = () => supabase.from("availability_manual");
+  const range = { from: edit.start_date, to: edit.end_date };
+  const minutes = { from: edit.start_minute, to: edit.end_minute };
+  const onConflict = "member_email,date,start_minute";
+
+  let result;
+  if (edit.choice === "online") {
+    result = await table().upsert(manualRows(edit, email, { online_only: true }), {
+      onConflict,
+    });
+  } else if (edit.choice === "google" || edit.choice === "not_online") {
+    result = await table()
+      .update(edit.choice === "google" ? { value: null } : { online_only: false })
+      .eq("member_email", email)
+      .gte("date", range.from)
+      .lte("date", range.to)
+      .gte("start_minute", minutes.from)
+      .lt("start_minute", minutes.to);
+    if (!result.error) {
+      result = await table()
+        .delete()
+        .eq("member_email", email)
+        .gte("date", range.from)
+        .lte("date", range.to)
+        .gte("start_minute", minutes.from)
+        .lt("start_minute", minutes.to)
+        .is("value", null)
+        .eq("online_only", false);
+    }
+  } else {
+    result = await table().upsert(manualRows(edit, email, { value: Number(edit.choice) }), {
+      onConflict,
+    });
   }
+  if (result.error) return failed;
   revalidatePath(CALENDAR_PATH);
   return { ok: true };
 }
+
 
 export async function deleteNote(id: string): Promise<ActionResult> {
   if (!z.uuid().safeParse(id).success) {

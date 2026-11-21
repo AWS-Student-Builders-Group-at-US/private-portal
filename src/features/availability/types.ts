@@ -1,5 +1,5 @@
 import type { NoteRect } from "./notes";
-import type { OccupationByMember, SlotOccupation } from "./occupation";
+import type { OccupationByMember, OnlineByMember, SlotOccupation } from "./occupation";
 
 // A shared availability note (see notes.ts for the rectangle model).
 export type AvailabilityNote = NoteRect & {
@@ -13,6 +13,8 @@ export type TeamWeek = {
   dates: string[];
   members: { email: string; name: string }[];
   occupation: OccupationByMember;
+  // Slots in which each member marked "solo online".
+  online: OnlineByMember;
   // Every member's notes that overlap the week.
   notes: AvailabilityNote[];
   // Part of the week is outside the stored Google window.

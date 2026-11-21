@@ -2,9 +2,11 @@
 --
 -- One row per edited 30-minute slot of one Europe/Madrid date. `value` is the
 -- member's occupation in that slot (0 = free, 0.5 = could move it, 1 = can't
--- move it) and replaces whatever their Google calendars say for that slot.
--- Edits apply to that date only (they do not repeat weekly). Deleting the row
--- returns the slot to the Google value.
+-- move it) and replaces whatever their Google calendars say for that slot;
+-- null keeps the Google value. `online_only` marks that the member can only
+-- join online in that slot; it complements the value and never changes it.
+-- Edits apply to that date only (they do not repeat weekly). A row with no
+-- value and no online mark is deleted by the app (the slot follows Google).
 --
 -- Every member can read everyone's rows (team view); each member can only
 -- insert, update and delete their own rows.
@@ -17,7 +19,8 @@ create table public.availability_manual (
   date date not null,
   start_minute integer not null
     check (start_minute between 0 and 1410 and start_minute % 30 = 0),
-  value numeric(2, 1) not null check (value in (0, 0.5, 1)),
+  value numeric(2, 1) check (value in (0, 0.5, 1)),
+  online_only boolean not null default false,
   updated_at timestamptz not null default now(),
   primary key (member_email, date, start_minute)
 );

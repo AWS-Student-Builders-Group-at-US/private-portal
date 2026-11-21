@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Laptop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { editMyAvailability } from "../actions";
 import { formatNoteRange, type NoteRect } from "../notes";
@@ -16,6 +17,7 @@ const CHOICES: { choice: Exclude<ManualChoice, "google">; label: string; value: 
 // Inline choices for a hand edit of the selected rectangle of the member's
 // week, shown in the toolbar next to "Cancelar edición". The edit applies to
 // those dates only and replaces Google there; "Usar Google" removes the edits.
+// "Solo online" is a separate mark that complements the value.
 export function ManualEditForm({ rect, onDone }: { rect: NoteRect; onDone: () => void }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -53,9 +55,28 @@ export function ManualEditForm({ rect, onDone }: { rect: NoteRect; onDone: () =>
           size="sm"
           disabled={pending}
           onClick={() => save("google")}
-          title="Quita lo editado a mano en esta franja"
+          title="Vuelve a tomar la disponibilidad de Google (mantiene «Solo online»)"
         >
           Usar Google
+        </Button>
+        <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => save("online")}
+          title="Marca que en esta franja solo puedes online; no cambia tu disponibilidad"
+        >
+          <Laptop data-icon="inline-start" />
+          Solo online
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() => save("not_online")}
+        >
+          Quitar solo online
         </Button>
       </div>
       <p className="text-sm text-muted-foreground" role="status">

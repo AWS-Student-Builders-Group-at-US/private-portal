@@ -92,7 +92,9 @@ describe("manualEditSchema", () => {
 
   it("accepts a rectangle of the grid and a choice", () => {
     expect(manualEditSchema.safeParse(edit).success).toBe(true);
-    expect(manualEditSchema.safeParse({ ...edit, choice: "google" }).success).toBe(true);
+    for (const choice of ["0", "1", "google", "online", "not_online"]) {
+      expect(manualEditSchema.safeParse({ ...edit, choice }).success).toBe(true);
+    }
   });
 
   it("rejects unknown choices, reversed ranges and more than a week", () => {
@@ -105,11 +107,17 @@ describe("manualEditSchema", () => {
 
   it("builds one row per date and 30-minute slot", () => {
     const parsed = manualEditSchema.parse(edit);
-    expect(manualRows(parsed, "a@example.com", 0.5)).toEqual([
+    expect(manualRows(parsed, "a@example.com", { value: 0.5 })).toEqual([
       { member_email: "a@example.com", date: "2026-11-17", start_minute: 600, value: 0.5 },
       { member_email: "a@example.com", date: "2026-11-17", start_minute: 630, value: 0.5 },
       { member_email: "a@example.com", date: "2026-11-18", start_minute: 600, value: 0.5 },
       { member_email: "a@example.com", date: "2026-11-18", start_minute: 630, value: 0.5 },
     ]);
+    expect(manualRows(parsed, "a@example.com", { online_only: true })[0]).toEqual({
+      member_email: "a@example.com",
+      date: "2026-11-17",
+      start_minute: 600,
+      online_only: true,
+    });
   });
 });

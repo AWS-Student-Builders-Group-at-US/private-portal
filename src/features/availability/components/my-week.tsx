@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pencil, StickyNote, X } from "lucide-react";
+import { Laptop, Pencil, StickyNote, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createNote } from "../actions";
@@ -54,7 +54,8 @@ const sameCell = (a: CellRef | null, b: CellRef | null) =>
 // The member's own week, from their Google calendars and their hand edits,
 // shown as availability (1 - occupation): 1 = free, 0,5 = could move it,
 // 0 = can't move it, like the team map. Cells with a Google block
-// show a "G", hand-edited cells an "M"; cells covered by a note show a dot.
+// show a "G", hand-edited cells an "M", "solo online" cells a laptop icon;
+// cells covered by a note show a dot.
 //
 // "Añadir nota" and "Editar disponibilidad" modes: two corners define a
 // rectangle of cells. Mouse: click two cells or drag from one to the other.
@@ -88,6 +89,18 @@ export function MyWeekGrid({
     setSelection(null);
     dragging.current = false;
   }, []);
+
+  // Escape leaves the edit mode from anywhere on the page, and the note mode
+  // while no corner is picked and no note form is open (it would lose the text).
+  useEffect(() => {
+    if (!mode) return;
+    function onEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (mode === "edit" || (!anchor && !selection)) reset();
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [mode, anchor, selection, reset]);
 
   // A drag released outside the grid keeps the first corner.
   useEffect(() => {
@@ -139,7 +152,7 @@ export function MyWeekGrid({
     } else if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       pick({ date: week.dates[day], slot });
-    } else if (event.key === "Escape" && anchor) {
+    } else if (event.key === "Escape" && anchor && mode === "note") {
       event.preventDefault();
       setAnchor(null);
       setHover(null);
@@ -175,8 +188,10 @@ export function MyWeekGrid({
   const status = selection
     ? "Escribe la nota para la franja seleccionada."
     : anchor
-      ? "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para empezar de nuevo)."
-      : "Elige la primera esquina: haz clic o toca una franja, o arrastra sobre varias.";
+      ? mode === "edit"
+        ? "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para salir)."
+        : "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para empezar de nuevo)."
+      : "Elige la primera esquina: haz clic o toca una franja, o arrastra sobre varias (Escape para salir).";
 
   return (
     <div className="flex flex-col gap-3">
@@ -240,7 +255,8 @@ export function MyWeekGrid({
                   const selected = !!preview && noteCoversCell(preview, date, index);
                   const noteText =
                     notes.length > 0 ? ` · Notas: ${notes.map((n) => n.title).join(", ")}` : "";
-                  const label = `${formatDay(date)} ${time}: disponibilidad ${formatOccupation(1 - slot.value)} · ${describe(slot, feedLabels)}${noteText}`;
+                  const onlineText = slot.onlineOnly ? " · Solo online" : "";
+                  const label = `${formatDay(date)} ${time}: disponibilidad ${formatOccupation(1 - slot.value)} · ${describe(slot, feedLabels)}${onlineText}${noteText}`;
                   const focusable = focus.day === day && focus.slot === index;
                   return (
                     <div
@@ -273,6 +289,12 @@ export function MyWeekGrid({
                       style={{ backgroundColor: occupationColor(slot.value, 1) }}
                     >
                       {edited ? "M" : fromGoogle ? "G" : ""}
+                      {slot.onlineOnly && (
+                        <Laptop
+                          aria-hidden
+                          className="absolute top-1/2 left-1 size-3 -translate-y-1/2"
+                        />
+                      )}
                       {notes.length > 0 && (
                         <span
                           aria-hidden
@@ -323,6 +345,10 @@ export function MyWeekGrid({
         <li className="flex items-center gap-1.5">
           <span aria-hidden className="size-1.5 rounded-full bg-current" />
           Tiene una nota
+        </li>
+        <li className="flex items-center gap-1.5">
+          <Laptop aria-hidden className="size-3" />
+          Solo online (no cambia tu disponibilidad)
         </li>
       </ul>
 

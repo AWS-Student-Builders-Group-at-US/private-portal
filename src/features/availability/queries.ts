@@ -6,9 +6,11 @@ import { madridLocalToUtcIso } from "@/features/events/time";
 import { hideCommonAccount } from "@/features/members/common-account";
 import {
   occupationForDay,
+  onlineForDay,
   slotOccupationForDay,
   type ManualSlot,
   type OccupationByMember,
+  type OnlineByMember,
 } from "./occupation";
 import { addDays, busyBlocksToRanges, weekDates } from "./slots";
 import type { AvailabilityNote, MyWeek, TeamWeek } from "./types";
@@ -36,7 +38,7 @@ async function getWeekManual(
   const supabase = await createClient();
   let query = supabase
     .from("availability_manual")
-    .select("member_email, date, start_minute, value")
+    .select("member_email, date, start_minute, value, online_only")
     .gte("date", dates[0])
     .lte("date", dates[6]);
   if (email) query = query.eq("member_email", email);
@@ -47,7 +49,12 @@ async function getWeekManual(
   if (error) return byMember;
   for (const row of data) {
     const slots = byMember.get(row.member_email) ?? [];
-    slots.push({ date: row.date, start: row.start_minute, value: Number(row.value) });
+    slots.push({
+      date: row.date,
+      start: row.start_minute,
+      value: row.value === null ? null : Number(row.value),
+      onlineOnly: row.online_only === true,
+    });
     byMember.set(row.member_email, slots);
   }
   return byMember;
@@ -113,6 +120,7 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   );
 
   const occupation: OccupationByMember = {};
+  const online: OnlineByMember = {};
   members.data.forEach((member, i) => {
     const data = {
       busy: busyBlocksToRanges(busyByMember[i]),
@@ -121,12 +129,16 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
     occupation[member.email] = Object.fromEntries(
       dates.map((date) => [date, occupationForDay(date, data)]),
     );
+    online[member.email] = Object.fromEntries(
+      dates.map((date) => [date, onlineForDay(date, data)]),
+    );
   });
 
   return {
     dates,
     members: members.data,
     occupation,
+    online,
     notes,
     outsideGoogleWindow: isOutsideGoogleWindow(from, to),
   };
