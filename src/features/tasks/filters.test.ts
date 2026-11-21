@@ -9,8 +9,8 @@ import {
 
 type T = {
   id: string;
-  status: "todo" | "doing" | "done";
-  assignee_email: string | null;
+  status: "todo" | "doing" | "review" | "done";
+  assignee_emails: string[];
   event_id: string | null;
   due_date: string | null;
   created_at: string;
@@ -24,7 +24,7 @@ const EVENT_B = "1c7a4f4e-6e1b-4d2f-8b54-7a2a3b4c5d6e";
 const task = (overrides: Partial<T>): T => ({
   id: "x",
   status: "todo",
-  assignee_email: null,
+  assignee_emails: [],
   event_id: null,
   due_date: null,
   created_at: "2026-11-14T10:00:00Z",
@@ -32,9 +32,9 @@ const task = (overrides: Partial<T>): T => ({
 });
 
 const tasks: T[] = [
-  task({ id: "1", assignee_email: ME, event_id: EVENT_A }),
-  task({ id: "2", assignee_email: OTHER, event_id: EVENT_A, status: "doing" }),
-  task({ id: "3", assignee_email: ME, event_id: EVENT_B, status: "done" }),
+  task({ id: "1", assignee_emails: [ME], event_id: EVENT_A }),
+  task({ id: "2", assignee_emails: [OTHER, ME], event_id: EVENT_A, status: "doing" }),
+  task({ id: "3", assignee_emails: [ME], event_id: EVENT_B, status: "done" }),
   task({ id: "4" }),
 ];
 
@@ -68,9 +68,10 @@ describe("filterTasks", () => {
     ]);
   });
 
-  it("keeps my tasks with «Mis tareas»", () => {
+  it("keeps my tasks with «Mis tareas», also when shared with others", () => {
     expect(ids(filterTasks(tasks, { person: "me", eventId: null }, ME))).toEqual([
       "1",
+      "2",
       "3",
     ]);
   });
@@ -78,7 +79,7 @@ describe("filterTasks", () => {
   it("matches the current user's email case-insensitively", () => {
     expect(
       ids(filterTasks(tasks, { person: "me", eventId: null }, "YO@example.com")),
-    ).toEqual(["1", "3"]);
+    ).toEqual(["1", "2", "3"]);
   });
 
   it("filters by a given person or by unassigned tasks", () => {
@@ -97,6 +98,7 @@ describe("filterTasks", () => {
     ]);
     expect(ids(filterTasks(tasks, { person: "me", eventId: EVENT_A }, ME))).toEqual([
       "1",
+      "2",
     ]);
   });
 });
@@ -114,10 +116,12 @@ describe("sortTasks", () => {
 });
 
 describe("groupByStatus", () => {
-  it("splits tasks into the three columns", () => {
-    const groups = groupByStatus(tasks);
+  it("splits tasks into the four columns", () => {
+    const groups = groupByStatus([...tasks, task({ id: "5", status: "review" })]);
+    expect(Object.keys(groups)).toEqual(["todo", "doing", "review", "done"]);
     expect(ids(groups.todo)).toEqual(["1", "4"]);
     expect(ids(groups.doing)).toEqual(["2"]);
+    expect(ids(groups.review)).toEqual(["5"]);
     expect(ids(groups.done)).toEqual(["3"]);
   });
 });

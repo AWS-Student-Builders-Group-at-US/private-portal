@@ -13,7 +13,8 @@ export type TaskFormValues = {
   title: string;
   description: string;
   status: string;
-  assignee_email: string;
+  // Checked assignees, comma-separated.
+  assignee_emails: string;
   due_date: string;
   event_id: string;
 };
@@ -22,7 +23,7 @@ export const EMPTY_TASK: TaskFormValues = {
   title: "",
   description: "",
   status: "todo",
-  assignee_email: "",
+  assignee_emails: "",
   due_date: "",
   event_id: "",
 };
@@ -83,12 +84,22 @@ export function TaskForm({
       ? { "aria-invalid": true, "aria-describedby": `${name}-error` }
       : {};
 
-  // Keep a removed member or event selectable so editing doesn't drop it silently.
-  const assignee = value("assignee_email");
-  const memberOptions =
-    assignee && !members.some((m) => m.email === assignee)
-      ? [...members, { email: assignee, name: assignee }]
-      : members;
+  // Keep a removed member selectable so editing doesn't drop it silently.
+  const assignees = value("assignee_emails").split(",").filter(Boolean);
+  const memberOptions = [
+    ...members,
+    ...assignees
+      .filter((email) => !members.some((m) => m.email === email))
+      .map((email) => ({ email, name: email })),
+  ];
+  // Errors of the list and of each entry ("assignee_emails.0", …), once each.
+  const assigneeErrors = [
+    ...new Set(
+      Object.entries(state.fieldErrors ?? {})
+        .filter(([name]) => name.startsWith("assignee_emails"))
+        .flatMap(([, list]) => list ?? []),
+    ),
+  ];
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-4" noValidate>
@@ -141,22 +152,37 @@ export function TaskForm({
           />
         </Field>
       </div>
-      <Field name="assignee_email" label="Responsable" errors={errors("assignee_email")}>
-        <select
-          id="assignee_email"
-          name="assignee_email"
-          defaultValue={assignee}
-          className={fieldClass}
-          {...invalid("assignee_email")}
-        >
-          <option value="">Sin asignar</option>
+      <fieldset
+        className="flex flex-col gap-1.5"
+        aria-describedby={assigneeErrors.length > 0 ? "assignee_emails-error" : undefined}
+      >
+        <legend className="mb-1.5 text-sm font-medium">Responsables</legend>
+        <div className="flex flex-wrap gap-2">
           {memberOptions.map((member) => (
-            <option key={member.email} value={member.email}>
+            <label
+              key={member.email}
+              className="flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-sm has-[:checked]:border-foreground has-[:checked]:bg-muted"
+            >
+              <input
+                type="checkbox"
+                name="assignee_emails"
+                value={member.email}
+                defaultChecked={assignees.includes(member.email)}
+                className="size-3.5"
+              />
               {member.name}
-            </option>
+            </label>
           ))}
-        </select>
-      </Field>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Marca una o varias personas. Sin ninguna, la tarea queda sin asignar.
+        </p>
+        {assigneeErrors.map((error) => (
+          <p key={error} id="assignee_emails-error" className="text-sm text-destructive">
+            {error}
+          </p>
+        ))}
+      </fieldset>
       <Field name="event_id" label="Evento (opcional)" errors={errors("event_id")}>
         <select
           id="event_id"

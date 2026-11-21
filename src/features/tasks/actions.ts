@@ -6,8 +6,7 @@ import { z } from "zod";
 import { safePanelPath, withStatus } from "@/lib/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/features/events/types";
-import { taskFormSchema, taskStatusSchema } from "./schema";
-import type { TaskRowInput } from "./schema";
+import { taskFormSchema, taskRow, taskStatusSchema } from "./schema";
 import type { TaskFormState } from "./types";
 
 // Every action runs with the user's session (server client, never the secret
@@ -32,10 +31,25 @@ function formValues(formData: FormData) {
   return values;
 }
 
+// `values` echoes the form back after an error; the checked assignees travel
+// as one comma-separated string.
 function parseTaskForm(formData: FormData) {
-  const values = formValues(formData);
-  const parsed = taskFormSchema.safeParse(values);
-  if (parsed.success) return { ok: true, values, row: parsed.data } as const;
+  const assignees = formData
+    .getAll("assignee_emails")
+    .filter((value): value is string => typeof value === "string");
+  const values: Record<string, string> = {
+    ...formValues(formData),
+    assignee_emails: assignees.join(","),
+  };
+  const parsed = taskFormSchema.safeParse({ ...values, assignee_emails: assignees });
+  if (parsed.success) {
+    return {
+      ok: true,
+      values,
+      row: taskRow(parsed.data),
+      assignees: parsed.data.assignee_emails,
+    } as const;
+  }
   const state: TaskFormState = {
     message: "Revisa los campos marcados.",
     fieldErrors: z.flattenError(parsed.error).fieldErrors,
@@ -52,14 +66,14 @@ function foreignKeyError(
 ): TaskFormState | null {
   if (error.code !== "23503") return null;
   const text = `${error.message ?? ""} ${error.details ?? ""}`;
-  const field = text.includes("event_id") ? "event_id" : "assignee_email";
+  const field = text.includes("event_id") ? "event_id" : "assignee_emails";
   return {
     message: "Revisa los campos marcados.",
     fieldErrors: {
       [field]: [
         field === "event_id"
           ? "Ese evento ya no existe. Elige otro."
-          : "Esa persona ya no está en el equipo. Elige otra.",
+          : "Alguna de esas personas ya no está en el equipo. Revisa la lista.",
       ],
     },
     values,
@@ -72,12 +86,20 @@ export async function createTask(
 ): Promise<TaskFormState> {
   const parsed = parseTaskForm(formData);
   if (!parsed.ok) return parsed.state;
-  const row: TaskRowInput = parsed.row;
+  const row = parsed.row;
 
   const supabase = await createClient();
-  const { error } = await supabase.from("tasks").insert(row);
-  if (error) {
-    const fkError = foreignKeyError(error, parsed.values);
+  const { data, error } = await supabase.from("tasks").insert(row).select("id").single();
+  const assigned =
+    data && (await supabase.rpc("set_task_assignees", {
+      p_task_id: data.id,
+      p_emails: parsed.assignees,
+    }));
+  const failure = error ?? assigned?.error;
+  if (failure || !data) {
+    // Without its assignees the new task would be misleading: remove it.
+    if (data) await supabase.from("tasks").delete().eq("id", data.id);
+    const fkError = failure && foreignKeyError(failure, parsed.values);
     if (fkError) return fkError;
     return {
       message: "No se pudo crear la tarea. Inténtalo de nuevo.",
@@ -119,8 +141,13 @@ export async function updateTask(
     .update(parsed.row)
     .eq("id", id)
     .select("id");
-  if (error || !data?.length) {
-    const fkError = error && foreignKeyError(error, parsed.values);
+  const assigned =
+    !error && data?.length
+      ? await supabase.rpc("set_task_assignees", { p_task_id: id, p_emails: parsed.assignees })
+      : null;
+  const failure = error ?? assigned?.error;
+  if (failure || !data?.length) {
+    const fkError = failure && foreignKeyError(failure, parsed.values);
     if (fkError) return fkError;
     return {
       message: "No se pudieron guardar los cambios. Inténtalo de nuevo.",

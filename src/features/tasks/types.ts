@@ -5,7 +5,9 @@ export type Task = {
   title: string;
   description: string | null;
   status: TaskStatus;
+  // First assignee, kept for older code; use `assignee_emails`.
   assignee_email: string | null;
+  assignee_emails: string[];
   due_date: string | null; // "YYYY-MM-DD"
   event_id: string | null;
   created_by: string;
@@ -15,7 +17,7 @@ export type Task = {
 
 // Task as shown on the board, with display names already resolved.
 export type TaskCardData = Task & {
-  assignee_name: string | null;
+  assignees: { email: string; name: string }[];
   event_title: string | null;
 };
 

@@ -5,7 +5,7 @@ import { TASK_STATUSES, type TaskStatus } from "./schema";
 
 type FilterableTask = {
   status: TaskStatus;
-  assignee_email: string | null;
+  assignee_emails: string[];
   event_id: string | null;
   due_date: string | null;
   created_at: string;
@@ -52,11 +52,11 @@ export function filterTasks<T extends FilterableTask>(
       case null:
         return true;
       case "me":
-        return task.assignee_email === me;
+        return task.assignee_emails.includes(me);
       case "unassigned":
-        return task.assignee_email === null;
+        return task.assignee_emails.length === 0;
       default:
-        return task.assignee_email === filters.person;
+        return task.assignee_emails.includes(filters.person);
     }
   });
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { taskFormSchema, taskStatusSchema } from "./schema";
+import { MAX_ASSIGNEES, taskFormSchema, taskRow, taskStatusSchema } from "./schema";
 
 const EVENT_ID = "0b6f3f3e-5d0a-4c1e-9a43-6f1f2a3b4c5d";
 
@@ -7,7 +7,7 @@ const valid = {
   title: "  Reservar aula  ",
   description: "Pedir el aula A0.10 a conserjería.",
   status: "doing",
-  assignee_email: "Persona@Example.com ",
+  assignee_emails: ["Persona@Example.com ", "otra@example.com", "persona@example.com"],
   due_date: "2026-11-20",
   event_id: EVENT_ID,
 };
@@ -26,10 +26,25 @@ describe("taskFormSchema", () => {
       title: "Reservar aula",
       description: "Pedir el aula A0.10 a conserjería.",
       status: "doing",
-      assignee_email: "persona@example.com",
+      assignee_emails: ["persona@example.com", "otra@example.com"],
       due_date: "2026-11-20",
       event_id: EVENT_ID,
     });
+  });
+
+  it("keeps the first assignee in the tasks row", () => {
+    const row = taskRow(taskFormSchema.parse(valid));
+    expect(row.assignee_email).toBe("persona@example.com");
+    expect(row).not.toHaveProperty("assignee_emails");
+    expect(taskRow(taskFormSchema.parse({ title: "Algo" })).assignee_email).toBeNull();
+  });
+
+  it("accepts a single assignee and caps the list", () => {
+    expect(
+      taskFormSchema.parse({ title: "Algo", assignee_emails: "a@example.com" }).assignee_emails,
+    ).toEqual(["a@example.com"]);
+    const many = Array.from({ length: MAX_ASSIGNEES + 1 }, (_, i) => `p${i}@example.com`);
+    expect(issuePaths({ ...valid, assignee_emails: many })).toContain("assignee_emails");
   });
 
   it("requires a title", () => {
@@ -51,8 +66,8 @@ describe("taskFormSchema", () => {
   });
 
   it("rejects an invalid assignee email", () => {
-    expect(issuePaths({ ...valid, assignee_email: "nadie" })).toContain(
-      "assignee_email",
+    expect(issuePaths({ ...valid, assignee_emails: ["nadie"] })).toContain(
+      "assignee_emails.0",
     );
   });
 
@@ -70,7 +85,7 @@ describe("taskFormSchema", () => {
       title: "Algo",
       description: " ",
       status: "todo",
-      assignee_email: "",
+      assignee_emails: [""],
       due_date: "",
       event_id: "",
     });
@@ -79,7 +94,7 @@ describe("taskFormSchema", () => {
       title: "Algo",
       description: null,
       status: "todo",
-      assignee_email: null,
+      assignee_emails: [],
       due_date: null,
       event_id: null,
     });
@@ -87,9 +102,10 @@ describe("taskFormSchema", () => {
 });
 
 describe("taskStatusSchema", () => {
-  it("accepts the three board columns only", () => {
+  it("accepts the four board columns only", () => {
     expect(taskStatusSchema.safeParse("todo").success).toBe(true);
     expect(taskStatusSchema.safeParse("doing").success).toBe(true);
+    expect(taskStatusSchema.safeParse("review").success).toBe(true);
     expect(taskStatusSchema.safeParse("done").success).toBe(true);
     expect(taskStatusSchema.safeParse("archived").success).toBe(false);
   });
