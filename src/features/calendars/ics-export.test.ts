@@ -87,3 +87,48 @@ describe("buildTeamCalendar", () => {
     expect(lines).toContain("DTEND:20260801T120000Z");
   });
 });
+
+describe("group calendar", () => {
+  const ics = buildTeamCalendar(
+    [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        title: "Meetup",
+        starts_at: "2026-07-15T17:00:00Z",
+        ends_at: null,
+        location: null,
+        meetup_url: null,
+      },
+    ],
+    {
+      now: new Date("2026-07-01T00:00:00Z"),
+      domain: "app.example.com",
+      groupMeetings: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          title: "Reunión del grupo; planificación",
+          notes: "Orden del día:\nnoticias",
+          starts_at: "2026-07-16T16:00:00Z",
+          ends_at: "2026-07-16T17:00:00Z",
+        },
+      ],
+    },
+  );
+  const lines = ics.split("\r\n");
+
+  it("names the feed after the group", () => {
+    expect(lines).toContain("X-WR-CALNAME:AWS US - Student Builder Group");
+    expect(lines).toContain("PRODID:-//AWS US Student Builder Group//Calendario//ES");
+  });
+
+  it("includes group meetings next to the events, with their own UIDs", () => {
+    expect(lines.filter((line) => line === "BEGIN:VEVENT")).toHaveLength(2);
+    expect(lines).toContain(
+      "UID:entry-33333333-3333-4333-8333-333333333333@app.example.com",
+    );
+    expect(lines).toContain("SUMMARY:Reunión del grupo\\; planificación");
+    expect(lines).toContain("DTSTART:20260716T160000Z");
+    expect(lines).toContain("DTEND:20260716T170000Z");
+    expect(lines).toContain("DESCRIPTION:Orden del día:\\nnoticias");
+  });
+});

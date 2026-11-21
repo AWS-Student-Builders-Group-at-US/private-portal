@@ -37,11 +37,11 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 - [x] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
 - [x] T3 Public home: when a member has a panel session, show their team photo as a signed-in
       avatar linking to the panel.
-- [ ] T4 Calendar redesign: personal calendar entries added by hand with per-entry visibility
+- [x] T4 Calendar redesign: personal calendar entries added by hand with per-entry visibility
       (details / just busy), team view with a per-day agenda, shared subscribable
       "AWS US - Student Builder Group" calendar with group meetings.
   - [x] T4a Calendar entries, visibility enforced in the database, occupation merge, agenda.
-  - [ ] T4b Shared "AWS US - Student Builder Group" iCal feed with group meetings.
+  - [x] T4b Shared "AWS US - Student Builder Group" iCal feed with group meetings.
 - [ ] T5 Posts insights from Zernio (pending: check what the Zernio API exposes).
 - [ ] T6 Mail-based reminders (pending decision: conflicts with "never store emails").
 
@@ -106,6 +106,19 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   58 files / 474 tests passed. Not verified: the migration was not run against a database
   (SQL reviewed only); not checked in a browser (panel needs Google sign-in).
 
+- T4b (route: delegated direct; writer trigger: 2+ files). `/api/calendario.ics` (per-member
+  token auth unchanged) now also reads `calendar_entries` with `is_group_meeting = true` through
+  the admin client already allowed for this route (AGENTS.md list unchanged), selecting only
+  id/title/notes/times (no owner); personal entries are never queried. A failed entries read
+  keeps the feed working with events alone. `buildTeamCalendar` writes `X-WR-CALNAME:AWS US -
+  Student Builder Group`, a matching PRODID and `entry-<id>@domain` UIDs; filename
+  `aws-us-student-builder-group.ics`. Subscription copy updated in "Mi disponibilidad". RED: 2
+  new `ics-export.test.ts` tests failed (old name, no group meetings); GREEN: 10/10. Checks:
+  eslint clean, `tsc --noEmit` clean, `npm test` 58 files / 476 tests passed; `next build` with
+  dummy Supabase env vars succeeded (`/panel/calendario` stays `◐`). Not verified: migration
+  against a database; the feed with real data; browser UI (needs Google sign-in). Existing
+  subscribers keep their URL; Google may keep the old calendar name until re-subscribed.
+
 ## Next step
 
-T4b: shared group calendar feed.
+T5 (pending: check what the Zernio API exposes).
