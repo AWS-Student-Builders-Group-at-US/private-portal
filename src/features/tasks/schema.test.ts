@@ -29,6 +29,8 @@ describe("taskFormSchema", () => {
       assignee_emails: ["persona@example.com", "otra@example.com"],
       due_date: "2026-11-20",
       event_id: EVENT_ID,
+      priority: null,
+      link_url: null,
     });
   });
 
@@ -97,6 +99,8 @@ describe("taskFormSchema", () => {
       assignee_emails: [],
       due_date: null,
       event_id: null,
+      priority: null,
+      link_url: null,
     });
   });
 });
@@ -108,5 +112,26 @@ describe("taskStatusSchema", () => {
     expect(taskStatusSchema.safeParse("review").success).toBe(true);
     expect(taskStatusSchema.safeParse("done").success).toBe(true);
     expect(taskStatusSchema.safeParse("archived").success).toBe(false);
+  });
+});
+
+describe("priority and link", () => {
+  it("accepts an optional priority and an http(s) link", () => {
+    const parsed = taskFormSchema.parse({
+      title: "Algo",
+      priority: "high",
+      link_url: " https://drive.google.com/x ",
+    });
+    expect(parsed.priority).toBe("high");
+    expect(parsed.link_url).toBe("https://drive.google.com/x");
+    const empty = taskFormSchema.parse({ title: "Algo", priority: "", link_url: "" });
+    expect(empty.priority).toBeNull();
+    expect(empty.link_url).toBeNull();
+  });
+
+  it("rejects unknown priorities and non-http links", () => {
+    expect(issuePaths({ ...valid, priority: "urgent" })).toContain("priority");
+    expect(issuePaths({ ...valid, link_url: "javascript:alert(1)" })).toContain("link_url");
+    expect(issuePaths({ ...valid, link_url: "drive.google.com" })).toContain("link_url");
   });
 });

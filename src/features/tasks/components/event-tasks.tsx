@@ -33,7 +33,7 @@ export async function EventTasks({ eventId }: { eventId: string }) {
               href={`/panel/tareas?evento=${eventId}`}
               className={buttonVariants({ variant: "ghost", size: "sm" })}
             >
-              Ver en el tablero
+              Ver en Tareas
             </Link>
           )}
           <Link

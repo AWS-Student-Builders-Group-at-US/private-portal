@@ -3,7 +3,13 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { TASK_STATUSES, TASK_STATUS_LABELS } from "../schema";
+import {
+  TASK_LINK_MAX,
+  TASK_PRIORITIES,
+  TASK_PRIORITY_LABELS,
+  TASK_STATUSES,
+  TASK_STATUS_LABELS,
+} from "../schema";
 import type { EventOption, MemberOption, TaskFormState } from "../types";
 
 const fieldClass =
@@ -17,6 +23,8 @@ export type TaskFormValues = {
   assignee_emails: string;
   due_date: string;
   event_id: string;
+  priority: string;
+  link_url: string;
 };
 
 export const EMPTY_TASK: TaskFormValues = {
@@ -26,6 +34,8 @@ export const EMPTY_TASK: TaskFormValues = {
   assignee_emails: "",
   due_date: "",
   event_id: "",
+  priority: "",
+  link_url: "",
 };
 
 function Field({
@@ -128,7 +138,7 @@ export function TaskForm({
           {...invalid("description")}
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Field name="status" label="Estado" errors={errors("status")}>
           <select
             id="status"
@@ -144,6 +154,22 @@ export function TaskForm({
             ))}
           </select>
         </Field>
+        <Field name="priority" label="Prioridad" errors={errors("priority")}>
+          <select
+            id="priority"
+            name="priority"
+            defaultValue={value("priority")}
+            className={fieldClass}
+            {...invalid("priority")}
+          >
+            <option value="">Sin prioridad</option>
+            {TASK_PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {TASK_PRIORITY_LABELS[priority]}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field name="due_date" label="Fecha límite" errors={errors("due_date")}>
           <input
             id="due_date"
@@ -155,6 +181,19 @@ export function TaskForm({
           />
         </Field>
       </div>
+      <Field name="link_url" label="Enlace (opcional)" errors={errors("link_url")}>
+        <input
+          id="link_url"
+          name="link_url"
+          type="url"
+          inputMode="url"
+          maxLength={TASK_LINK_MAX}
+          placeholder="https://…"
+          defaultValue={value("link_url")}
+          className={fieldClass}
+          {...invalid("link_url")}
+        />
+      </Field>
       <fieldset
         className="flex flex-col gap-1.5"
         aria-describedby={assigneeErrors.length > 0 ? "assignee_emails-error" : undefined}

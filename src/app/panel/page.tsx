@@ -40,7 +40,7 @@ export default async function HomePage() {
       <HomeSection
         title={`Mis tareas pendientes${myPending.length ? ` (${myPending.length})` : ""}`}
         href="/panel/tareas?persona=yo"
-        linkLabel="Ver tablero"
+        linkLabel="Ver tareas"
       >
         {myPending.length === 0 ? (
           <Empty>No tienes tareas pendientes.</Empty>
