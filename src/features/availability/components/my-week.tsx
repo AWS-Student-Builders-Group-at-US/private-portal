@@ -31,16 +31,26 @@ const MANUAL_TEXT: Record<number, string> = { 0: "libre", ...WEIGHT_TEXT };
 
 type Mode = "note" | "edit";
 
-// Only times and calendar labels are shown; event titles are never stored.
-function describe(slot: SlotOccupation, feedLabels: Map<string, string>) {
+export const GOOGLE_BUSY_LABEL = "Ocupado (Google)";
+
+// Google time shows only times and calendar labels (Google titles are never
+// stored); the member's own calendar entries show their titles.
+function describe(
+  slot: SlotOccupation,
+  feedLabels: Map<string, string>,
+  entryTitles: Map<string, string>,
+) {
   if (slot.manual !== undefined) {
     return `Editado a mano (${MANUAL_TEXT[slot.manual] ?? MANUAL_TEXT[1]})`;
   }
   const parts: string[] = [];
   const seen = new Set<string>();
+  for (const id of slot.entries ?? []) {
+    parts.push(`Tu entrada: ${entryTitles.get(id) ?? "Ocupado"}`);
+  }
   for (const hit of slot.google) {
     const label = (hit.source && feedLabels.get(hit.source)) ?? "Calendario";
-    const text = `Google · ${label} (${WEIGHT_TEXT[hit.weight] ?? WEIGHT_TEXT[1]})`;
+    const text = `${GOOGLE_BUSY_LABEL} · ${label} (${WEIGHT_TEXT[hit.weight] ?? WEIGHT_TEXT[1]})`;
     if (!seen.has(text)) parts.push(text);
     seen.add(text);
   }
@@ -51,11 +61,12 @@ function describe(slot: SlotOccupation, feedLabels: Map<string, string>) {
 const sameCell = (a: CellRef | null, b: CellRef | null) =>
   !!a && !!b && a.date === b.date && a.slot === b.slot;
 
-// The member's own week, from their Google calendars and their hand edits,
-// shown as availability (1 - occupation): 1 = free, 0,5 = could move it,
-// 0 = can't move it, like the team map. Cells with a Google block
-// show a "G", hand-edited cells an "M", "solo online" cells a laptop icon;
-// cells covered by a note show a dot.
+// The member's own week, from their Google calendars, their calendar entries
+// and their hand edits, shown as availability (1 - occupation): 1 = free,
+// 0,5 = could move it, 0 = can't move it, like the team map. The first cell
+// of a calendar entry shows its title, the first cell of Google busy time
+// "Ocupado (Google)", hand-edited cells an "M", "solo online" cells a laptop
+// icon; cells covered by a note show a dot.
 //
 // "Añadir nota" and "Editar disponibilidad" modes: two corners define a
 // rectangle of cells. Mouse: click two cells or drag from one to the other.
@@ -69,6 +80,7 @@ export function MyWeekGrid({
   feeds: { id: string; label: string }[];
 }) {
   const feedLabels = new Map(feeds.map((feed) => [feed.id, feed.label]));
+  const entryTitles = new Map(week.entries.map((entry) => [entry.id, entry.title ?? "Ocupado"]));
   const [mode, setMode] = useState<Mode | null>(null);
   const selecting = mode !== null;
   const [anchor, setAnchor] = useState<CellRef | null>(null);
@@ -251,12 +263,28 @@ export function MyWeekGrid({
                   const cell = { date, slot: index };
                   const edited = slot.manual !== undefined;
                   const fromGoogle = !edited && slot.google.length > 0;
+                  const entryIds = edited ? [] : (slot.entries ?? []);
+                  const previous = index > 0 ? week.days[date][index - 1] : undefined;
+                  // Text only on the first cell of each run, so it reads once.
+                  const shownBefore = (id: string) =>
+                    previous?.manual === undefined && !!previous?.entries?.includes(id);
+                  const newEntry = entryIds.find((id) => !shownBefore(id));
+                  const googleStarts =
+                    fromGoogle &&
+                    (!previous || previous.manual !== undefined || previous.google.length === 0);
+                  const cellText = edited
+                    ? "M"
+                    : newEntry
+                      ? entryTitles.get(newEntry)
+                      : entryIds.length === 0 && googleStarts
+                        ? GOOGLE_BUSY_LABEL
+                        : "";
                   const notes = notesForCell(week.notes, date, index);
                   const selected = !!preview && noteCoversCell(preview, date, index);
                   const noteText =
                     notes.length > 0 ? ` · Notas: ${notes.map((n) => n.title).join(", ")}` : "";
                   const onlineText = slot.onlineOnly ? " · Solo online" : "";
-                  const label = `${formatDay(date)} ${time}: disponibilidad ${formatOccupation(1 - slot.value)} · ${describe(slot, feedLabels)}${onlineText}${noteText}`;
+                  const label = `${formatDay(date)} ${time}: disponibilidad ${formatOccupation(1 - slot.value)} · ${describe(slot, feedLabels, entryTitles)}${onlineText}${noteText}`;
                   const focusable = focus.day === day && focus.slot === index;
                   return (
                     <div
@@ -278,9 +306,10 @@ export function MyWeekGrid({
                       onPointerUp={selecting ? (e) => onPointerUp(e, cell) : undefined}
                       onClick={selecting ? () => onClick(cell) : undefined}
                       className={cn(
-                        "relative h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-semibold text-neutral-900",
+                        "relative h-5 truncate rounded-[3px] px-0.5 text-center text-[0.6rem] leading-5 font-semibold text-neutral-900",
                         slot.value === 0 && !selected && "opacity-35",
-                        (fromGoogle || edited) && "ring-1 ring-inset ring-neutral-900/50",
+                        (fromGoogle || edited || entryIds.length > 0) &&
+                          "ring-1 ring-inset ring-neutral-900/50",
                         selected && "ring-2 ring-inset ring-neutral-900",
                         selecting &&
                           "outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -288,7 +317,7 @@ export function MyWeekGrid({
                       )}
                       style={{ backgroundColor: occupationColor(slot.value, 1) }}
                     >
-                      {edited ? "M" : fromGoogle ? "G" : ""}
+                      <span aria-hidden>{cellText}</span>
                       {slot.onlineOnly && (
                         <Laptop
                           aria-hidden
@@ -325,13 +354,13 @@ export function MyWeekGrid({
           </li>
         ))}
         <li className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="flex size-3 items-center justify-center rounded-[3px] text-[0.5rem] font-semibold ring-1 ring-inset ring-current"
-          >
-            G
-          </span>
-          Viene de tus calendarios de Google
+          <span aria-hidden className="size-3 rounded-[3px] ring-1 ring-inset ring-current" />
+          «Ocupado (Google)»: viene de tus calendarios de Google (el equipo solo ve que estás
+          ocupado)
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden className="size-3 rounded-[3px] ring-1 ring-inset ring-current" />
+          Con título: una entrada que añadiste a tu calendario (cuenta como ocupado)
         </li>
         <li className="flex items-center gap-1.5">
           <span
@@ -340,7 +369,7 @@ export function MyWeekGrid({
           >
             M
           </span>
-          Editado a mano (manda sobre Google)
+          Editado a mano (manda sobre Google y tus entradas)
         </li>
         <li className="flex items-center gap-1.5">
           <span aria-hidden className="size-1.5 rounded-full bg-current" />

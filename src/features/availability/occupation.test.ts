@@ -259,3 +259,51 @@ describe("solo online", () => {
     expect(teamOnlineAvailability(perMember, online, ["b"], [monday])[monday][0]).toBe(1);
   });
 });
+
+describe("calendar entries in the occupation", () => {
+  const entry = (start: string, end: string, source = "entry-1") => ({
+    date: monday,
+    start: m(start),
+    end: m(end),
+    weight: 1,
+    source,
+  });
+
+  it("counts the member's own calendar entries as busy (1)", () => {
+    const row = occupationForDay(monday, { ...empty, entries: [entry("10:00", "11:00")] });
+    expect(row[s("09:30")]).toBe(0);
+    expect(row[s("10:00")]).toBe(1);
+    expect(row[s("10:30")]).toBe(1);
+    expect(row[s("11:00")]).toBe(0);
+  });
+
+  it("takes the max of Google blocks and entries", () => {
+    const row = occupationForDay(monday, {
+      busy: [{ date: monday, start: m("10:00"), end: m("12:00"), weight: 0.5 }],
+      entries: [entry("11:00", "11:30")],
+    });
+    expect(row[s("10:00")]).toBe(0.5);
+    expect(row[s("11:00")]).toBe(1);
+    expect(row[s("11:30")]).toBe(0.5);
+  });
+
+  it("lists the entry ids of each slot", () => {
+    const detail = slotOccupationForDay(monday, {
+      ...empty,
+      entries: [entry("10:00", "10:30", "a"), entry("10:15", "11:00", "b")],
+    });
+    expect(detail[s("10:00")].entries).toEqual(["a", "b"]);
+    expect(detail[s("10:30")].entries).toEqual(["b"]);
+    expect(detail[s("11:00")]).toEqual({ value: 0, google: [] });
+  });
+
+  it("lets a hand slot edit win over entries and Google", () => {
+    const row = occupationForDay(monday, {
+      busy: [{ date: monday, start: m("10:00"), end: m("11:00"), weight: 1 }],
+      entries: [entry("10:00", "11:00")],
+      manual: [{ date: monday, start: m("10:00"), value: 0, onlineOnly: false }],
+    });
+    expect(row[s("10:00")]).toBe(0);
+    expect(row[s("10:30")]).toBe(1);
+  });
+});

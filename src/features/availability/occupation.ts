@@ -9,7 +9,10 @@ import {
 // Occupation model. Each member has, per 30-minute slot, a value in
 // {0, 0.5, 1}: the MAX weight of the Google busy blocks that touch the slot
 // (1 = can't move it, 0.5 = could move it), unless the member edited that slot
-// by hand: a manual value replaces Google for that slot. The old weekly
+// by hand: a manual value replaces Google for that slot. The member's own
+// calendar entries (calendar_entries, added by hand in the portal) count as
+// busy (1) and are merged with Google by MAX. Precedence per slot: a hand
+// slot edit (availability_manual.value) > max(Google weights, entries). The old weekly
 // template and date overrides are no longer counted (their tables stay, unused).
 // The team map shows availability: the number of selected members free in
 // each slot (n … 0), i.e. n minus the sum of their occupation.
@@ -26,16 +29,20 @@ export type ManualSlot = {
 export type MemberDayData = {
   busy: DayRange[];
   manual?: ManualSlot[];
+  // The member's calendar entries as day ranges (`source` = entry id).
+  entries?: DayRange[];
 };
 
 export type GoogleHit = { source?: string; weight: number };
 // `manual` is set when the member edited the slot's value; it is then the slot
-// value. `onlineOnly` complements the value.
+// value. `onlineOnly` complements the value. `entries` holds the ids of the
+// member's calendar entries that touch the slot (absent when none).
 export type SlotOccupation = {
   value: number;
   google: GoogleHit[];
   manual?: number;
   onlineOnly?: boolean;
+  entries?: string[];
 };
 
 // Per member, per date, per slot: true when the member is only online there.
@@ -47,6 +54,7 @@ export type OccupationByMember = Record<string, Record<string, number[]>>;
 // Detailed occupation of one member on `date`, per slot of the grid.
 export function slotOccupationForDay(date: string, data: MemberDayData): SlotOccupation[] {
   const google = data.busy.filter((b) => b.date === date);
+  const entries = (data.entries ?? []).filter((e) => e.date === date);
   const manual = new Map(
     (data.manual ?? []).filter((m) => m.date === date).map((m) => [m.start, m]),
   );
@@ -56,13 +64,17 @@ export function slotOccupationForDay(date: string, data: MemberDayData): SlotOcc
     const hits: GoogleHit[] = google
       .filter((b) => b.start < to && b.end > from)
       .map((b) => (b.source ? { source: b.source, weight: b.weight } : { weight: b.weight }));
+    const entryIds = entries
+      .filter((e) => e.start < to && e.end > from)
+      .map((e) => e.source ?? "");
+    const own = entryIds.length > 0 ? { entries: entryIds } : {};
     const edit = manual.get(from);
     const online = edit?.onlineOnly ? { onlineOnly: true } : {};
     if (edit && edit.value !== null) {
-      return { value: edit.value, google: hits, manual: edit.value, ...online };
+      return { value: edit.value, google: hits, manual: edit.value, ...online, ...own };
     }
-    const value = Math.max(0, ...hits.map((h) => h.weight));
-    return { value, google: hits, ...online };
+    const value = Math.max(0, ...hits.map((h) => h.weight), entryIds.length > 0 ? 1 : 0);
+    return { value, google: hits, ...online, ...own };
   });
 }
 

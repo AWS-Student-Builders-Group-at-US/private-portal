@@ -4,6 +4,9 @@ import { getBusyBlocks } from "@/features/calendars/busy";
 import { isOutsideGoogleWindow } from "@/features/calendars/window";
 import { madridLocalToUtcIso } from "@/features/events/time";
 import { hideCommonAccount } from "@/features/members/common-account";
+import { mergeRanges } from "@/features/calendar-entries/agenda";
+import { listCalendarEntries } from "@/features/calendar-entries/queries";
+import type { CalendarEntry } from "@/features/calendar-entries/types";
 import {
   occupationForDay,
   onlineForDay,
@@ -16,7 +19,8 @@ import { addDays, busyBlocksToRanges, weekDates } from "./slots";
 import type { AvailabilityNote, MyWeek, TeamWeek } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
-// Occupation comes from Google calendars and the member's hand edits; the legacy
+// Occupation comes from Google calendars, the member's calendar entries and
+// their hand slot edits (which win, see occupation.ts); the legacy
 // availability_template/availability_override tables are no longer read.
 
 const NOTE_COLUMNS =
@@ -27,6 +31,13 @@ function weekBounds(monday: string) {
     from: new Date(madridLocalToUtcIso(`${monday}T00:00`)),
     to: new Date(madridLocalToUtcIso(`${addDays(monday, 7)}T00:00`)),
   };
+}
+
+// Calendar entries as day ranges (`source` = entry id); each counts as busy.
+function entryRanges(entries: CalendarEntry[]) {
+  return busyBlocksToRanges(
+    entries.map((e) => ({ start: e.starts_at, end: e.ends_at, weight: 1, feedId: e.id })),
+  );
 }
 
 // Hand-edited slots of the week of `dates`, per member email, optionally only
@@ -78,34 +89,45 @@ async function getWeekNotes(dates: string[], email?: string): Promise<Availabili
 }
 
 // The member's own occupation per slot for the week starting on `monday`,
-// from their Google busy blocks (refreshed first when stale) and their hand
-// edits (which replace Google in the edited slots), plus their notes.
+// from their Google busy blocks (served from cache), their calendar entries
+// and their hand edits (which replace both in the edited slots), plus their
+// notes and entries.
 export async function getMyWeek(email: string, monday: string): Promise<MyWeek> {
   const dates = weekDates(monday);
   const { from, to } = weekBounds(monday);
-  const [blocks, notes, manual] = await Promise.all([
+  const [blocks, notes, manual, allEntries] = await Promise.all([
     getBusyBlocks(email, from, to).catch(() => []),
     getWeekNotes(dates, email),
     getWeekManual(dates, email),
+    listCalendarEntries(from, to),
   ]);
-  const data = { busy: busyBlocksToRanges(blocks), manual: manual.get(email) ?? [] };
+  const entries = allEntries.filter((entry) => entry.is_own);
+  const data = {
+    busy: busyBlocksToRanges(blocks),
+    manual: manual.get(email) ?? [],
+    entries: entryRanges(entries),
+  };
   return {
     dates,
     days: Object.fromEntries(dates.map((date) => [date, slotOccupationForDay(date, data)])),
     notes,
+    entries,
     outsideGoogleWindow: isOutsideGoogleWindow(from, to),
   };
 }
 
 // Occupation (0, 0.5 or 1) of every member per slot for the week starting on
-// `monday`, plus every member's notes for that week.
+// `monday`, plus every member's notes, calendar entries and merged Google busy
+// time for that week.
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const dates = weekDates(monday);
   const supabase = await createClient();
-  const [membersResult, allNotes, manual] = await Promise.all([
-    supabase.from("members").select("email, name").order("name"),
+  const { from, to } = weekBounds(monday);
+  const [membersResult, allNotes, manual, allEntries] = await Promise.all([
+    supabase.from("members").select("email, name, color").order("name"),
     getWeekNotes(dates),
     getWeekManual(dates),
+    listCalendarEntries(from, to),
   ]);
   if (membersResult.error) {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
@@ -113,19 +135,23 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   // The group's common account is not a person: hide it and its notes.
   const members = { data: hideCommonAccount(membersResult.data) };
   const notes = hideCommonAccount(allNotes, (note) => note.member_email);
+  const entries = hideCommonAccount(allEntries, (entry) => entry.member_email);
 
-  const { from, to } = weekBounds(monday);
   const busyByMember = await Promise.all(
     members.data.map((m) => getBusyBlocks(m.email, from, to).catch(() => [])),
   );
 
   const occupation: OccupationByMember = {};
   const online: OnlineByMember = {};
+  const google: TeamWeek["google"] = {};
   members.data.forEach((member, i) => {
+    const busy = busyBlocksToRanges(busyByMember[i]);
     const data = {
-      busy: busyBlocksToRanges(busyByMember[i]),
+      busy,
       manual: manual.get(member.email) ?? [],
+      entries: entryRanges(entries.filter((e) => e.member_email === member.email)),
     };
+    google[member.email] = mergeRanges(busy);
     occupation[member.email] = Object.fromEntries(
       dates.map((date) => [date, occupationForDay(date, data)]),
     );
@@ -140,6 +166,8 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
     occupation,
     online,
     notes,
+    entries,
+    google,
     outsideGoogleWindow: isOutsideGoogleWindow(from, to),
   };
 }

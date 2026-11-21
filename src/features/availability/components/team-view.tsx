@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Laptop } from "lucide-react";
+import { Laptop, Users } from "lucide-react";
+import { dayAgenda, memberColor } from "@/features/calendar-entries/agenda";
 import { cn } from "@/lib/utils";
 import { formatDay } from "../dates";
 import {
@@ -21,7 +22,10 @@ const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 // Week map: each cell is how many of the selected members are free
 // (n = everyone free, green … 0 = nobody free, red) and, next to a laptop
 // icon, how many of those are only online. Cells covered by a
-// selected member's note show a dot; the notes are listed below the legend.
+// selected member's note show a dot; the notes are listed below the legend,
+// followed by each day's agenda: every selected person's calendar entries
+// (title when they share it, otherwise "Ocupado") and Google busy time
+// (always "Ocupado").
 export function TeamView({ week }: { week: TeamWeek }) {
   const [selected, setSelected] = useState(
     () => new Set(week.members.map((m) => m.email)),
@@ -35,6 +39,18 @@ export function TeamView({ week }: { week: TeamWeek }) {
   const total = people.length;
   const notes = week.notes.filter((note) => selected.has(note.member_email));
   const names = new Map(week.members.map((m) => [m.email, m.name]));
+  const agenda = week.dates
+    .map((date) => ({
+      date,
+      items: dayAgenda({
+        date,
+        members: week.members,
+        selected: people,
+        entries: week.entries,
+        google: week.google,
+      }),
+    }))
+    .filter((day) => day.items.length > 0);
 
   function toggle(email: string) {
     setSelected((current) => {
@@ -49,7 +65,7 @@ export function TeamView({ week }: { week: TeamWeek }) {
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-wrap gap-2">
         <legend className="mb-2 text-sm font-medium">Personas</legend>
-        {week.members.map((member) => (
+        {week.members.map((member, index) => (
           <label
             key={member.email}
             className={cn(
@@ -62,6 +78,11 @@ export function TeamView({ week }: { week: TeamWeek }) {
               checked={selected.has(member.email)}
               onChange={() => toggle(member.email)}
               className="size-3.5"
+            />
+            <span
+              aria-hidden
+              className="size-2.5 rounded-full"
+              style={{ backgroundColor: memberColor(member.color, index) }}
             />
             {member.name}
           </label>
@@ -140,6 +161,62 @@ export function TeamView({ week }: { week: TeamWeek }) {
           authors={names}
           empty="Las personas seleccionadas no tienen notas esta semana."
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold">Agenda de la semana</h2>
+        <p className="text-sm text-muted-foreground">
+          Lo que tienen las personas seleccionadas cada día. Las entradas muestran su título si
+          su autor lo comparte; el resto, y lo que viene de Google, aparece como «Ocupado».
+        </p>
+        {agenda.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Las personas seleccionadas no tienen nada apuntado esta semana.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {agenda.map((day) => (
+              <div key={day.date} className="flex flex-col gap-1">
+                <h3 className="text-sm font-medium">{formatDay(day.date)}</h3>
+                <ul className="divide-y rounded-lg border">
+                  {day.items.map((item) => (
+                    <li
+                      key={item.key}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-2 text-sm"
+                    >
+                      <span
+                        aria-hidden
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {item.start}–{item.end}
+                      </span>
+                      <span
+                        className={cn(
+                          "min-w-0 break-words",
+                          item.kind === "google" && "text-muted-foreground",
+                        )}
+                      >
+                        {item.label}
+                        {item.kind === "google" && (
+                          <span className="sr-only"> (calendario de Google)</span>
+                        )}
+                      </span>
+                      {item.groupMeeting && (
+                        <span className="inline-flex items-center gap-1 rounded-full border px-2 text-xs text-muted-foreground">
+                          <Users aria-hidden className="size-3" />
+                          Reunión del grupo
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-2">

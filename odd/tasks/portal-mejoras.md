@@ -24,8 +24,11 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 - Branch `feat/portal-mejoras` from `main`; PR into `main`.
 - UI text in Spanish; code, comments and identifiers in English.
 - Migrations: new files only, backward compatible.
-- The inbox stays read-only and never stores emails (AGENTS.md); Google event titles are not
-  stored today, so showing details needs an explicit privacy decision.
+- The inbox stays read-only and never stores emails (AGENTS.md).
+- Product decision (user, final, T4): Google calendar data stays busy-only; Google event titles
+  are never stored or shown. Details exist only for entries members add by hand in the portal.
+  Those are personal calendar entries (`calendar_entries`), fully separate from `events` and
+  `/panel/eventos`; the UI calls them "entradas", never "eventos".
 
 ## Tasks
 
@@ -34,9 +37,11 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 - [x] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
 - [x] T3 Public home: when a member has a panel session, show their team photo as a signed-in
       avatar linking to the panel.
-- [ ] T4 Calendar redesign (pending product decision): personal events added by hand, per-person
-      visibility (details / calendar name / just busy), combined team view with details, shared
-      subscribable "AWS US - Student Builder Group" calendar anyone can add meetings to.
+- [ ] T4 Calendar redesign: personal calendar entries added by hand with per-entry visibility
+      (details / just busy), team view with a per-day agenda, shared subscribable
+      "AWS US - Student Builder Group" calendar with group meetings.
+  - [x] T4a Calendar entries, visibility enforced in the database, occupation merge, agenda.
+  - [ ] T4b Shared "AWS US - Student Builder Group" iCal feed with group meetings.
 - [ ] T5 Posts insights from Zernio (pending: check what the Zernio API exposes).
 - [ ] T6 Mail-based reminders (pending decision: conflicts with "never store emails").
 
@@ -81,6 +86,26 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   `◐ Partial Prerender` (revalidate 1m). Not checked signed in (needs Google sign-in); the
   matching assumes each `members.name` or Google given name starts with the `TEAM` first name.
 
+- T4a (route: delegated direct; writer trigger: 2+ non-trivial files). New table
+  `calendar_entries` (migration `20261203000000_calendar_entries.sql`): owner, title (1–120),
+  notes (≤2000), starts_at/ends_at (end > start, ≤1 day), `visibility` 'details' | 'busy',
+  `is_group_meeting` (check forces 'details'). RLS: direct SELECT/INSERT/UPDATE/DELETE only on the
+  member's own rows; update granted on content columns only. Everyone's entries are read through
+  `public.list_calendar_entries(p_from, p_to)` (security definer, `search_path = ''`, gated by
+  `is_member()`, range ≤62 days), which returns title/notes as null for someone else's busy-only
+  entry; `entryLabel()` repeats the rule in the UI. Occupation: entries count as busy (1),
+  merged with Google by MAX; precedence per slot is hand slot edit (`availability_manual.value`)
+  > max(Google, entries), unchanged for Google (`slotOccupationForDay`). UI: "Añadir al
+  calendario" form (título, fecha, horas, notas, visibilidad, "Reunión del grupo"), list with
+  edit/delete under the week grid; my grid shows entry titles and "Ocupado (Google)" on the
+  first cell of each run instead of "G" (M/online/note marks kept); the team view adds member
+  colors and an "Agenda de la semana" per day (person, time, title or "Ocupado"; Google busy is
+  always "Ocupado"). Entries of the common account are hidden from the team view (like its
+  notes). RED: 3 new occupation tests failed and `agenda.test.ts` / `schema.test.ts` failed
+  (modules missing); GREEN: all pass. Checks: eslint clean, `tsc --noEmit` clean, `npm test`
+  58 files / 474 tests passed. Not verified: the migration was not run against a database
+  (SQL reviewed only); not checked in a browser (panel needs Google sign-in).
+
 ## Next step
 
-T4 (pending product decision).
+T4b: shared group calendar feed.
