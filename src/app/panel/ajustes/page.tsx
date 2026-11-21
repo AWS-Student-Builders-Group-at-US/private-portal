@@ -1,10 +1,7 @@
 import type { ReactNode } from "react";
 import { ensureCommonAccountSetting } from "@/features/members/common-account";
 import { MembersSection } from "@/features/members/components/members-section";
-import {
-  AccountSettings,
-  UpcomingSettings,
-} from "@/features/settings/components/account-settings";
+import { AccountSettings } from "@/features/settings/components/account-settings";
 import { DriveFolderSettings } from "@/features/settings/components/drive-folder-settings";
 import { SettingsSectionNav } from "@/features/settings/components/settings-section-nav";
 import { ZernioSettings } from "@/features/settings/components/zernio-settings";
@@ -16,7 +13,6 @@ const SECTIONS = [
   { id: "miembros", label: "Miembros" },
   { id: "ajustes-boveda", label: "Bóveda" },
   { id: "google-drive", label: "Google Drive" },
-  { id: "web-publica", label: "Web pública" },
   { id: "publicaciones", label: "Publicaciones" },
 ];
 
@@ -44,13 +40,6 @@ export default async function SettingsPage() {
           </Anchor>
           <Anchor id="google-drive">
             <DriveFolderSettings />
-          </Anchor>
-          <Anchor id="web-publica">
-            <UpcomingSettings
-              id="web-publica-titulo"
-              title="Web pública"
-              description="Aquí podrás gestionar el contenido de la web pública de la comunidad."
-            />
           </Anchor>
           <Anchor id="publicaciones">
             <ZernioSettings />

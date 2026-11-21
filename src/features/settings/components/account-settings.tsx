@@ -19,28 +19,3 @@ export function AccountSettings({ email }: { email: string }) {
     </section>
   );
 }
-
-// Ajustes card for a section that is not available yet.
-export function UpcomingSettings({
-  id,
-  title,
-  description,
-}: {
-  id: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <section aria-labelledby={id} className="flex flex-col gap-2 rounded-lg border p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 id={id} className="text-lg font-semibold">
-          {title}
-        </h2>
-        <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
-          Próximamente
-        </span>
-      </div>
-      <p className="text-sm text-muted-foreground">{description}</p>
-    </section>
-  );
-}
