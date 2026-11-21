@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, LogIn } from "lucide-react";
 import { ChipMark } from "@/components/chip-mark";
 import { cn } from "@/lib/utils";
 import { SITE, SOON } from "../config";
@@ -52,9 +52,19 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link href="/#unete" className={cn(cta.primary, "shrink-0 px-3 py-2 sm:px-4")}>
-          Únete<span className="hidden sm:inline"> al grupo</span> <CtaArrow />
-        </Link>
+        <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+          <Link
+            href="/panel"
+            className={cn(navLink, "inline-flex items-center gap-1.5 text-xs sm:text-sm")}
+          >
+            <LogIn className="size-4" aria-hidden />
+            {/* Icon only on phones so the logo keeps its room; the name stays for screen readers. */}
+            <span className="max-sm:sr-only">Core Team</span>
+          </Link>
+          <Link href="/#unete" className={cn(cta.primary, "shrink-0 px-3 py-2 sm:px-4")}>
+            Únete<span className="hidden sm:inline"> al grupo</span> <CtaArrow />
+          </Link>
+        </div>
       </div>
       <nav
         aria-label="Principal (móvil)"

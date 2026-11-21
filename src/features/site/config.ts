@@ -45,7 +45,12 @@ export const TEAM: TeamMember[] = [
     photo: "/team/ivan.webp",
     linkedinUrl: "https://www.linkedin.com/in/ivan-jesus-sevillano-plaza",
   },
-  { name: "José", role: "Talleres y charlas" },
+  {
+    name: "José",
+    role: "Talleres y charlas",
+    linkedinUrl:
+      "https://www.linkedin.com/in/jos%C3%A9-fernando-guti%C3%A9rrez-montero-963159168/",
+  },
   {
     name: "Cristina",
     role: "Comunicación y redes",
