@@ -9,13 +9,16 @@ export const SITE = {
   meetupUrl: "https://www.meetup.com/es-es/aws-sbg-at-university-of-seville-reina-mercedes-campus/",
   builderCenterUrl: "https://builder.aws.com",
   whatsappUrl: null as string | null,
-  linkedinUrl: null as string | null,
+  linkedinUrl:
+    "https://www.linkedin.com/company/aws-student-builder-group-universidad-de-sevilla/" as
+      | string
+      | null,
   instagramUrl: null as string | null,
   contactEmail: null as string | null,
 };
 
 // Group channels that are planned but not created yet.
-export const SOON = { linkedin: true, instagram: true } as const;
+export const SOON = { linkedin: false, instagram: true } as const;
 
 export type TeamMember = {
   name: string;
