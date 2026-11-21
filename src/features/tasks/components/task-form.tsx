@@ -56,7 +56,10 @@ function Field({
 
 type Props = {
   action: (state: TaskFormState, formData: FormData) => Promise<TaskFormState>;
-  initialValues?: TaskFormValues;
+  // Missing fields fall back to EMPTY_TASK. Server pages pass only what they
+  // set: EMPTY_TASK imported into a server component is a client reference,
+  // not the object, so spreading it there adds nothing.
+  initialValues?: Partial<TaskFormValues>;
   members: MemberOption[];
   events: EventOption[];
   submitLabel: string;
@@ -67,7 +70,7 @@ type Props = {
 
 export function TaskForm({
   action,
-  initialValues = EMPTY_TASK,
+  initialValues,
   members,
   events,
   submitLabel,
@@ -76,8 +79,8 @@ export function TaskForm({
 }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   // After a failed submit, show what the user typed instead of the initial values.
-  const value = (name: keyof TaskFormValues) =>
-    state.values?.[name] ?? initialValues[name];
+  const value = (name: keyof TaskFormValues): string =>
+    state.values?.[name] ?? initialValues?.[name] ?? EMPTY_TASK[name];
   const errors = (name: string) => state.fieldErrors?.[name];
   const invalid = (name: string) =>
     state.fieldErrors?.[name]

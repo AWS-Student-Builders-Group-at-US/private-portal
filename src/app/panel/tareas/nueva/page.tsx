@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { createTask } from "@/features/tasks/actions";
-import { EMPTY_TASK, TaskForm } from "@/features/tasks/components/task-form";
+import { TaskForm } from "@/features/tasks/components/task-form";
 import { listEventOptions, listMemberOptions } from "@/features/tasks/queries";
 
 export default async function NewTaskPage({
@@ -34,7 +34,7 @@ export default async function NewTaskPage({
       <h1 className="text-2xl font-semibold">Nueva tarea</h1>
       <TaskForm
         action={createTask}
-        initialValues={{ ...EMPTY_TASK, event_id: eventId ?? "" }}
+        initialValues={{ event_id: eventId ?? "" }}
         members={members}
         events={events}
         submitLabel="Crear tarea"
