@@ -4,8 +4,10 @@ import {
   groupByStatus,
   isOverdue,
   parseTaskFilters,
+  personaParam,
   sortForTable,
   sortTasks,
+  sortTasksBy,
 } from "./filters";
 
 type T = {
@@ -44,24 +46,38 @@ const ids = (list: T[]) => list.map((t) => t.id);
 describe("parseTaskFilters", () => {
   it("reads the persona and evento query params", () => {
     expect(parseTaskFilters({ persona: "yo", evento: EVENT_A })).toEqual({
-      person: "me",
+      people: ["me"],
       eventId: EVENT_A,
     });
-    expect(parseTaskFilters({ persona: "nadie" }).person).toBe("unassigned");
-    expect(parseTaskFilters({ persona: "Otra@Example.com" }).person).toBe(OTHER);
+    expect(parseTaskFilters({ persona: "nadie" }).people).toEqual(["unassigned"]);
+    expect(parseTaskFilters({ persona: "Otra@Example.com" }).people).toEqual([OTHER]);
   });
 
-  it("ignores missing, repeated or invalid values", () => {
-    expect(parseTaskFilters({})).toEqual({ person: null, eventId: null });
-    expect(parseTaskFilters({ persona: ["yo", "nadie"] }).person).toBeNull();
-    expect(parseTaskFilters({ persona: "<script>" }).person).toBeNull();
+  it("reads several people, comma-separated or repeated, once each", () => {
+    expect(parseTaskFilters({ persona: "yo,Otra@Example.com,yo" }).people).toEqual([
+      "me",
+      OTHER,
+    ]);
+    expect(parseTaskFilters({ persona: ["yo", "nadie"] }).people).toEqual([
+      "me",
+      "unassigned",
+    ]);
+  });
+
+  it("ignores missing or invalid values", () => {
+    expect(parseTaskFilters({})).toEqual({ people: [], eventId: null });
+    expect(parseTaskFilters({ persona: "<script>,yo" }).people).toEqual(["me"]);
     expect(parseTaskFilters({ evento: "not-a-uuid" }).eventId).toBeNull();
+  });
+
+  it("writes the filter back to the query param", () => {
+    expect(personaParam(["me", "unassigned", OTHER])).toBe(`yo,nadie,${OTHER}`);
   });
 });
 
 describe("filterTasks", () => {
   it("returns everything without filters", () => {
-    expect(ids(filterTasks(tasks, { person: null, eventId: null }, ME))).toEqual([
+    expect(ids(filterTasks(tasks, { people: [], eventId: null }, ME))).toEqual([
       "1",
       "2",
       "3",
@@ -70,7 +86,7 @@ describe("filterTasks", () => {
   });
 
   it("keeps my tasks with «Mis tareas», also when shared with others", () => {
-    expect(ids(filterTasks(tasks, { person: "me", eventId: null }, ME))).toEqual([
+    expect(ids(filterTasks(tasks, { people: ["me"], eventId: null }, ME))).toEqual([
       "1",
       "2",
       "3",
@@ -79,25 +95,31 @@ describe("filterTasks", () => {
 
   it("matches the current user's email case-insensitively", () => {
     expect(
-      ids(filterTasks(tasks, { person: "me", eventId: null }, "YO@example.com")),
+      ids(filterTasks(tasks, { people: ["me"], eventId: null }, "YO@example.com")),
     ).toEqual(["1", "2", "3"]);
   });
 
   it("filters by a given person or by unassigned tasks", () => {
-    expect(ids(filterTasks(tasks, { person: OTHER, eventId: null }, ME))).toEqual([
+    expect(ids(filterTasks(tasks, { people: [OTHER], eventId: null }, ME))).toEqual([
       "2",
     ]);
     expect(
-      ids(filterTasks(tasks, { person: "unassigned", eventId: null }, ME)),
+      ids(filterTasks(tasks, { people: ["unassigned"], eventId: null }, ME)),
     ).toEqual(["4"]);
   });
 
+  it("matches any of several people", () => {
+    expect(
+      ids(filterTasks(tasks, { people: [OTHER, "unassigned"], eventId: null }, ME)),
+    ).toEqual(["2", "4"]);
+  });
+
   it("filters by event and combines with the person filter", () => {
-    expect(ids(filterTasks(tasks, { person: null, eventId: EVENT_A }, ME))).toEqual([
+    expect(ids(filterTasks(tasks, { people: [], eventId: EVENT_A }, ME))).toEqual([
       "1",
       "2",
     ]);
-    expect(ids(filterTasks(tasks, { person: "me", eventId: EVENT_A }, ME))).toEqual([
+    expect(ids(filterTasks(tasks, { people: ["me"], eventId: EVENT_A }, ME))).toEqual([
       "1",
       "2",
     ]);
@@ -148,5 +170,41 @@ describe("sortForTable", () => {
       task({ id: "todo-soon", due_date: "2026-11-20" }),
     ]);
     expect(ids(sorted)).toEqual(["todo-soon", "todo-late", "doing", "review", "done"]);
+  });
+});
+
+describe("sortTasksBy", () => {
+  type Row = T & {
+    title: string;
+    description: string | null;
+    priority: "high" | "medium" | "low" | null;
+    link_url: string | null;
+    assignees: { name: string }[];
+  };
+  const row = (overrides: Partial<Row>): Row => ({
+    ...task({}),
+    title: "",
+    description: null,
+    priority: null,
+    link_url: null,
+    assignees: [],
+    ...overrides,
+  });
+  const rows = [
+    row({ id: "a", title: "Charla", priority: "low", due_date: "2026-12-01" }),
+    row({ id: "b", title: "aula", priority: "high", assignees: [{ name: "Ray" }] }),
+    row({ id: "c", title: "Banner", due_date: "2026-11-20", assignees: [{ name: "Ana" }] }),
+  ];
+
+  it("sorts text case-insensitively in both directions", () => {
+    expect(ids(sortTasksBy(rows, "title", "asc"))).toEqual(["b", "c", "a"]);
+    expect(ids(sortTasksBy(rows, "title", "desc"))).toEqual(["a", "c", "b"]);
+  });
+
+  it("ranks priority high to low and keeps empty values last", () => {
+    expect(ids(sortTasksBy(rows, "priority", "asc"))).toEqual(["b", "a", "c"]);
+    expect(ids(sortTasksBy(rows, "priority", "desc"))).toEqual(["a", "b", "c"]);
+    expect(ids(sortTasksBy(rows, "due_date", "desc"))).toEqual(["a", "c", "b"]);
+    expect(ids(sortTasksBy(rows, "assignees", "asc"))).toEqual(["c", "b", "a"]);
   });
 });

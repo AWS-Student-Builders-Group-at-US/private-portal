@@ -21,7 +21,7 @@ export default async function HomePage() {
     listTasks(),
   ]);
   const myPending = sortTasks(
-    filterTasks(tasks, { person: "me", eventId: null }, member.email).filter(
+    filterTasks(tasks, { people: ["me"], eventId: null }, member.email).filter(
       (task) => task.status !== "done",
     ),
   );
