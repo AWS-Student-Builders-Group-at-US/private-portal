@@ -89,9 +89,11 @@ async function MySection({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Tu semana</h2>
         <p className="text-sm text-muted-foreground">
-          Cada franja muestra lo ocupado que estás según tus calendarios de Google: 1 si no
-          puedes moverlo, 0,5 si podrías moverlo. Con «Añadir nota» marcas un rango de franjas
-          y dejas una nota que verá todo el equipo (por ejemplo, «No puedo presencial»).
+          Cada franja muestra tu disponibilidad según tus calendarios de Google: 1 si estás
+          libre, 0,5 si tienes algo que podrías mover, 0 si no puedes moverlo. Con «Editar
+          disponibilidad» marcas un rango de franjas y cambias a mano cómo estás esos días
+          (manda sobre Google). Con «Añadir nota» dejas una nota que verá todo el equipo (por
+          ejemplo, «No puedo presencial»).
         </p>
         <WeekNav
           monday={monday}

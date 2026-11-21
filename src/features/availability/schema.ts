@@ -59,3 +59,52 @@ export type NoteInput = z.output<typeof noteFormSchema>;
 
 // Editing a note changes only its title and content.
 export const noteTextSchema = z.object(noteText);
+
+// What a hand edit sets in every slot of the selected rectangle: a fixed
+// occupation, "google" to drop the edited value and use Google again, or
+// "online" / "not_online" to set or clear the "solo online" mark (which
+// complements the value and never changes it).
+export const MANUAL_CHOICES = ["0", "0.5", "1", "google", "online", "not_online"] as const;
+export type ManualChoice = (typeof MANUAL_CHOICES)[number];
+
+// A hand edit of the member's own week: a rectangle of the visible grid inside
+// one week (at most 7 days) and the value to set.
+export const manualEditSchema = z
+  .object({
+    start_date: isoDate("La fecha de inicio no es válida."),
+    end_date: isoDate("La fecha de fin no es válida."),
+    start_minute: gridMinute("La hora de inicio no es válida."),
+    end_minute: gridMinute("La hora de fin no es válida."),
+    choice: z.enum(MANUAL_CHOICES, "Elige un valor."),
+  })
+  .refine((edit) => edit.end_date >= edit.start_date, {
+    message: "La fecha de fin no puede ser anterior a la de inicio.",
+    path: ["end_date"],
+  })
+  .refine((edit) => edit.end_date <= addDays(edit.start_date, 6), {
+    message: "Solo puedes editar una semana cada vez.",
+    path: ["end_date"],
+  })
+  .refine((edit) => edit.end_minute > edit.start_minute, {
+    message: "La hora de fin debe ser posterior a la de inicio.",
+    path: ["end_minute"],
+  });
+
+export type ManualEdit = z.output<typeof manualEditSchema>;
+
+// Rows of availability_manual for an edit (one per date and 30-minute slot),
+// each with the given column (`value` or `online_only`); an upsert of these
+// rows leaves the other column untouched.
+export function manualRows<T extends { value: number } | { online_only: boolean }>(
+  edit: ManualEdit,
+  email: string,
+  fields: T,
+) {
+  const rows: ({ member_email: string; date: string; start_minute: number } & T)[] = [];
+  for (let date = edit.start_date; date <= edit.end_date; date = addDays(date, 1)) {
+    for (let minute = edit.start_minute; minute < edit.end_minute; minute += SLOT_MINUTES) {
+      rows.push({ member_email: email, date, start_minute: minute, ...fields });
+    }
+  }
+  return rows;
+}

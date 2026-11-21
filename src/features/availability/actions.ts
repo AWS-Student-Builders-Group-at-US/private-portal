@@ -5,11 +5,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/features/events/types";
 import { getCurrentMember } from "@/lib/auth/member";
-import { noteFormSchema, noteTextSchema } from "./schema";
+import { manualEditSchema, manualRows, noteFormSchema, noteTextSchema } from "./schema";
 import type { NoteFormState } from "./types";
 
 // Every action runs with the user's session; RLS only lets members write
-// their own availability notes.
+// their own availability notes and hand edits.
 
 const CALENDAR_PATH = "/panel/calendario";
 
@@ -65,6 +65,64 @@ export async function updateNote(
   revalidatePath(CALENDAR_PATH);
   return { ok: true };
 }
+
+// Hand edit of the member's own week, for every slot of the rectangle:
+// - "0" / "0.5" / "1": sets the occupation (replacing Google there);
+// - "google": drops the edited occupation so the slots follow Google again;
+// - "online" / "not_online": sets or clears the "solo online" mark, keeping
+//   the occupation as it is.
+// Rows left with no value and no online mark are removed.
+export async function editMyAvailability(input: unknown): Promise<ActionResult> {
+  const parsed = manualEditSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "La franja seleccionada no es válida." };
+  }
+  const edit = parsed.data;
+  const { email } = await getCurrentMember();
+  const supabase = await createClient();
+  const failed = {
+    ok: false as const,
+    message: "No se pudo guardar tu disponibilidad. Inténtalo de nuevo.",
+  };
+  const table = () => supabase.from("availability_manual");
+  const range = { from: edit.start_date, to: edit.end_date };
+  const minutes = { from: edit.start_minute, to: edit.end_minute };
+  const onConflict = "member_email,date,start_minute";
+
+  let result;
+  if (edit.choice === "online") {
+    result = await table().upsert(manualRows(edit, email, { online_only: true }), {
+      onConflict,
+    });
+  } else if (edit.choice === "google" || edit.choice === "not_online") {
+    result = await table()
+      .update(edit.choice === "google" ? { value: null } : { online_only: false })
+      .eq("member_email", email)
+      .gte("date", range.from)
+      .lte("date", range.to)
+      .gte("start_minute", minutes.from)
+      .lt("start_minute", minutes.to);
+    if (!result.error) {
+      result = await table()
+        .delete()
+        .eq("member_email", email)
+        .gte("date", range.from)
+        .lte("date", range.to)
+        .gte("start_minute", minutes.from)
+        .lt("start_minute", minutes.to)
+        .is("value", null)
+        .eq("online_only", false);
+    }
+  } else {
+    result = await table().upsert(manualRows(edit, email, { value: Number(edit.choice) }), {
+      onConflict,
+    });
+  }
+  if (result.error) return failed;
+  revalidatePath(CALENDAR_PATH);
+  return { ok: true };
+}
+
 
 export async function deleteNote(id: string): Promise<ActionResult> {
   if (!z.uuid().safeParse(id).success) {

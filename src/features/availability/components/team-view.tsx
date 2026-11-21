@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Laptop } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDay } from "../dates";
 import {
   commonFreeRanges,
   formatOccupation,
   occupationColor,
-  teamOccupation,
+  teamAvailability,
+  teamOnlineAvailability,
 } from "../occupation";
 import { notesForCell } from "../notes";
 import { SLOTS_PER_DAY, minutesToTime, slotStart } from "../slots";
@@ -16,8 +18,9 @@ import { NoteList } from "./note-list";
 
 const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 
-// Week map: each cell is the sum of the selected members' occupation
-// (0 = everyone free, green … n = everyone busy, red). Cells covered by a
+// Week map: each cell is how many of the selected members are free
+// (n = everyone free, green … 0 = nobody free, red) and, next to a laptop
+// icon, how many of those are only online. Cells covered by a
 // selected member's note show a dot; the notes are listed below the legend.
 export function TeamView({ week }: { week: TeamWeek }) {
   const [selected, setSelected] = useState(
@@ -26,7 +29,8 @@ export function TeamView({ week }: { week: TeamWeek }) {
   const people = week.members
     .map((m) => m.email)
     .filter((email) => selected.has(email));
-  const sums = teamOccupation(week.occupation, people, week.dates);
+  const free = teamAvailability(week.occupation, people, week.dates);
+  const freeOnline = teamOnlineAvailability(week.occupation, week.online, people, week.dates);
   const common = commonFreeRanges(week.occupation, people, week.dates);
   const total = people.length;
   const notes = week.notes.filter((note) => selected.has(note.member_email));
@@ -84,7 +88,8 @@ export function TeamView({ week }: { week: TeamWeek }) {
                   {slot % 2 === 0 ? time : ""}
                 </div>
                 {week.dates.map((date) => {
-                  const sum = sums[date][slot];
+                  const available = free[date][slot];
+                  const online = freeOnline[date][slot];
                   const cellNotes = notesForCell(notes, date, slot);
                   const noteText =
                     cellNotes.length > 0
@@ -92,7 +97,7 @@ export function TeamView({ week }: { week: TeamWeek }) {
                           .map((n) => `${names.get(n.member_email) ?? n.member_email}: ${n.title}`)
                           .join(", ")}`
                       : "";
-                  const label = `${formatDay(date)} ${time}: ocupación ${formatOccupation(sum)} de ${total}${noteText}`;
+                  const label = `${formatDay(date)} ${time}: disponibles ${formatOccupation(available)} de ${total}${online > 0 ? `, ${formatOccupation(online)} solo online` : ""}${noteText}`;
                   return (
                     <div
                       key={date}
@@ -103,9 +108,15 @@ export function TeamView({ week }: { week: TeamWeek }) {
                         "relative h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-medium text-neutral-900 tabular-nums",
                         slot % 2 === 0 && "mt-px",
                       )}
-                      style={{ backgroundColor: occupationColor(sum, total) }}
+                      style={{ backgroundColor: occupationColor(total - available, total) }}
                     >
-                      {formatOccupation(sum)}
+                      {formatOccupation(available)}
+                      {online > 0 && (
+                        <span className="ml-1 inline-flex items-center gap-0.5 align-top">
+                          <Laptop aria-hidden className="size-2.5" />
+                          {formatOccupation(online)}
+                        </span>
+                      )}
                       {cellNotes.length > 0 && (
                         <span
                           aria-hidden
@@ -155,7 +166,7 @@ export function TeamView({ week }: { week: TeamWeek }) {
 }
 
 function Legend({ total }: { total: number }) {
-  const steps = [0, total / 2, total];
+  const steps = [total, total / 2, 0];
   return (
     <div className="flex flex-col gap-1 text-xs text-muted-foreground">
       <div
@@ -171,9 +182,12 @@ function Legend({ total }: { total: number }) {
         ))}
       </div>
       <p>
-        Cada franja suma la ocupación de las personas seleccionadas: 1 si no puede moverlo, 0,5
-        si podría moverlo. 0 (verde) = todos libres; {formatOccupation(total)} (rojo) = todos
-        ocupados. Un punto en la franja indica que alguien dejó una nota.
+        Cada franja cuenta cuántas de las personas seleccionadas están disponibles: 1 si está
+        libre, 0,5 si tiene algo que podría mover, 0 si no puede. {formatOccupation(total)}{" "}
+        (verde) = todos libres; 0 (rojo) = nadie libre. Junto al portátil{" "}
+        <Laptop aria-label="(portátil)" className="inline size-3 align-[-2px]" />, cuántas de
+        esas personas disponibles solo pueden online. Un punto en la franja indica que alguien
+        dejó una nota.
       </p>
     </div>
   );

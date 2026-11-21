@@ -6,6 +6,9 @@ import {
   occupationForDay,
   occupationRatio,
   slotOccupationForDay,
+  onlineForDay,
+  teamAvailability,
+  teamOnlineAvailability,
   teamOccupation,
   type MemberDayData,
   type OccupationByMember,
@@ -169,5 +172,90 @@ describe("color scale", () => {
     expect(formatOccupation(1.5)).toBe("1,5");
     expect(formatOccupation(2)).toBe("2");
     expect(formatOccupation(0)).toBe("0");
+  });
+});
+
+describe("manual edits", () => {
+  const google: MemberDayData = {
+    busy: [{ date: monday, start: m("10:00"), end: m("11:00"), weight: 1 }],
+  };
+
+  it("replace Google in the edited slots only", () => {
+    const slots = slotOccupationForDay(monday, {
+      ...google,
+      manual: [
+        { date: monday, start: m("10:00"), value: 0, onlineOnly: false },
+        { date: monday, start: m("12:00"), value: 0.5, onlineOnly: false },
+        { date: "2026-11-17", start: m("10:30"), value: 0, onlineOnly: false },
+      ],
+    });
+    expect(slots[s("10:00")]).toMatchObject({ value: 0, manual: 0 });
+    expect(slots[s("10:00")].google).toHaveLength(1);
+    expect(slots[s("10:30")]).toMatchObject({ value: 1 });
+    expect(slots[s("10:30")].manual).toBeUndefined();
+    expect(slots[s("12:00")]).toMatchObject({ value: 0.5, manual: 0.5 });
+  });
+});
+
+describe("teamAvailability", () => {
+  it("counts the selected members who are free (n = everyone free)", () => {
+    const row = (values: Record<number, number>) => {
+      const r = new Array<number>(SLOTS_PER_DAY).fill(0);
+      for (const [i, v] of Object.entries(values)) r[Number(i)] = v;
+      return r;
+    };
+    const perMember: OccupationByMember = {
+      a: { [monday]: row({ 0: 1, 1: 0.5 }) },
+      b: { [monday]: row({ 0: 1 }) },
+    };
+    const free = teamAvailability(perMember, ["a", "b"], [monday]);
+    expect(free[monday][0]).toBe(0);
+    expect(free[monday][1]).toBe(1.5);
+    expect(free[monday][2]).toBe(2);
+    expect(teamAvailability(perMember, ["b"], [monday])[monday][1]).toBe(1);
+  });
+});
+
+describe("solo online", () => {
+  const google: MemberDayData = {
+    busy: [{ date: monday, start: m("10:00"), end: m("11:00"), weight: 0.5 }],
+  };
+
+  it("complements the value without changing it", () => {
+    const data: MemberDayData = {
+      ...google,
+      manual: [
+        { date: monday, start: m("10:00"), value: null, onlineOnly: true },
+        { date: monday, start: m("12:00"), value: 0, onlineOnly: true },
+      ],
+    };
+    const slots = slotOccupationForDay(monday, data);
+    expect(slots[s("10:00")]).toMatchObject({ value: 0.5, onlineOnly: true });
+    expect(slots[s("10:00")].manual).toBeUndefined();
+    expect(slots[s("12:00")]).toMatchObject({ value: 0, manual: 0, onlineOnly: true });
+    const online = onlineForDay(monday, data);
+    expect(online[s("10:00")]).toBe(true);
+    expect(online[s("10:30")]).toBe(false);
+  });
+
+  it("counts the availability of the members who are only online", () => {
+    const row = (values: Record<number, number>) => {
+      const r = new Array<number>(SLOTS_PER_DAY).fill(0);
+      for (const [i, v] of Object.entries(values)) r[Number(i)] = v;
+      return r;
+    };
+    const flags = (slots: number[]) => {
+      const r = new Array<boolean>(SLOTS_PER_DAY).fill(false);
+      for (const i of slots) r[i] = true;
+      return r;
+    };
+    const perMember: OccupationByMember = {
+      a: { [monday]: row({ 1: 0.5, 2: 1 }) },
+      b: { [monday]: row({}) },
+    };
+    const online = { a: { [monday]: flags([0, 1, 2]) }, b: { [monday]: flags([0]) } };
+    const sums = teamOnlineAvailability(perMember, online, ["a", "b"], [monday]);
+    expect(sums[monday].slice(0, 4)).toEqual([2, 0.5, 0, 0]);
+    expect(teamOnlineAvailability(perMember, online, ["b"], [monday])[monday][0]).toBe(1);
   });
 });
