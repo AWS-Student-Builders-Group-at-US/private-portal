@@ -1,10 +1,11 @@
 import { after } from "next/server";
 import { parseWebhookEnvelope } from "@/features/zernio/envelope";
 import { verifyZernioSignature } from "@/features/zernio/signature";
+import { syncPostMetrics } from "@/features/zernio/metrics-sync";
 import { syncZernioPost } from "@/features/zernio/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Zernio webhook (post.* events). Public route: the only credential is the
+// Zernio webhook (post.* events, plus analytics.synced for post insights). Public route: the only credential is the
 // `X-Zernio-Signature` HMAC of the raw body with ZERNIO_WEBHOOK_SECRET.
 // Zernio needs a 2xx within 5 s and retries up to 7 times, so the event id is
 // recorded first (dedupe) and the post is fetched from the API and synced
@@ -35,6 +36,15 @@ export async function POST(request: Request) {
     if (error) return reply(500, "error");
   } catch {
     return reply(500, "error");
+  }
+
+  if (envelope.event === "analytics.synced") {
+    // One account finished an analytics sync: refresh the stored insights.
+    after(async () => {
+      const result = await syncPostMetrics();
+      console.info("webhooks/zernio", envelope.event, result.ok ? "synced" : "failed");
+    });
+    return reply(200, "ok");
   }
 
   const postId = envelope.postId;

@@ -34,7 +34,7 @@ Guidance for humans and coding agents working on this repository.
   feeds (`src/features/calendars` refresh, `src/app/api/calendario.ics`) and community emails
   (`src/features/emails`: public unsubscribe by token, and server-only tables written after a
   membership check), the daily maintenance cron (`src/app/api/cron/diario`, authorized by
-  `CRON_SECRET`) and the Zernio sync (`src/features/zernio`: the signed webhook
+  `CRON_SECRET`) and the Zernio sync of posts and their insights (`src/features/zernio`: the signed webhook
   `src/app/api/webhooks/zernio`, the cron fallback and the member-only "Sincronizar ahora"
   action) and the common account sync (`src/features/members/common-account.ts`, from the cron
   and the member-only Ajustes render) may use that client. Keep this list in sync with the

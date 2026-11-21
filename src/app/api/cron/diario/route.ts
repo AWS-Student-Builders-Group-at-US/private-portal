@@ -4,6 +4,7 @@ import { isAuthorizedCron } from "@/features/maintenance/cron-auth";
 import { retentionCutoff, settleWithin } from "@/features/maintenance/retention";
 import { ensureCommonAccountSetting } from "@/features/members/common-account";
 import { isZernioConfigured } from "@/features/zernio/client";
+import { syncPostMetrics, type MetricsSyncResult } from "@/features/zernio/metrics-sync";
 import { syncRecentZernioPosts, type BulkSyncResult } from "@/features/zernio/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -16,7 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // 3. Refreshes every member's Google calendar busy blocks within a budget.
 // 4. Deletes Zernio webhook dedupe rows older than 30 days and, when
 //    ZERNIO_API_KEY is set, re-syncs Zernio posts updated in the last 48 h
-//    (fallback for missed webhooks), in parallel with step 3.
+//    (fallback for missed webhooks), then refreshes their insights
+//    (post_metrics; reported, never failing the run), in parallel with step 3.
 // 5. Syncs the group's common account (GMAIL_USER) into private_settings so
 //    the member management RPCs only accept it (never logs the address).
 
@@ -75,12 +77,15 @@ export async function GET(request: NextRequest) {
 
   // refreshBusyBlocks and syncRecentZernioPosts never throw; feed errors are
   // stored per feed.
-  const zernioState: { result: BulkSyncResult | "not_configured" | "timeout" } = {
-    result: "not_configured",
-  };
+  const zernioState: {
+    result: BulkSyncResult | "not_configured" | "timeout";
+    metrics: MetricsSyncResult | null;
+  } = { result: "not_configured", metrics: null };
+  // Insights run after the posts so newly synced posts get their metrics.
   const zernioTask = isZernioConfigured()
-    ? syncRecentZernioPosts(new Date(Date.now() - ZERNIO_LOOKBACK_MS)).then((r) => {
+    ? syncRecentZernioPosts(new Date(Date.now() - ZERNIO_LOOKBACK_MS)).then(async (r) => {
         zernioState.result = r;
+        zernioState.metrics = await syncPostMetrics();
       })
     : null;
   // ensureCommonAccountSetting never throws.
@@ -102,6 +107,7 @@ export async function GET(request: NextRequest) {
     refreshedMembers: fulfilled,
     failedMembers: failed,
     zernio,
+    zernioMetrics: zernioState.metrics,
     commonAccount,
   };
   // Counts only: never log emails, hashes or error details.

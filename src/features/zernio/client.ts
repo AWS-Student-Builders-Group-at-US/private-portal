@@ -90,3 +90,35 @@ export async function listAccounts(): Promise<ZernioAccount[]> {
     name: text(a.displayName) || text(a.username) || text(a.name) || "—",
   }));
 }
+
+export type AnalyticsPage = { items: unknown[]; hasMore: boolean };
+
+/**
+ * One page of `GET /v1/analytics` for posts created through Zernio
+ * (`source=late`), newest first. Items stay raw: `mapPostAnalytics` reads them.
+ * Throws `ZernioApiError(402)` when the plan lacks the Analytics add-on.
+ */
+export async function listPostAnalytics({
+  fromDate,
+  page = 1,
+  limit = 50,
+}: {
+  fromDate: Date;
+  page?: number;
+  limit?: number;
+}): Promise<AnalyticsPage> {
+  const data = await request("/analytics", {
+    source: "late",
+    fromDate: fromDate.toISOString().slice(0, 10),
+    sortBy: "date",
+    order: "desc",
+    view: "summary",
+    page: String(page),
+    limit: String(limit),
+  });
+  const items = isObject(data) && Array.isArray(data.posts) ? data.posts : [];
+  const pagination = isObject(data) && isObject(data.pagination) ? data.pagination : {};
+  const total = typeof pagination.total === "number" ? pagination.total : null;
+  const hasMore = items.length === limit && (total === null || page * limit < total);
+  return { items, hasMore };
+}

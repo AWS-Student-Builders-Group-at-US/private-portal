@@ -14,7 +14,8 @@ import { getSupabaseEnv } from "./env";
 // - Daily maintenance cron (src/app/api/cron/diario), behind CRON_SECRET.
 // - Zernio sync (src/features/zernio): the signed webhook
 //   (src/app/api/webhooks/zernio), the cron fallback and the member-only
-//   "Sincronizar ahora" action; Zernio rows in posts are server-owned.
+//   "Sincronizar ahora" action; Zernio rows in posts and post_metrics
+//   (insights) are server-owned.
 // - Common account sync (src/features/members/common-account.ts): writes
 //   GMAIL_USER into public.private_settings from the daily cron and the
 //   member-only Ajustes render; members cannot read or write that table.

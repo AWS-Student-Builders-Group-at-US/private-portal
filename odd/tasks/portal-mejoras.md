@@ -42,7 +42,8 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
       "AWS US - Student Builder Group" calendar with group meetings.
   - [x] T4a Calendar entries, visibility enforced in the database, occupation merge, agenda.
   - [x] T4b Shared "AWS US - Student Builder Group" iCal feed with group meetings.
-- [ ] T5 Posts insights from Zernio (pending: check what the Zernio API exposes).
+- [x] T5 Posts insights from Zernio: stored per-post metrics (impressions, reach, interactions,
+      engagement rate, per-network breakdown) on `/panel/publicaciones` and each post's detail.
 - [ ] T6 Mail-based reminders (pending decision: conflicts with "never store emails").
 
 ## Delivery strategy
@@ -119,6 +120,29 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   against a database; the feed with real data; browser UI (needs Google sign-in). Existing
   subscribers keep their URL; Google may keep the old calendar name until re-subscribed.
 
+- T5 (route: direct inline in a side session; ~670 authored lines over 14 files, above the
+  ~400 heuristic because migration, sync, hooks and UI only make sense together). Research
+  (primary source, docs.zernio.com `llms.txt`, `/products/analytics`, `/analytics/get-analytics`):
+  `GET /v1/analytics` lists posts with `analytics` {impressions, reach, likes, comments, shares,
+  saves, clicks, views, engagementRate, lastUpdated} and `platformAnalytics[]`; Zernio syncs them
+  about hourly; `source=late` keeps posts made through Zernio (`latePostId`); 402
+  `analytics_addon_required` on legacy plans without the Analytics add-on (usage-based plans
+  include it); webhook `analytics.synced` fires per account sync. Implementation: new table
+  `post_metrics` (migration `20261204000000_post_metrics.sql`, RLS select with `is_member()`,
+  writes server-only); `listPostAnalytics()` in the server-only client; pure
+  `mapPostAnalytics` / `summarizeMetrics` / `formatCount` in `zernio/analytics.ts`;
+  `syncPostMetrics()` (`zernio/metrics-sync.ts`, never throws, last 90 days, ≤6 pages of 50,
+  reports `addonRequired`) runs after the posts sync in the daily cron, in "Sincronizar ahora"
+  and on the `analytics.synced` webhook (after the response; outcome only logged). Pages read
+  only the table: list shows a "Rendimiento en redes" summary for the visible published posts
+  and a one-line insight per post; detail shows totals plus a per-network table. The panel
+  home does not read metrics. RED: `analytics.test.ts` failed (module missing); GREEN: 9 tests.
+  Checks: eslint clean, `tsc --noEmit` clean, `npm test` 59 files / 485 tests passed; `next
+  build` with dummy Supabase env vars succeeded. Not verified: the group's Zernio plan has the
+  Analytics add-on (no API key in the sandbox; "Sincronizar ahora" now says so on 402); the
+  migration against a database; the browser UI (needs Google sign-in). To get webhook-driven
+  refreshes, `analytics.synced` must be enabled on the Zernio webhook (otherwise daily cron).
+
 ## Next step
 
-T5 (pending: check what the Zernio API exposes).
+T6 (pending decision: conflicts with "never store emails").

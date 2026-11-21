@@ -6,11 +6,13 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatMadridDateTime } from "@/features/events/time";
 import { networkWarnings } from "@/features/posts/content";
 import { publicMediaUrl } from "@/features/posts/media";
+import { PostMetricsPanel } from "@/features/posts/components/post-metrics";
 import { PostPreviews } from "@/features/posts/components/post-previews";
 import { DeletePostButton, PostStatusActions } from "@/features/posts/components/post-status-actions";
 import { SiteVisibilityToggle } from "@/features/posts/components/site-visibility-toggle";
 import { PostStatusBadge } from "@/features/posts/components/status-badge";
 import { PlatformLinks, ZernioBadge } from "@/features/posts/components/zernio-bits";
+import { getPostMetrics } from "@/features/posts/metrics";
 import { getPost } from "@/features/posts/queries";
 import { POST_TARGET_LABELS } from "@/features/posts/schema";
 import { availableActions } from "@/features/posts/workflow";
@@ -20,7 +22,7 @@ const MESSAGES = { creada: "Borrador guardado.", guardada: "Cambios guardados." 
 
 export default async function PostDetailPage({ params, searchParams }: PageProps<"/panel/publicaciones/[id]">) {
   const [{ id }, { estado }, member] = await Promise.all([params, searchParams, getCurrentMember()]);
-  const post = await getPost(id);
+  const [post, metrics] = await Promise.all([getPost(id), getPostMetrics(id)]);
   if (!post) notFound();
 
   const fromZernio = post.source === "zernio";
@@ -104,6 +106,8 @@ export default async function PostDetailPage({ params, searchParams }: PageProps
           </div>
         ))}
       </dl>
+
+      {fromZernio && <PostMetricsPanel metrics={metrics} isPublished={post.status === "published"} />}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Vista previa</h2>
