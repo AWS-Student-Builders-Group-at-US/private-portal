@@ -1,8 +1,15 @@
 import type { NextRequest } from "next/server";
-import { buildTeamCalendar, type ExportEvent } from "@/features/calendars/ics-export";
+import {
+  GROUP_CALENDAR_FILENAME,
+  buildTeamCalendar,
+  type ExportEvent,
+  type GroupMeeting,
+} from "@/features/calendars/ics-export";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Team events iCal feed for Google Calendar "Desde URL" subscriptions.
+// Shared "AWS US - Student Builder Group" iCal feed for Google Calendar
+// "Desde URL" subscriptions: team events plus calendar entries marked as
+// group meetings. Personal (non-group) entries are never read here.
 // Public route (no session; excluded from the proxy): the per-member token in
 // `?token=` is the only credential and is checked with the secret key.
 
@@ -32,14 +39,25 @@ export async function GET(request: NextRequest) {
     .order("starts_at", { ascending: true });
   if (error) return new Response("Service unavailable", { status: 503 });
 
+  // Only group meetings, and only the columns the feed shows (no owner).
+  // A failed read (e.g. before the calendar_entries migration runs) keeps
+  // the feed working with the events alone.
+  const { data: meetings } = await admin
+    .from("calendar_entries")
+    .select("id, title, notes, starts_at, ends_at")
+    .eq("is_group_meeting", true)
+    .gte("starts_at", since.toISOString())
+    .order("starts_at", { ascending: true });
+
   const body = buildTeamCalendar(events as ExportEvent[], {
     now,
     domain: request.nextUrl.hostname,
+    groupMeetings: (meetings ?? []) as GroupMeeting[],
   });
   return new Response(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'inline; filename="eventos-core-team.ics"',
+      "Content-Disposition": `inline; filename="${GROUP_CALENDAR_FILENAME}"`,
       "Cache-Control": "private, max-age=300",
     },
   });

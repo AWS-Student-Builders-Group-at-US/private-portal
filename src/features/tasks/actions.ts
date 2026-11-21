@@ -6,7 +6,7 @@ import { z } from "zod";
 import { safePanelPath, withStatus } from "@/lib/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/features/events/types";
-import { taskFormSchema, taskRow, taskStatusSchema } from "./schema";
+import { taskFormSchema, taskReminderToggleSchema, taskRow, taskStatusSchema } from "./schema";
 import type { TaskFormState } from "./types";
 
 // Every action runs with the user's session (server client, never the secret
@@ -188,6 +188,7 @@ const FIELD_SCHEMAS = {
   priority: taskFormSchema.shape.priority,
   due_date: taskFormSchema.shape.due_date,
   link_url: taskFormSchema.shape.link_url,
+  email_reminder: taskReminderToggleSchema,
 };
 export type EditableTaskField = keyof typeof FIELD_SCHEMAS;
 

@@ -8,7 +8,7 @@ import {
 } from "./calendar-feeds";
 import { ExportLink } from "./export-link";
 
-// "Mis calendarios de Google" and the team events subscription link, shown on
+// "Mis calendarios de Google" and the shared group calendar subscription link, shown on
 // "Mi disponibilidad".
 export function MyCalendars({ feeds, exportUrl }: { feeds: FeedSummary[]; exportUrl: string }) {
   return (
@@ -74,10 +74,13 @@ export function MyCalendars({ feeds, exportUrl }: { feeds: FeedSummary[]; export
       </section>
 
       <section className="flex max-w-xl flex-col gap-4">
-        <h2 className="text-lg font-semibold">Suscribirse a los eventos del equipo</h2>
+        <h2 className="text-lg font-semibold">
+          Suscribirse al calendario «AWS US - Student Builder Group»
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Añade este enlace a Google Calendar para ver los eventos del equipo. Es personal: no
-          lo compartas.
+          Añade este enlace a Google Calendar para ver los eventos del equipo y las reuniones
+          del grupo (las entradas marcadas como «Reunión del grupo»). Tus demás entradas no
+          aparecen. El enlace es personal: no lo compartas.
         </p>
         <ExportLink url={exportUrl} />
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">

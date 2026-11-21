@@ -25,6 +25,8 @@ export type TaskFormValues = {
   event_id: string;
   priority: string;
   link_url: string;
+  // "on" when checked.
+  email_reminder: string;
 };
 
 export const EMPTY_TASK: TaskFormValues = {
@@ -36,6 +38,7 @@ export const EMPTY_TASK: TaskFormValues = {
   event_id: "",
   priority: "",
   link_url: "",
+  email_reminder: "",
 };
 
 function Field({
@@ -181,6 +184,22 @@ export function TaskForm({
           />
         </Field>
       </div>
+      <label className="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="email_reminder"
+          defaultChecked={value("email_reminder") === "on"}
+          className="mt-0.5 size-4"
+          aria-describedby="email_reminder-help"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="font-medium">Recordarme por correo</span>
+          <span id="email_reminder-help" className="text-xs text-muted-foreground">
+            Cada responsable recibe un correo el día antes de la fecha límite (si la tarea
+            no está hecha).
+          </span>
+        </span>
+      </label>
       <Field name="link_url" label="Enlace (opcional)" errors={errors("link_url")}>
         <input
           id="link_url"

@@ -7,7 +7,7 @@ import type { EventOption, MemberOption, Task, TaskCardData } from "./types";
 // All reads use the user's session; RLS only returns rows to members.
 
 const TASK_COLUMNS =
-  "id, title, description, status, assignee_email, due_date, event_id, priority, link_url, created_by, created_at, updated_at";
+  "id, title, description, status, assignee_email, due_date, event_id, priority, link_url, email_reminder, created_by, created_at, updated_at";
 
 // Assignees come from task_assignees, oldest first, with the member's name.
 type AssigneeRow = { member_email: string; created_at: string; member: { name: string } | null };

@@ -1,8 +1,15 @@
 import Link from "next/link";
-import { ChevronRight, ThumbsUp } from "lucide-react";
+import { CalendarClock, ChevronRight, ExternalLink, MapPin, ThumbsUp } from "lucide-react";
 import { splitEvents } from "@/features/events/components/event-list";
 import { listEvents } from "@/features/events/queries";
-import { formatMadridDateTimeShort } from "@/features/events/time";
+import { formatMadridDateTime, formatMadridDateTimeShort } from "@/features/events/time";
+import { pickNextMeeting, splitHomePosts } from "@/features/home/logic";
+import { MyReminders } from "@/features/reminders/components/my-reminders";
+import { listMyReminders } from "@/features/reminders/queries";
+import { PostStatusBadge } from "@/features/posts/components/status-badge";
+import { listPosts } from "@/features/posts/queries";
+import { POST_TARGET_LABELS } from "@/features/posts/schema";
+import type { Post } from "@/features/posts/types";
 import { sortSuggestions } from "@/features/suggestions/logic";
 import { TaskMeta } from "@/features/tasks/components/task-meta";
 import { madridToday } from "@/features/tasks/dates";
@@ -15,18 +22,26 @@ const HOME_LIMIT = 3;
 
 export default async function HomePage() {
   const member = await getCurrentMember();
-  const [events, suggestions, tasks] = await Promise.all([
+  const today = madridToday();
+  const [events, suggestions, tasks, posts, reminders] = await Promise.all([
     listEvents(),
     listSuggestions(member.email),
     listTasks(),
+    listPosts(),
+    listMyReminders(today),
   ]);
   const myPending = sortTasks(
     filterTasks(tasks, { people: ["me"], eventId: null }, member.email).filter(
       (task) => task.status !== "done",
     ),
   );
-  const today = madridToday();
-  const upcoming = splitEvents(events, new Date()).upcoming.slice(0, HOME_LIMIT);
+  const now = new Date();
+  const nextMeeting = pickNextMeeting(events, now);
+  // The highlighted meeting is not repeated in the events list below it.
+  const upcoming = splitEvents(events, now)
+    .upcoming.filter((event) => event.id !== nextMeeting?.id)
+    .slice(0, HOME_LIMIT);
+  const homePosts = splitHomePosts(posts, now, HOME_LIMIT);
   const fresh = suggestions.filter((s) => s.status === "nueva");
   const topFresh = sortSuggestions(fresh).slice(0, HOME_LIMIT);
 
@@ -36,6 +51,47 @@ export default async function HomePage() {
         <h1 className="text-2xl font-semibold">Hola, {member.name}</h1>
         <p className="text-muted-foreground">Esto es lo que tienes por delante.</p>
       </div>
+
+      <section className="flex flex-col gap-3" aria-labelledby="next-meeting">
+        <h2 id="next-meeting" className="text-lg font-semibold">
+          Próxima reunión
+        </h2>
+        {nextMeeting ? (
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 px-4 py-4">
+            <Link
+              href={`/panel/eventos/${nextMeeting.id}`}
+              className="text-lg font-semibold underline-offset-4 hover:underline"
+            >
+              {nextMeeting.title}
+            </Link>
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarClock className="size-4 shrink-0" aria-hidden />
+              <span className="first-letter:uppercase">
+                {formatMadridDateTime(nextMeeting.starts_at)}
+              </span>
+            </p>
+            {nextMeeting.location && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="size-4 shrink-0" aria-hidden />
+                {nextMeeting.location}
+              </p>
+            )}
+            {nextMeeting.meetup_url && (
+              <a
+                href={nextMeeting.meetup_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-fit items-center gap-2 text-sm underline underline-offset-4"
+              >
+                <ExternalLink className="size-4 shrink-0" aria-hidden />
+                Abrir enlace
+              </a>
+            )}
+          </div>
+        ) : (
+          <Empty>No hay ninguna reunión programada.</Empty>
+        )}
+      </section>
 
       <HomeSection
         title={`Mis tareas pendientes${myPending.length ? ` (${myPending.length})` : ""}`}
@@ -61,6 +117,8 @@ export default async function HomePage() {
         )}
       </HomeSection>
 
+      <MyReminders reminders={reminders} today={today} />
+
       <HomeSection title="Próximos eventos" href="/panel/eventos" linkLabel="Ver eventos">
         {upcoming.length === 0 ? (
           <Empty>No hay eventos próximos.</Empty>
@@ -85,6 +143,23 @@ export default async function HomePage() {
             ))}
           </ul>
         )}
+      </HomeSection>
+
+      <HomeSection title="Publicaciones" href="/panel/publicaciones" linkLabel="Ver publicaciones">
+        <div className="grid gap-4 md:grid-cols-2">
+          <PostList
+            title="Próximas"
+            posts={homePosts.upcoming}
+            date={(post) => post.scheduled_at}
+            emptyText="No hay publicaciones programadas."
+          />
+          <PostList
+            title="Publicadas recientemente"
+            posts={homePosts.recent}
+            date={(post) => post.published_at ?? post.scheduled_at}
+            emptyText="Todavía no hay publicaciones publicadas."
+          />
+        </div>
       </HomeSection>
 
       <HomeSection
@@ -133,6 +208,50 @@ function HomeSection({
       </div>
       {children}
     </section>
+  );
+}
+
+function PostList({
+  title,
+  posts,
+  date,
+  emptyText,
+}: {
+  title: string;
+  posts: Post[];
+  date: (post: Post) => string | null;
+  emptyText: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      {posts.length === 0 ? (
+        <Empty>{emptyText}</Empty>
+      ) : (
+        <ul className="divide-y rounded-lg border">
+          {posts.map((post) => {
+            const when = date(post);
+            return (
+              <li key={post.id}>
+                <Link
+                  href={`/panel/publicaciones/${post.id}`}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted"
+                >
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate font-medium">{post.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {when ? formatMadridDateTimeShort(when) : "Sin fecha"} ·{" "}
+                      {post.targets.map((t) => POST_TARGET_LABELS[t]).join(", ")}
+                    </span>
+                  </span>
+                  <PostStatusBadge status={post.status} />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -11,10 +11,14 @@ import { getSupabaseEnv } from "./env";
 //   and the token iCal export (src/app/api/calendario.ics).
 // - Community emails (src/features/emails): public unsubscribe by token and
 //   server-only tables written after a membership check.
-// - Daily maintenance cron (src/app/api/cron/diario), behind CRON_SECRET.
+// - Daily maintenance cron (src/app/api/cron/diario), behind CRON_SECRET,
+//   including the email reminders (src/features/reminders/send.ts): reads
+//   ticked tasks with their assignees, pending reminders and member names,
+//   and writes the server-only task_reminder_sends and reminders.sent_at.
 // - Zernio sync (src/features/zernio): the signed webhook
 //   (src/app/api/webhooks/zernio), the cron fallback and the member-only
-//   "Sincronizar ahora" action; Zernio rows in posts are server-owned.
+//   "Sincronizar ahora" action; Zernio rows in posts and post_metrics
+//   (insights) are server-owned.
 // - Common account sync (src/features/members/common-account.ts): writes
 //   GMAIL_USER into public.private_settings from the daily cron and the
 //   member-only Ajustes render; members cannot read or write that table.

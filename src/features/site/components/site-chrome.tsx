@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowUpRight, LogIn } from "lucide-react";
 import { ChipMark } from "@/components/chip-mark";
 import { cn } from "@/lib/utils";
 import { SITE, SOON } from "../config";
 import { CtaArrow, cta } from "./primitives";
+import { SignedInMember } from "./signed-in-member";
 
 export function Logo({ light = false }: { light?: boolean }) {
   return (
@@ -64,6 +66,10 @@ export function SiteHeader() {
           <Link href="/#unete" className={cn(cta.primary, "shrink-0 px-3 py-2 sm:px-4")}>
             Únete<span className="hidden sm:inline"> al grupo</span> <CtaArrow />
           </Link>
+          {/* Session read streams in; signed-out visitors get the static header. */}
+          <Suspense fallback={null}>
+            <SignedInMember />
+          </Suspense>
         </div>
       </div>
       <nav

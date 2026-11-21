@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 import { formatMadridDateTimeShort, utcIsoToMadridLocal } from "@/features/events/time";
 import { formatMonth, monthGrid, parseMonth, shiftMonth } from "@/features/posts/calendar";
 import { PostStatusBadge } from "@/features/posts/components/status-badge";
+import { MetricsSummary, PostMetricsInline } from "@/features/posts/components/post-metrics";
 import { ZernioBadge } from "@/features/posts/components/zernio-bits";
+import { listPostMetrics } from "@/features/posts/metrics";
 import { listPosts } from "@/features/posts/queries";
 import { POST_STATUSES, POST_STATUS_LABELS, POST_TARGET_LABELS, type PostStatus } from "@/features/posts/schema";
 import type { Post } from "@/features/posts/types";
@@ -15,7 +17,7 @@ const MESSAGES = { eliminada: "Publicación eliminada." };
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 export default async function PostsPage({ searchParams }: PageProps<"/panel/publicaciones">) {
-  const [params, posts] = await Promise.all([searchParams, listPosts()]);
+  const [params, posts, metrics] = await Promise.all([searchParams, listPosts(), listPostMetrics()]);
   const calendar = params.vista === "calendario";
   const status = POST_STATUSES.find((s) => s === params.estado_pub) ?? null;
   const zernioOnly = params.origen === "zernio";
@@ -23,6 +25,10 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
     (p) => (!status || p.status === status) && (!zernioOnly || p.source === "zernio"),
   );
   const zernioCount = posts.filter((p) => p.source === "zernio").length;
+  const visibleMetrics = visible.flatMap((p) => {
+    const m = p.status === "published" ? metrics.get(p.id) : undefined;
+    return m ? [m] : [];
+  });
   const thisMonth = utcIsoToMadridLocal(new Date().toISOString()).slice(0, 7);
   const month = parseMonth(params.mes, thisMonth);
 
@@ -72,6 +78,8 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
         </nav>
       </div>
 
+      {!calendar && <MetricsSummary metrics={visibleMetrics} />}
+
       {calendar ? (
         <MonthCalendar posts={visible} month={month} href={href} />
       ) : visible.length === 0 ? (
@@ -91,6 +99,9 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
                     {post.event_title && ` · ${post.event_title}`}
                     {!post.show_on_site && " · Oculta en la web"}
                   </span>
+                  {post.status === "published" && metrics.has(post.id) && (
+                    <PostMetricsInline metrics={metrics.get(post.id)!} />
+                  )}
                 </span>
                 {post.source === "zernio" && <ZernioBadge />}
                 <PostStatusBadge status={post.status} />

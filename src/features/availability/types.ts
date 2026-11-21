@@ -1,3 +1,5 @@
+import type { TimeRange } from "@/features/calendar-entries/agenda";
+import type { CalendarEntry } from "@/features/calendar-entries/types";
 import type { NoteRect } from "./notes";
 import type { OccupationByMember, OnlineByMember, SlotOccupation } from "./occupation";
 
@@ -11,12 +13,17 @@ export type AvailabilityNote = NoteRect & {
 
 export type TeamWeek = {
   dates: string[];
-  members: { email: string; name: string }[];
+  members: { email: string; name: string; color: string | null }[];
   occupation: OccupationByMember;
   // Slots in which each member marked "solo online".
   online: OnlineByMember;
   // Every member's notes that overlap the week.
   notes: AvailabilityNote[];
+  // Every member's calendar entries of the week (title and notes already
+  // hidden by the database for someone else's busy-only entry).
+  entries: CalendarEntry[];
+  // Each member's Google busy time per Madrid date, merged (times only).
+  google: Record<string, TimeRange[]>;
   // Part of the week is outside the stored Google window.
   outsideGoogleWindow: boolean;
 };
@@ -27,6 +34,8 @@ export type MyWeek = {
   days: Record<string, SlotOccupation[]>;
   // The member's own notes that overlap the week.
   notes: AvailabilityNote[];
+  // The member's own calendar entries of the week.
+  entries: CalendarEntry[];
   outsideGoogleWindow: boolean;
 };
 

@@ -7,6 +7,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
+  Bell,
   ChevronDown,
   ExternalLink,
   Maximize2,
@@ -95,6 +96,12 @@ export function TaskTable({
       [field]: blank && field !== "title" ? null : value.trim(),
     };
     save({ id: task.id, changes }, () => updateTaskField(task.id, field, value));
+  }
+
+  function saveReminder(task: TaskCardData, on: boolean) {
+    save({ id: task.id, changes: { email_reminder: on } }, () =>
+      updateTaskField(task.id, "email_reminder", String(on)),
+    );
   }
 
   function saveAssignees(task: TaskCardData, emails: string[]) {
@@ -240,6 +247,23 @@ export function TaskTable({
                     {overdue && (
                       <span className="block px-1.5 text-xs text-destructive">Vencida</span>
                     )}
+                    <label
+                      title="Cada responsable recibe un correo el día antes de la fecha límite"
+                      className={cn(
+                        "mt-0.5 flex cursor-pointer items-center gap-1 px-1.5 text-xs",
+                        task.email_reminder ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={task.email_reminder}
+                        onChange={(e) => saveReminder(task, e.target.checked)}
+                        aria-label={`Recordarme por correo «${task.title}»`}
+                        className="size-3"
+                      />
+                      <Bell className="size-3" aria-hidden />
+                      Avisar
+                    </label>
                   </td>
                   <td className="w-72 max-w-72 px-2 py-1.5">
                     <EditableLongText

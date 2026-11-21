@@ -7,6 +7,7 @@ import { MyCalendars } from "@/features/calendars/components/my-calendars";
 import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
 import { resolveSiteUrl } from "@/features/checkin/url";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
+import { MyEntries } from "@/features/calendar-entries/components/my-entries";
 import { TeamView } from "@/features/availability/components/team-view";
 import { formatDay, isValidIsoDate, madridToday } from "@/features/availability/dates";
 import { getMyWeek, getTeamWeek } from "@/features/availability/queries";
@@ -38,7 +39,7 @@ export default async function CalendarPage({
       {team ? (
         <TeamSection monday={monday} thisMonday={thisMonday} />
       ) : (
-        <MySection monday={monday} thisMonday={thisMonday} />
+        <MySection monday={monday} thisMonday={thisMonday} today={today} />
       )}
     </div>
   );
@@ -72,9 +73,11 @@ function Tab({
 async function MySection({
   monday,
   thisMonday,
+  today,
 }: {
   monday: string;
   thisMonday: string;
+  today: string;
 }) {
   const member = await getCurrentMember();
   const [week, feeds, token, requestHeaders] = await Promise.all([
@@ -89,11 +92,13 @@ async function MySection({
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Tu semana</h2>
         <p className="text-sm text-muted-foreground">
-          Cada franja muestra tu disponibilidad según tus calendarios de Google: 1 si estás
-          libre, 0,5 si tienes algo que podrías mover, 0 si no puedes moverlo. Con «Editar
-          disponibilidad» marcas un rango de franjas y cambias a mano cómo estás esos días
-          (manda sobre Google). Con «Añadir nota» dejas una nota que verá todo el equipo (por
-          ejemplo, «No puedo presencial»).
+          Cada franja muestra tu disponibilidad según tus calendarios de Google y las entradas
+          que añades a tu calendario: 1 si estás libre, 0,5 si tienes algo que podrías mover, 0
+          si no puedes moverlo. Con «Añadir al calendario» apuntas algo con título y decides si
+          el equipo lo ve o solo ve que estás ocupado. Con «Editar disponibilidad» marcas un
+          rango de franjas y cambias a mano cómo estás esos días (manda sobre Google y sobre
+          tus entradas). Con «Añadir nota» dejas una nota que verá todo el equipo (por ejemplo,
+          «No puedo presencial»).
         </p>
         <WeekNav
           monday={monday}
@@ -107,6 +112,11 @@ async function MySection({
           </p>
         )}
         <MyWeekGrid key={monday} week={week} feeds={feeds} />
+        <MyEntries
+          key={`entries-${monday}`}
+          entries={week.entries}
+          defaultDate={week.dates.includes(today) ? today : monday}
+        />
       </section>
       <MyCalendars feeds={feeds} exportUrl={exportUrl} />
     </div>

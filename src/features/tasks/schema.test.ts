@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { MAX_ASSIGNEES, taskFormSchema, taskRow, taskStatusSchema } from "./schema";
+import {
+  MAX_ASSIGNEES,
+  taskFormSchema,
+  taskReminderToggleSchema,
+  taskRow,
+  taskStatusSchema,
+} from "./schema";
 
 const EVENT_ID = "0b6f3f3e-5d0a-4c1e-9a43-6f1f2a3b4c5d";
 
@@ -31,6 +37,7 @@ describe("taskFormSchema", () => {
       event_id: EVENT_ID,
       priority: null,
       link_url: null,
+      email_reminder: false,
     });
   });
 
@@ -101,6 +108,7 @@ describe("taskFormSchema", () => {
       event_id: null,
       priority: null,
       link_url: null,
+      email_reminder: false,
     });
   });
 });
@@ -133,5 +141,27 @@ describe("priority and link", () => {
     expect(issuePaths({ ...valid, priority: "urgent" })).toContain("priority");
     expect(issuePaths({ ...valid, link_url: "javascript:alert(1)" })).toContain("link_url");
     expect(issuePaths({ ...valid, link_url: "drive.google.com" })).toContain("link_url");
+  });
+});
+
+describe("email reminder", () => {
+  it("is on only when the checkbox is sent checked", () => {
+    expect(taskFormSchema.parse({ title: "Algo", email_reminder: "on" }).email_reminder).toBe(true);
+    expect(taskFormSchema.parse({ title: "Algo" }).email_reminder).toBe(false);
+    expect(taskFormSchema.parse({ title: "Algo", email_reminder: "" }).email_reminder).toBe(false);
+  });
+
+  it("is stored in the tasks row", () => {
+    expect(taskRow(taskFormSchema.parse({ title: "Algo", email_reminder: "on" }))).toMatchObject({
+      email_reminder: true,
+    });
+  });
+});
+
+describe("taskReminderToggleSchema", () => {
+  it("maps the table toggle to a boolean and rejects anything else", () => {
+    expect(taskReminderToggleSchema.parse("true")).toBe(true);
+    expect(taskReminderToggleSchema.parse("false")).toBe(false);
+    expect(taskReminderToggleSchema.safeParse("yes").success).toBe(false);
   });
 });
