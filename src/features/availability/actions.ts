@@ -5,11 +5,11 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/features/events/types";
 import { getCurrentMember } from "@/lib/auth/member";
-import { noteFormSchema, noteTextSchema } from "./schema";
+import { manualEditSchema, manualRows, noteFormSchema, noteTextSchema } from "./schema";
 import type { NoteFormState } from "./types";
 
 // Every action runs with the user's session; RLS only lets members write
-// their own availability notes.
+// their own availability notes and hand edits.
 
 const CALENDAR_PATH = "/panel/calendario";
 
@@ -61,6 +61,39 @@ export async function updateNote(
     .select("id");
   if (error || !data?.length) {
     return { message: "No se pudo guardar la nota. Inténtalo de nuevo." };
+  }
+  revalidatePath(CALENDAR_PATH);
+  return { ok: true };
+}
+
+// Hand edit of the member's own week: sets every slot of the rectangle to the
+// chosen occupation (replacing Google there), or with "google" removes the
+// edits so those slots follow Google again.
+export async function editMyAvailability(input: unknown): Promise<ActionResult> {
+  const parsed = manualEditSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "La franja seleccionada no es válida." };
+  }
+  const edit = parsed.data;
+  const { email } = await getCurrentMember();
+  const supabase = await createClient();
+  const { error } =
+    edit.choice === "google"
+      ? await supabase
+          .from("availability_manual")
+          .delete()
+          .eq("member_email", email)
+          .gte("date", edit.start_date)
+          .lte("date", edit.end_date)
+          .gte("start_minute", edit.start_minute)
+          .lt("start_minute", edit.end_minute)
+      : await supabase
+          .from("availability_manual")
+          .upsert(manualRows(edit, email, Number(edit.choice)), {
+            onConflict: "member_email,date,start_minute",
+          });
+  if (error) {
+    return { ok: false, message: "No se pudo guardar tu disponibilidad. Inténtalo de nuevo." };
   }
   revalidatePath(CALENDAR_PATH);
   return { ok: true };

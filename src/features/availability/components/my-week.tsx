@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StickyNote, X } from "lucide-react";
+import { Pencil, StickyNote, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createNote } from "../actions";
+import { ManualEditForm } from "./manual-edit-form";
 import { formatDay } from "../dates";
 import {
   noteCoversCell,
@@ -26,8 +27,15 @@ const WEIGHT_TEXT: Record<number, string> = {
   0.5: "lo podría mover",
 };
 
+const MANUAL_TEXT: Record<number, string> = { 0: "libre", ...WEIGHT_TEXT };
+
+type Mode = "note" | "edit";
+
 // Only times and calendar labels are shown; event titles are never stored.
 function describe(slot: SlotOccupation, feedLabels: Map<string, string>) {
+  if (slot.manual !== undefined) {
+    return `Editado a mano (${MANUAL_TEXT[slot.manual] ?? MANUAL_TEXT[1]})`;
+  }
   const parts: string[] = [];
   const seen = new Set<string>();
   for (const hit of slot.google) {
@@ -43,13 +51,15 @@ function describe(slot: SlotOccupation, feedLabels: Map<string, string>) {
 const sameCell = (a: CellRef | null, b: CellRef | null) =>
   !!a && !!b && a.date === b.date && a.slot === b.slot;
 
-// The member's own week, from their Google calendars: 0 = free,
-// 0,5 = could move it, 1 = can't move it. Cells with a Google block show a
-// "G"; cells covered by a note show a dot.
+// The member's own week, from their Google calendars and their hand edits,
+// shown as availability (1 - occupation): 1 = free, 0,5 = could move it,
+// 0 = can't move it, like the team map. Cells with a Google block
+// show a "G", hand-edited cells an "M"; cells covered by a note show a dot.
 //
-// "Añadir nota" mode: two corners define a rectangle of cells. Mouse: click
-// two cells or drag from one to the other. Touch: tap two cells. Keyboard:
-// arrow keys move, Enter/Space picks each corner, Escape cancels.
+// "Añadir nota" and "Editar disponibilidad" modes: two corners define a
+// rectangle of cells. Mouse: click two cells or drag from one to the other.
+// Touch: tap two cells. Keyboard: arrow keys move, Enter/Space picks each
+// corner, Escape cancels. Then a note form or the edit choices appear.
 export function MyWeekGrid({
   week,
   feeds,
@@ -58,7 +68,8 @@ export function MyWeekGrid({
   feeds: { id: string; label: string }[];
 }) {
   const feedLabels = new Map(feeds.map((feed) => [feed.id, feed.label]));
-  const [selecting, setSelecting] = useState(false);
+  const [mode, setMode] = useState<Mode | null>(null);
+  const selecting = mode !== null;
   const [anchor, setAnchor] = useState<CellRef | null>(null);
   const [hover, setHover] = useState<CellRef | null>(null);
   const [selection, setSelection] = useState<NoteRect | null>(null);
@@ -71,7 +82,7 @@ export function MyWeekGrid({
     selection ?? (anchor ? rectFromCorners(anchor, hover ?? anchor) : null);
 
   const reset = useCallback(() => {
-    setSelecting(false);
+    setMode(null);
     setAnchor(null);
     setHover(null);
     setSelection(null);
@@ -162,7 +173,9 @@ export function MyWeekGrid({
   }
 
   const status = selection
-    ? "Escribe la nota para la franja seleccionada."
+    ? mode === "edit"
+      ? "Elige cómo estás en la franja seleccionada."
+      : "Escribe la nota para la franja seleccionada."
     : anchor
       ? "Ahora elige la esquina opuesta del rectángulo (o pulsa Escape para empezar de nuevo)."
       : "Elige la primera esquina: haz clic o toca una franja, o arrastra sobre varias.";
@@ -173,13 +186,19 @@ export function MyWeekGrid({
         {selecting ? (
           <Button variant="outline" size="sm" onClick={reset}>
             <X data-icon="inline-start" />
-            Cancelar nota
+            {mode === "edit" ? "Cancelar edición" : "Cancelar nota"}
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={() => setSelecting(true)}>
-            <StickyNote data-icon="inline-start" />
-            Añadir nota
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={() => setMode("edit")}>
+              <Pencil data-icon="inline-start" />
+              Editar disponibilidad
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setMode("note")}>
+              <StickyNote data-icon="inline-start" />
+              Añadir nota
+            </Button>
+          </>
         )}
         {selecting && (
           <p className="text-sm text-muted-foreground" role="status">
@@ -213,12 +232,13 @@ export function MyWeekGrid({
                 {week.dates.map((date, day) => {
                   const slot = week.days[date][index];
                   const cell = { date, slot: index };
-                  const fromGoogle = slot.google.length > 0;
+                  const edited = slot.manual !== undefined;
+                  const fromGoogle = !edited && slot.google.length > 0;
                   const notes = notesForCell(week.notes, date, index);
                   const selected = !!preview && noteCoversCell(preview, date, index);
                   const noteText =
                     notes.length > 0 ? ` · Notas: ${notes.map((n) => n.title).join(", ")}` : "";
-                  const label = `${formatDay(date)} ${time}: ${formatOccupation(slot.value)} · ${describe(slot, feedLabels)}${noteText}`;
+                  const label = `${formatDay(date)} ${time}: disponibilidad ${formatOccupation(1 - slot.value)} · ${describe(slot, feedLabels)}${noteText}`;
                   const focusable = focus.day === day && focus.slot === index;
                   return (
                     <div
@@ -242,7 +262,7 @@ export function MyWeekGrid({
                       className={cn(
                         "relative h-5 rounded-[3px] text-center text-[0.6rem] leading-5 font-semibold text-neutral-900",
                         slot.value === 0 && !selected && "opacity-35",
-                        fromGoogle && "ring-1 ring-inset ring-neutral-900/50",
+                        (fromGoogle || edited) && "ring-1 ring-inset ring-neutral-900/50",
                         selected && "ring-2 ring-inset ring-neutral-900",
                         selecting &&
                           "outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -250,7 +270,7 @@ export function MyWeekGrid({
                       )}
                       style={{ backgroundColor: occupationColor(slot.value, 1) }}
                     >
-                      {fromGoogle ? "G" : ""}
+                      {edited ? "M" : fromGoogle ? "G" : ""}
                       {notes.length > 0 && (
                         <span
                           aria-hidden
@@ -267,9 +287,9 @@ export function MyWeekGrid({
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         {[
-          { value: 0, text: "0 · Libre" },
+          { value: 0, text: "1 · Libre" },
           { value: 0.5, text: "0,5 · Lo podría mover" },
-          { value: 1, text: "1 · No lo puedo mover" },
+          { value: 1, text: "0 · No lo puedo mover" },
         ].map((item) => (
           <li key={item.value} className="flex items-center gap-1.5">
             <span
@@ -290,12 +310,25 @@ export function MyWeekGrid({
           Viene de tus calendarios de Google
         </li>
         <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="flex size-3 items-center justify-center rounded-[3px] text-[0.5rem] font-semibold ring-1 ring-inset ring-current"
+          >
+            M
+          </span>
+          Editado a mano (manda sobre Google)
+        </li>
+        <li className="flex items-center gap-1.5">
           <span aria-hidden className="size-1.5 rounded-full bg-current" />
           Tiene una nota
         </li>
       </ul>
 
-      {selection && (
+      {selection && mode === "edit" && (
+        <ManualEditForm key={JSON.stringify(selection)} rect={selection} onDone={reset} />
+      )}
+
+      {selection && mode === "note" && (
         <NoteForm
           key={JSON.stringify(selection)}
           action={createNote}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { noteFormSchema, noteTextSchema } from "./schema";
+import { manualEditSchema, manualRows, noteFormSchema, noteTextSchema } from "./schema";
 
 // Form values arrive as strings (FormData).
 const valid = {
@@ -78,5 +78,38 @@ describe("noteTextSchema", () => {
       body: "",
     });
     expect(noteTextSchema.safeParse({ title: "", body: "" }).success).toBe(false);
+  });
+});
+
+describe("manualEditSchema", () => {
+  const edit = {
+    start_date: "2026-11-17",
+    end_date: "2026-11-18",
+    start_minute: 600,
+    end_minute: 660,
+    choice: "0.5",
+  };
+
+  it("accepts a rectangle of the grid and a choice", () => {
+    expect(manualEditSchema.safeParse(edit).success).toBe(true);
+    expect(manualEditSchema.safeParse({ ...edit, choice: "google" }).success).toBe(true);
+  });
+
+  it("rejects unknown choices, reversed ranges and more than a week", () => {
+    expect(manualEditSchema.safeParse({ ...edit, choice: "2" }).success).toBe(false);
+    expect(manualEditSchema.safeParse({ ...edit, end_minute: 600 }).success).toBe(false);
+    expect(manualEditSchema.safeParse({ ...edit, end_date: "2026-11-16" }).success).toBe(false);
+    expect(manualEditSchema.safeParse({ ...edit, end_date: "2026-11-24" }).success).toBe(false);
+    expect(manualEditSchema.safeParse({ ...edit, start_minute: 615 }).success).toBe(false);
+  });
+
+  it("builds one row per date and 30-minute slot", () => {
+    const parsed = manualEditSchema.parse(edit);
+    expect(manualRows(parsed, "a@example.com", 0.5)).toEqual([
+      { member_email: "a@example.com", date: "2026-11-17", start_minute: 600, value: 0.5 },
+      { member_email: "a@example.com", date: "2026-11-17", start_minute: 630, value: 0.5 },
+      { member_email: "a@example.com", date: "2026-11-18", start_minute: 600, value: 0.5 },
+      { member_email: "a@example.com", date: "2026-11-18", start_minute: 630, value: 0.5 },
+    ]);
   });
 });

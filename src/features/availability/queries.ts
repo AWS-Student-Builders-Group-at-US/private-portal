@@ -7,13 +7,14 @@ import { hideCommonAccount } from "@/features/members/common-account";
 import {
   occupationForDay,
   slotOccupationForDay,
+  type ManualSlot,
   type OccupationByMember,
 } from "./occupation";
 import { addDays, busyBlocksToRanges, weekDates } from "./slots";
 import type { AvailabilityNote, MyWeek, TeamWeek } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
-// Occupation comes only from Google calendars; the legacy
+// Occupation comes from Google calendars and the member's hand edits; the legacy
 // availability_template/availability_override tables are no longer read.
 
 const NOTE_COLUMNS =
@@ -24,6 +25,32 @@ function weekBounds(monday: string) {
     from: new Date(madridLocalToUtcIso(`${monday}T00:00`)),
     to: new Date(madridLocalToUtcIso(`${addDays(monday, 7)}T00:00`)),
   };
+}
+
+// Hand-edited slots of the week of `dates`, per member email, optionally only
+// one member's.
+async function getWeekManual(
+  dates: string[],
+  email?: string,
+): Promise<Map<string, ManualSlot[]>> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("availability_manual")
+    .select("member_email, date, start_minute, value")
+    .gte("date", dates[0])
+    .lte("date", dates[6]);
+  if (email) query = query.eq("member_email", email);
+  const { data, error } = await query;
+  const byMember = new Map<string, ManualSlot[]>();
+  // Without the hand edits the grid still works from Google alone (e.g. while
+  // the availability_manual migration is not applied yet on a preview).
+  if (error) return byMember;
+  for (const row of data) {
+    const slots = byMember.get(row.member_email) ?? [];
+    slots.push({ date: row.date, start: row.start_minute, value: Number(row.value) });
+    byMember.set(row.member_email, slots);
+  }
+  return byMember;
 }
 
 // Notes overlapping the week of `dates`, optionally only one member's.
@@ -44,15 +71,17 @@ async function getWeekNotes(dates: string[], email?: string): Promise<Availabili
 }
 
 // The member's own occupation per slot for the week starting on `monday`,
-// from their Google busy blocks (refreshed first when stale), plus their notes.
+// from their Google busy blocks (refreshed first when stale) and their hand
+// edits (which replace Google in the edited slots), plus their notes.
 export async function getMyWeek(email: string, monday: string): Promise<MyWeek> {
   const dates = weekDates(monday);
   const { from, to } = weekBounds(monday);
-  const [blocks, notes] = await Promise.all([
+  const [blocks, notes, manual] = await Promise.all([
     getBusyBlocks(email, from, to).catch(() => []),
     getWeekNotes(dates, email),
+    getWeekManual(dates, email),
   ]);
-  const data = { busy: busyBlocksToRanges(blocks) };
+  const data = { busy: busyBlocksToRanges(blocks), manual: manual.get(email) ?? [] };
   return {
     dates,
     days: Object.fromEntries(dates.map((date) => [date, slotOccupationForDay(date, data)])),
@@ -66,9 +95,10 @@ export async function getMyWeek(email: string, monday: string): Promise<MyWeek> 
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const dates = weekDates(monday);
   const supabase = await createClient();
-  const [membersResult, allNotes] = await Promise.all([
+  const [membersResult, allNotes, manual] = await Promise.all([
     supabase.from("members").select("email, name").order("name"),
     getWeekNotes(dates),
+    getWeekManual(dates),
   ]);
   if (membersResult.error) {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
@@ -84,7 +114,10 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
 
   const occupation: OccupationByMember = {};
   members.data.forEach((member, i) => {
-    const data = { busy: busyBlocksToRanges(busyByMember[i]) };
+    const data = {
+      busy: busyBlocksToRanges(busyByMember[i]),
+      manual: manual.get(member.email) ?? [],
+    };
     occupation[member.email] = Object.fromEntries(
       dates.map((date) => [date, occupationForDay(date, data)]),
     );
