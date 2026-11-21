@@ -53,6 +53,7 @@ export default async function EditTaskPage({
           event_id: task.event_id ?? "",
           priority: task.priority ?? "",
           link_url: task.link_url ?? "",
+          email_reminder: task.email_reminder ? "on" : "",
         }}
         members={members}
         events={events}

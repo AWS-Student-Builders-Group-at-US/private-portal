@@ -12,6 +12,8 @@ export type Task = {
   event_id: string | null;
   priority: TaskPriority | null;
   link_url: string | null;
+  // "Recordarme por correo": assignees get an email the day before due_date.
+  email_reminder: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;

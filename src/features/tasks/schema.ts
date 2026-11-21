@@ -102,7 +102,18 @@ export const taskFormSchema = z.object({
       .max(TASK_LINK_MAX, `El enlace admite como máximo ${TASK_LINK_MAX} caracteres.`)
       .nullable(),
   ),
+  // "Recordarme por correo" checkbox: present ("on") when checked. The daily
+  // cron emails the assignees the day before the due date.
+  email_reminder: z.preprocess(
+    (value) => value === "on" || value === true,
+    z.boolean(),
+  ),
 });
+
+// The tasks table toggle sends "true" / "false".
+export const taskReminderToggleSchema = z
+  .enum(["true", "false"], "Valor no válido.")
+  .transform((value) => value === "true");
 
 export type TaskFormInput = z.output<typeof taskFormSchema>;
 
