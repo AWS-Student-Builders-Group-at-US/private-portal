@@ -180,6 +180,67 @@ export async function moveTask(id: string, status: string): Promise<ActionResult
   return { ok: true };
 }
 
+// Fields the tasks table edits in place, each validated like the form does.
+const FIELD_SCHEMAS = {
+  title: taskFormSchema.shape.title,
+  description: taskFormSchema.shape.description,
+  status: taskStatusSchema,
+  priority: taskFormSchema.shape.priority,
+  due_date: taskFormSchema.shape.due_date,
+  link_url: taskFormSchema.shape.link_url,
+};
+export type EditableTaskField = keyof typeof FIELD_SCHEMAS;
+
+// One field of one task, from the tasks table. Blank values clear optional
+// fields (description, priority, deadline, link).
+export async function updateTaskField(
+  id: string,
+  field: EditableTaskField,
+  value: string,
+): Promise<ActionResult> {
+  if (!idSchema.safeParse(id).success || !Object.hasOwn(FIELD_SCHEMAS, field)) {
+    return { ok: false, message: "No se pudo guardar el cambio." };
+  }
+  const parsed = FIELD_SCHEMAS[field].safeParse(value);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Valor no válido." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ [field]: parsed.data })
+    .eq("id", id)
+    .select("event_id");
+  if (error || !data?.length) {
+    return { ok: false, message: "No se pudo guardar el cambio." };
+  }
+  revalidateTaskPaths([data[0].event_id as string | null]);
+  return { ok: true };
+}
+
+// Replaces a task's assignees from the tasks table.
+export async function updateTaskAssignees(id: string, emails: string[]): Promise<ActionResult> {
+  const parsed = taskFormSchema.shape.assignee_emails.safeParse(emails);
+  if (!idSchema.safeParse(id).success || !parsed.success) {
+    return { ok: false, message: "No se pudieron guardar los responsables." };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ assignee_email: parsed.data[0] ?? null })
+    .eq("id", id)
+    .select("event_id");
+  const assigned =
+    !error && data?.length
+      ? await supabase.rpc("set_task_assignees", { p_task_id: id, p_emails: parsed.data })
+      : null;
+  if (error || !data?.length || assigned?.error) {
+    return { ok: false, message: "No se pudieron guardar los responsables." };
+  }
+  revalidateTaskPaths([data[0].event_id as string | null]);
+  return { ok: true };
+}
+
 // `returnTo`: panel path to go back to (e.g. the event page); validated.
 export async function deleteTask(
   id: string,

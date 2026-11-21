@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { TASK_STATUSES, type TaskStatus } from "./schema";
+import { TASK_STATUSES, type TaskPriority, type TaskStatus } from "./schema";
 
-// Pure board logic: query params -> filters, filtering, sorting, grouping.
+// Pure tasks logic: query params -> filters, filtering, sorting, grouping.
 
 type FilterableTask = {
   status: TaskStatus;
@@ -11,13 +11,15 @@ type FilterableTask = {
   created_at: string;
 };
 
-// person: null = everyone, "me" = current user, "unassigned", or an email.
+// people: the selected values ("me" = current user, "unassigned", or member
+// emails); empty = everyone. A task matches when it matches any of them.
+export type PersonFilter = "me" | "unassigned" | string;
 export type TaskFilters = {
-  person: "me" | "unassigned" | string | null;
+  people: PersonFilter[];
   eventId: string | null;
 };
 
-// Query param values used by the filter controls.
+// Query param values used by the filter controls (?persona=yo,ana@…).
 export const PERSON_ME = "yo";
 export const PERSON_UNASSIGNED = "nadie";
 
@@ -27,17 +29,37 @@ function single(value: string | string[] | undefined) {
   return typeof value === "string" ? value.trim() : null;
 }
 
+// ?persona= holds comma-separated values (repeated params also work).
 export function parseTaskFilters(params: SearchParams): TaskFilters {
-  const persona = single(params.persona)?.toLowerCase() ?? null;
+  const raw = [params.persona ?? []]
+    .flat()
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  const people: PersonFilter[] = [];
+  for (const value of raw) {
+    const person =
+      value === PERSON_ME
+        ? "me"
+        : value === PERSON_UNASSIGNED
+          ? "unassigned"
+          : z.email().safeParse(value).success
+            ? value
+            : null;
+    if (person && !people.includes(person)) people.push(person);
+  }
   const evento = single(params.evento);
-
-  let person: TaskFilters["person"] = null;
-  if (persona === PERSON_ME) person = "me";
-  else if (persona === PERSON_UNASSIGNED) person = "unassigned";
-  else if (persona && z.email().safeParse(persona).success) person = persona;
-
   const eventId = evento && z.uuid().safeParse(evento).success ? evento : null;
-  return { person, eventId };
+  return { people, eventId };
+}
+
+// Filter values back to the ?persona= param.
+export function personaParam(people: PersonFilter[]) {
+  return people
+    .map((person) =>
+      person === "me" ? PERSON_ME : person === "unassigned" ? PERSON_UNASSIGNED : person,
+    )
+    .join(",");
 }
 
 export function filterTasks<T extends FilterableTask>(
@@ -48,16 +70,14 @@ export function filterTasks<T extends FilterableTask>(
   const me = currentEmail.toLowerCase();
   return tasks.filter((task) => {
     if (filters.eventId && task.event_id !== filters.eventId) return false;
-    switch (filters.person) {
-      case null:
-        return true;
-      case "me":
-        return task.assignee_emails.includes(me);
-      case "unassigned":
-        return task.assignee_emails.length === 0;
-      default:
-        return task.assignee_emails.includes(filters.person);
-    }
+    if (filters.people.length === 0) return true;
+    return filters.people.some((person) =>
+      person === "me"
+        ? task.assignee_emails.includes(me)
+        : person === "unassigned"
+          ? task.assignee_emails.length === 0
+          : task.assignee_emails.includes(person),
+    );
   });
 }
 
@@ -96,4 +116,64 @@ export function isOverdue(
   today: string,
 ) {
   return task.status !== "done" && task.due_date !== null && task.due_date < today;
+}
+
+// Columns the table can sort by.
+export const SORT_KEYS = [
+  "title",
+  "assignees",
+  "status",
+  "priority",
+  "due_date",
+  "description",
+  "link",
+] as const;
+export type SortKey = (typeof SORT_KEYS)[number];
+export type SortDir = "asc" | "desc";
+
+type SortableTask = FilterableTask & {
+  title: string;
+  description: string | null;
+  priority: TaskPriority | null;
+  link_url: string | null;
+  assignees: { name: string }[];
+};
+
+const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
+const collator = new Intl.Collator("es", { sensitivity: "base", numeric: true });
+
+// Value of a task for a column; null = empty (always sorted last).
+function sortValue(task: SortableTask, key: SortKey): string | number | null {
+  switch (key) {
+    case "title":
+      return task.title;
+    case "assignees":
+      return task.assignees.map((a) => a.name).join(", ") || null;
+    case "status":
+      return TASK_STATUSES.indexOf(task.status);
+    case "priority":
+      return task.priority ? PRIORITY_RANK[task.priority] : null;
+    case "due_date":
+      return task.due_date;
+    case "description":
+      return task.description || null;
+    case "link":
+      return task.link_url;
+  }
+}
+
+// Sorts by one column; empty values go last in both directions, and ties
+// keep the table order (sortForTable).
+export function sortTasksBy<T extends SortableTask>(tasks: T[], key: SortKey, dir: SortDir): T[] {
+  const sign = dir === "asc" ? 1 : -1;
+  return sortForTable(tasks).sort((a, b) => {
+    const va = sortValue(a, key);
+    const vb = sortValue(b, key);
+    if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+    const order =
+      typeof va === "number" && typeof vb === "number"
+        ? va - vb
+        : collator.compare(String(va), String(vb));
+    return order * sign;
+  });
 }

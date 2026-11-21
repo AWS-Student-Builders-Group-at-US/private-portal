@@ -4,10 +4,9 @@ import { StatusBanner } from "@/components/status-banner";
 import { buttonVariants } from "@/components/ui/button";
 import { madridToday } from "@/features/tasks/dates";
 import {
-  PERSON_ME,
-  PERSON_UNASSIGNED,
   filterTasks,
   parseTaskFilters,
+  personaParam,
   sortForTable,
 } from "@/features/tasks/filters";
 import { TaskTable } from "@/features/tasks/components/task-table";
@@ -37,12 +36,7 @@ export default async function TasksPage({
   ]);
   const filters = parseTaskFilters(params);
   const visible = sortForTable(filterTasks(tasks, filters, member.email));
-  const persona =
-    filters.person === "me"
-      ? PERSON_ME
-      : filters.person === "unassigned"
-        ? PERSON_UNASSIGNED
-        : (filters.person ?? "");
+  const persona = personaParam(filters.people);
   const newHref = filters.eventId
     ? `/panel/tareas/nueva?evento=${filters.eventId}`
     : "/panel/tareas/nueva";
@@ -74,7 +68,7 @@ export default async function TasksPage({
               Ninguna tarea coincide con los filtros.
             </p>
           )}
-          {visible.length > 0 && <TaskTable tasks={visible} today={madridToday()} />}
+          {visible.length > 0 && <TaskTable tasks={visible} members={members} today={madridToday()} />}
         </>
       )}
     </div>
