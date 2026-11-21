@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { refreshBusyBlocks } from "./refresh";
 
@@ -16,10 +17,14 @@ export type BusyBlockRow = { start: Date; end: Date; weight: number; feedId: str
  *   move) and feed id (no titles, descriptions or locations), sorted by
  *   start and clipped to [from, to). Blocks from different feeds of the same
  *   member are not merged and may overlap.
- * - If any of that member's feeds was last fetched more than 15 minutes ago,
- *   it refreshes them first (up to ~8 s per feed, in parallel). Fetch errors
- *   are stored in `calendar_feeds.last_error` and never thrown: the cached
- *   blocks are returned instead.
+ * - Never waits for Google: it always returns the cached blocks. If any of
+ *   that member's feeds was last fetched more than 15 minutes ago, it
+ *   schedules `refreshBusyBlocks` with `after()`, so the refresh runs once the
+ *   response is sent and the next load shows the new blocks. The refresh uses
+ *   the admin client (no request cookies) and stores fetch errors in
+ *   `calendar_feeds.last_error` instead of throwing.
+ * - Must be called during a request (Server Component, Server Function or
+ *   Route Handler), where `after()` is available.
  * - Only throws when the database read itself fails.
  */
 export async function getBusyBlocks(
@@ -34,7 +39,7 @@ export async function getBusyBlocks(
     p_email: memberEmail,
     p_max_age: STALE_AFTER,
   });
-  if (stale === true) await refreshBusyBlocks(memberEmail);
+  if (stale === true) after(() => refreshBusyBlocks(memberEmail));
 
   const { data, error } = await supabase
     .from("calendar_busy_blocks")

@@ -1,0 +1,63 @@
+# Portal improvements (round 3)
+
+Locator: `odd/tasks/portal-mejoras.md` · Engram mirror: `odd/portal-mejoras/tasks`.
+
+## Objective
+
+Apply the Core Team wish list of 2026-11-21 that is not already covered on `main`.
+
+## Problem and why
+
+The panel is slow to open (calendar and mail), the home page does not show what matters this week,
+and the calendar only knows "busy or free", so members cannot share real meetings or see what the
+others have scheduled.
+
+## Already done on `main` (not in scope)
+
+Several assignees per task and the tasks table (Guille, PRs #50–#54); linked Zernio accounts in
+Ajustes; group favicon and "Volver a la web" (Guille, #49); group LinkedIn in the footer (Guille,
+#47). Quick wins (Core Team link in the header, José's LinkedIn, no "Web pública" placeholder) live
+on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-local`.
+
+## Scope and constraints
+
+- Branch `feat/portal-mejoras` from `main`; PR into `main`.
+- UI text in Spanish; code, comments and identifiers in English.
+- Migrations: new files only, backward compatible.
+- The inbox stays read-only and never stores emails (AGENTS.md); Google event titles are not
+  stored today, so showing details needs an explicit privacy decision.
+
+## Tasks
+
+- [x] T1 Speed: the calendar page no longer waits for Google feeds (refresh in the background,
+      serve cached blocks); loading skeletons for calendar and mail.
+- [ ] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
+- [ ] T3 Public home: when a member has a panel session, show their team photo as a signed-in
+      avatar linking to the panel.
+- [ ] T4 Calendar redesign (pending product decision): personal events added by hand, per-person
+      visibility (details / calendar name / just busy), combined team view with details, shared
+      subscribable "AWS US - Student Builder Group" calendar anyone can add meetings to.
+- [ ] T5 Posts insights from Zernio (pending: check what the Zernio API exposes).
+- [ ] T6 Mail-based reminders (pending decision: conflicts with "never store emails").
+
+## Delivery strategy
+
+`ask-on-risk`. Forecast ~1,500+ authored lines; T1–T3 ~400. One work-unit commit per task.
+
+## Progress and evidence
+
+- T1 (route: delegated direct; writer trigger: 2+ files). `getBusyBlocks` no longer awaits
+  `refreshBusyBlocks`: it serves cached `calendar_busy_blocks` and, when feeds are stale (>15 min),
+  schedules the refresh with Next `after()` (runs after the response; refresh uses the admin
+  client, no request cookies). Callers unchanged: team view and my week (`availability/queries.ts`)
+  get cached data; the cron and the feed actions still await `refreshBusyBlocks` directly.
+  Trade-off: fresh Google data appears on the next load, not the current one. Added
+  `loading.tsx` skeletons for `/panel/calendario` and `/panel/correo` (the panel layout's Suspense
+  wraps the whole shell and only helps the first load; on client navigation the page segment had
+  no nearer boundary). RED: `busy.test.ts` timed out / `after` not called with the old code;
+  GREEN after the change. Checks: eslint clean, `tsc --noEmit` clean, `npm test` 54 files /
+  446 tests passed. Not checked in a browser (panel needs Google sign-in).
+
+## Next step
+
+T2.
