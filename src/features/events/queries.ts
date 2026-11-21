@@ -4,12 +4,13 @@ import type { EventDetail, EventFile, EventSummary } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
 
-export async function listEvents(): Promise<EventSummary[]> {
+// `meetup_url` rides along for the panel home's "next meeting" card.
+export async function listEvents(): Promise<(EventSummary & { meetup_url: string | null })[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, title, starts_at, ends_at, location, expected_attendees, event_files(count)",
+      "id, title, starts_at, ends_at, location, meetup_url, expected_attendees, event_files(count)",
     )
     .order("starts_at", { ascending: true });
   if (error) throw new Error("No se pudieron cargar los eventos.");

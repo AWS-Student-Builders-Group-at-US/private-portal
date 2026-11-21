@@ -31,7 +31,7 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 
 - [x] T1 Speed: the calendar page no longer waits for Google feeds (refresh in the background,
       serve cached blocks); loading skeletons for calendar and mail.
-- [ ] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
+- [x] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
 - [ ] T3 Public home: when a member has a panel session, show their team photo as a signed-in
       avatar linking to the panel.
 - [ ] T4 Calendar redesign (pending product decision): personal events added by hand, per-person
@@ -57,7 +57,16 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   no nearer boundary). RED: `busy.test.ts` timed out / `after` not called with the old code;
   GREEN after the change. Checks: eslint clean, `tsc --noEmit` clean, `npm test` 54 files /
   446 tests passed. Not checked in a browser (panel needs Google sign-in).
+- T2 (route: delegated direct; writer trigger: 2+ files). The panel home adds a "Próxima reunión"
+  card (earliest event from `events` that has not ended; date/time, place and Meetup link when
+  set; that event is no longer repeated in "Próximos eventos") and a "Publicaciones" section with
+  the next scheduled unpublished posts and the latest published ones (status badge, targets, link
+  to each post). DB only: `listPosts()` joins the existing `Promise.all`; `listEvents()` now also
+  selects `meetup_url`. Pure helpers in `src/features/home/logic.ts` (`pickNextMeeting`,
+  `splitHomePosts`). RED: `logic.test.ts` failed (module missing); GREEN: 6 tests pass. Checks:
+  eslint clean, `tsc --noEmit` clean, `npm test` 55 files / 452 tests passed. Not checked in a
+  browser (panel needs Google sign-in).
 
 ## Next step
 
-T2.
+T3.
