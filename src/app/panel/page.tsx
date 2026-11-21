@@ -4,6 +4,8 @@ import { splitEvents } from "@/features/events/components/event-list";
 import { listEvents } from "@/features/events/queries";
 import { formatMadridDateTime, formatMadridDateTimeShort } from "@/features/events/time";
 import { pickNextMeeting, splitHomePosts } from "@/features/home/logic";
+import { MyReminders } from "@/features/reminders/components/my-reminders";
+import { listMyReminders } from "@/features/reminders/queries";
 import { PostStatusBadge } from "@/features/posts/components/status-badge";
 import { listPosts } from "@/features/posts/queries";
 import { POST_TARGET_LABELS } from "@/features/posts/schema";
@@ -20,18 +22,19 @@ const HOME_LIMIT = 3;
 
 export default async function HomePage() {
   const member = await getCurrentMember();
-  const [events, suggestions, tasks, posts] = await Promise.all([
+  const today = madridToday();
+  const [events, suggestions, tasks, posts, reminders] = await Promise.all([
     listEvents(),
     listSuggestions(member.email),
     listTasks(),
     listPosts(),
+    listMyReminders(today),
   ]);
   const myPending = sortTasks(
     filterTasks(tasks, { people: ["me"], eventId: null }, member.email).filter(
       (task) => task.status !== "done",
     ),
   );
-  const today = madridToday();
   const now = new Date();
   const nextMeeting = pickNextMeeting(events, now);
   // The highlighted meeting is not repeated in the events list below it.
@@ -113,6 +116,8 @@ export default async function HomePage() {
           </ul>
         )}
       </HomeSection>
+
+      <MyReminders reminders={reminders} today={today} />
 
       <HomeSection title="Próximos eventos" href="/panel/eventos" linkLabel="Ver eventos">
         {upcoming.length === 0 ? (
