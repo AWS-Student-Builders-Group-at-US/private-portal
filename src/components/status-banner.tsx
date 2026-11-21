@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
 // Success banner driven by the `?estado=` query param set after redirects.
-// The close button hides it and drops `estado` from the URL, so a reload
-// does not show it again.
+// It closes by itself after a few seconds, or with the close button; closing
+// drops `estado` from the URL, so a reload does not show it again.
+const AUTO_CLOSE_MS = 5000;
+
 export function StatusBanner({
   status,
   messages,
@@ -24,14 +26,22 @@ export function StatusBanner({
     setClosed(false);
   }
   const text = typeof status === "string" ? messages[status] : undefined;
-  if (!text || closed) return null;
+  const visible = Boolean(text) && !closed;
 
-  function close() {
+  const close = useCallback(() => {
     setClosed(true);
     const url = new URL(window.location.href);
     url.searchParams.delete("estado");
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
-  }
+  }, [router]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(close, AUTO_CLOSE_MS);
+    return () => clearTimeout(timer);
+  }, [visible, close]);
+
+  if (!visible) return null;
 
   return (
     <div

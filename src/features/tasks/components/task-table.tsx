@@ -26,6 +26,7 @@ import {
   type TaskStatus,
 } from "../schema";
 import type { MemberOption, TaskCardData } from "../types";
+import { EditableLongText } from "./editable-long-text";
 import { EditableText } from "./editable-text";
 
 const selectClass =
@@ -241,14 +242,12 @@ export function TaskTable({
                     )}
                   </td>
                   <td className="w-72 max-w-72 px-2 py-1.5">
-                    <EditableText
+                    <EditableLongText
                       label={`Descripción de «${task.title}»`}
                       value={task.description ?? ""}
-                      multiline
-                      placeholder="—"
+                      maxLength={5000}
                       onSave={(value) => saveField(task, "description", value)}
                       className="text-muted-foreground"
-                      clamp
                     />
                   </td>
                   <td className="w-40 max-w-40 px-2 py-1.5">
