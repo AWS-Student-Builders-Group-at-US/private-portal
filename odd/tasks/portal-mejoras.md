@@ -32,7 +32,7 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 - [x] T1 Speed: the calendar page no longer waits for Google feeds (refresh in the background,
       serve cached blocks); loading skeletons for calendar and mail.
 - [x] T2 Panel home: next meeting, upcoming and recently published posts next to tasks and events.
-- [ ] T3 Public home: when a member has a panel session, show their team photo as a signed-in
+- [x] T3 Public home: when a member has a panel session, show their team photo as a signed-in
       avatar linking to the panel.
 - [ ] T4 Calendar redesign (pending product decision): personal events added by hand, per-person
       visibility (details / calendar name / just busy), combined team view with details, shared
@@ -66,7 +66,21 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   `splitHomePosts`). RED: `logic.test.ts` failed (module missing); GREEN: 6 tests pass. Checks:
   eslint clean, `tsc --noEmit` clean, `npm test` 55 files / 452 tests passed. Not checked in a
   browser (panel needs Google sign-in).
+- T3 (route: delegated direct; writer trigger: 2+ files). The public header (`SiteHeader`, shared by
+  `/` and `/noticias*`) renders `SignedInMember` inside its own `<Suspense fallback={null}>`: it
+  reads the session with the cookie-based server client (never the admin client), looks up the
+  member's `name` in `public.members` (RLS returns nothing to non-members) and, for members, shows
+  a small avatar linking to `/panel`, next to "Únete". The photo comes from `TEAM` in
+  `site/config.ts`, matched by first name (case- and accent-insensitive) against the `members`
+  name, then the Google `given_name` / `full_name` / `name` metadata; no emails in config and
+  only the display name and public photo reach the browser. Fallback: initials avatar
+  (`src/components/member-avatar.tsx`). Signed-out visitors and non-members get the same static
+  header. RED: `team-match.test.ts` failed (module missing); GREEN: 4 tests pass. Checks: eslint
+  clean, `tsc --noEmit` clean, `npm test` 56 files / 456 tests passed; `next build` with dummy
+  Supabase env vars (real `.env` not readable in the sandbox) succeeded and `/` stays
+  `◐ Partial Prerender` (revalidate 1m). Not checked signed in (needs Google sign-in); the
+  matching assumes each `members.name` or Google given name starts with the `TEAM` first name.
 
 ## Next step
 
-T3.
+T4 (pending product decision).
