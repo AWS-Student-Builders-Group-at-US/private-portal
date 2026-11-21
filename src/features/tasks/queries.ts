@@ -9,20 +9,34 @@ import type { EventOption, MemberOption, Task, TaskCardData } from "./types";
 const TASK_COLUMNS =
   "id, title, description, status, assignee_email, due_date, event_id, created_by, created_at, updated_at";
 
-type TaskWithJoins = Task & {
-  assignee: { name: string } | null;
-  event: { title: string } | null;
-};
+// Assignees come from task_assignees, oldest first, with the member's name.
+type AssigneeRow = { member_email: string; created_at: string; member: { name: string } | null };
 
-function toCard({ assignee, event, ...task }: TaskWithJoins): TaskCardData {
+type TaskRow = Omit<Task, "assignee_emails"> & { assignees: AssigneeRow[] };
+
+type TaskWithJoins = TaskRow & { event: { title: string } | null };
+
+function sortedAssignees(rows: AssigneeRow[]) {
+  return [...rows].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+}
+
+function toTask({ assignees, ...task }: TaskRow): Task {
+  return { ...task, assignee_emails: sortedAssignees(assignees).map((a) => a.member_email) };
+}
+
+function toCard({ event, ...row }: TaskWithJoins): TaskCardData {
   return {
-    ...task,
-    assignee_name: assignee?.name ?? null,
+    ...toTask(row),
+    assignees: sortedAssignees(row.assignees).map((a) => ({
+      email: a.member_email,
+      name: a.member?.name ?? a.member_email,
+    })),
     event_title: event?.title ?? null,
   };
 }
 
-const CARD_SELECT = `${TASK_COLUMNS}, assignee:members(name), event:events(title)`;
+const ASSIGNEES_SELECT = "assignees:task_assignees(member_email, created_at, member:members(name))";
+const CARD_SELECT = `${TASK_COLUMNS}, ${ASSIGNEES_SELECT}, event:events(title)`;
 
 export async function listTasks(): Promise<TaskCardData[]> {
   const supabase = await createClient();
@@ -51,11 +65,11 @@ export async function getTask(id: string): Promise<Task | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tasks")
-    .select(TASK_COLUMNS)
+    .select(`${TASK_COLUMNS}, ${ASSIGNEES_SELECT}`)
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error("No se pudo cargar la tarea.");
-  return data as Task | null;
+  return data ? toTask(data as unknown as TaskRow) : null;
 }
 
 export async function listMemberOptions(): Promise<MemberOption[]> {

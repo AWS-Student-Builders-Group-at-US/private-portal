@@ -27,7 +27,7 @@ const fieldClass =
 
 type Move = { id: string; status: TaskStatus };
 
-// Three-column board. Cards move by dragging (pointer, touch or keyboard on
+// Four-column board (Por hacer, En curso, Pendiente de revisión, Hecho). Cards move by dragging (pointer, touch or keyboard on
 // the grip handle) or with the "Estado" select on each card.
 export function TaskBoard({
   tasks,
@@ -100,7 +100,7 @@ export function TaskBoard({
           },
         }}
       >
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {TASK_STATUSES.map((status) => (
             <Column key={status} status={status} count={groups[status].length}>
               {groups[status].map((task) => (

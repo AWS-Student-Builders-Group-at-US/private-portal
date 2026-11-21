@@ -1,13 +1,18 @@
 import { z } from "zod";
 
-export const TASK_STATUSES = ["todo", "doing", "done"] as const;
+// Board order. "review" = done by the assignees, waiting for someone to check
+// it and mark it as done (anyone can).
+export const TASK_STATUSES = ["todo", "doing", "review", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "Por hacer",
   doing: "En curso",
+  review: "Pendiente de revisión",
   done: "Hecho",
 };
+
+export const MAX_ASSIGNEES = 20;
 
 export const taskStatusSchema = z.enum(TASK_STATUSES, "Estado no válido.");
 
@@ -34,7 +39,8 @@ export function isValidIsoDate(value: string) {
 }
 
 // Shared by the create and update server actions. Input: form fields as
-// strings. Output: a `tasks` row (without id / created_by / timestamps).
+// strings, plus `assignee_emails` as the list of checked members. Output: a
+// `tasks` row (without id / created_by / timestamps) plus the assignee list.
 export const taskFormSchema = z.object({
   title: z
     .string("El título es obligatorio.")
@@ -49,12 +55,17 @@ export const taskFormSchema = z.object({
     (value) => blankToNull(value) ?? "todo",
     taskStatusSchema,
   ),
-  assignee_email: z.preprocess(
+  assignee_emails: z.preprocess(
     (value) => {
-      const cleaned = blankToNull(value);
-      return typeof cleaned === "string" ? cleaned.toLowerCase() : cleaned;
+      const list = Array.isArray(value) ? value : value == null ? [] : [value];
+      const emails = list
+        .map((item) => (typeof item === "string" ? item.trim().toLowerCase() : item))
+        .filter((item) => item !== "");
+      return [...new Set(emails)];
     },
-    z.email("Elige una persona de la lista.").nullable(),
+    z
+      .array(z.email("Elige personas de la lista."), "Elige personas de la lista.")
+      .max(MAX_ASSIGNEES, `Como máximo ${MAX_ASSIGNEES} responsables.`),
   ),
   due_date: z.preprocess(
     blankToNull,
@@ -69,4 +80,12 @@ export const taskFormSchema = z.object({
   ),
 });
 
-export type TaskRowInput = z.output<typeof taskFormSchema>;
+export type TaskFormInput = z.output<typeof taskFormSchema>;
+
+// The `tasks` row of a parsed form. `assignee_email` keeps the first assignee
+// for code that still reads that column (see the task_assignees migration).
+export function taskRow({ assignee_emails, ...row }: TaskFormInput) {
+  return { ...row, assignee_email: assignee_emails[0] ?? null };
+}
+
+export type TaskRowInput = ReturnType<typeof taskRow>;

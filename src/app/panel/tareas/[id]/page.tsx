@@ -48,7 +48,7 @@ export default async function EditTaskPage({
           title: task.title,
           description: task.description ?? "",
           status: task.status,
-          assignee_email: task.assignee_email ?? "",
+          assignee_emails: task.assignee_emails.join(","),
           due_date: task.due_date ?? "",
           event_id: task.event_id ?? "",
         }}
