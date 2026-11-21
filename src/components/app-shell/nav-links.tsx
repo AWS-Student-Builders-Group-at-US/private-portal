@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
-import { Menu, X } from "lucide-react";
+import { ArrowLeft, Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +35,19 @@ export function SidebarNav() {
         </Link>
       ))}
     </nav>
+  );
+}
+
+// Link out of the panel to the public home page (/).
+export function BackToSiteLink() {
+  return (
+    <Link
+      href="/"
+      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+    >
+      <ArrowLeft className="size-4" />
+      Volver a la web
+    </Link>
   );
 }
 
@@ -111,6 +124,16 @@ function MenuDrawer({ pathname }: { pathname: string }) {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link
+                  href="/"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-muted"
+                >
+                  <ArrowLeft className="size-4" />
+                  Volver a la web
+                </Link>
+              </li>
             </ul>
           </nav>
         </Dialog.Popup>
