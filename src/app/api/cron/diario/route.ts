@@ -3,6 +3,7 @@ import { refreshBusyBlocks } from "@/features/calendars/refresh";
 import { isAuthorizedCron } from "@/features/maintenance/cron-auth";
 import { retentionCutoff, settleWithin } from "@/features/maintenance/retention";
 import { ensureCommonAccountSetting } from "@/features/members/common-account";
+import { sendDailyReminders } from "@/features/reminders/send";
 import { isZernioConfigured } from "@/features/zernio/client";
 import { syncPostMetrics, type MetricsSyncResult } from "@/features/zernio/metrics-sync";
 import { syncRecentZernioPosts, type BulkSyncResult } from "@/features/zernio/sync";
@@ -21,6 +22,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 //    (post_metrics; reported, never failing the run), in parallel with step 3.
 // 5. Syncs the group's common account (GMAIL_USER) into private_settings so
 //    the member management RPCs only accept it (never logs the address).
+// 6. Emails the day's reminders (T6): ticked tasks due tomorrow (or today if
+//    missed) to each assignee, and members' own reminders due today. Each
+//    item is recorded so it is never sent twice; counts only are reported.
 
 export const maxDuration = 60;
 
@@ -88,20 +92,26 @@ export async function GET(request: NextRequest) {
         zernioState.metrics = await syncPostMetrics();
       })
     : null;
-  // ensureCommonAccountSetting never throws.
-  const [{ fulfilled, failed }, zernioRun, commonAccount] = await Promise.all([
+  // ensureCommonAccountSetting and sendDailyReminders never throw.
+  const [{ fulfilled, failed }, zernioRun, commonAccount, reminders] = await Promise.all([
     settleWithin(
       emails.map((email) => refreshBusyBlocks(email)),
       REFRESH_BUDGET_MS,
     ),
     settleWithin(zernioTask ? [zernioTask] : [], REFRESH_BUDGET_MS),
     ensureCommonAccountSetting(),
+    sendDailyReminders(),
   ]);
   const zernio = zernioTask && zernioRun.failed > 0 ? "timeout" : zernioState.result;
   const zernioOk = typeof zernio === "string" ? zernio === "not_configured" : zernio.ok;
 
   const result = {
-    ok: ok && failed === 0 && zernioOk && commonAccount !== "error",
+    ok:
+      ok &&
+      failed === 0 &&
+      zernioOk &&
+      commonAccount !== "error" &&
+      (reminders === "not_configured" || reminders.ok),
     deletedAttempts,
     deletedWebhookEvents,
     refreshedMembers: fulfilled,
@@ -109,6 +119,7 @@ export async function GET(request: NextRequest) {
     zernio,
     zernioMetrics: zernioState.metrics,
     commonAccount,
+    reminders,
   };
   // Counts only: never log emails, hashes or error details.
   console.info("cron/diario", JSON.stringify(result));
