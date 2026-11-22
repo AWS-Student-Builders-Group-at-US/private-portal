@@ -1,8 +1,15 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { z } from "zod";
 import { hideCommonAccount } from "@/features/members/common-account";
 import { createClient } from "@/lib/supabase/server";
 import type { EventOption, MemberOption, Task, TaskCardData } from "./types";
+
+// Panel list reads are "use cache: private": cached per session in the browser
+// only (never in a shared server cache, so RLS results never cross members)
+// for the "minutes" profile (5 min client stale time), which lets the panel
+// prefetch and reopen pages instantly. The Server Actions that change this
+// data call revalidatePath, which clears that client cache for the actor.
 
 // All reads use the user's session; RLS only returns rows to members.
 
@@ -39,6 +46,8 @@ const ASSIGNEES_SELECT = "assignees:task_assignees(member_email, created_at, mem
 const CARD_SELECT = `${TASK_COLUMNS}, ${ASSIGNEES_SELECT}, event:events(title)`;
 
 export async function listTasks(): Promise<TaskCardData[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tasks")
@@ -73,6 +82,8 @@ export async function getTask(id: string): Promise<Task | null> {
 }
 
 export async function listMemberOptions(): Promise<MemberOption[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("members")
@@ -84,6 +95,8 @@ export async function listMemberOptions(): Promise<MemberOption[]> {
 }
 
 export async function listEventOptions(): Promise<EventOption[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")

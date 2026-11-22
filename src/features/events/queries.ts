@@ -1,11 +1,20 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { EventDetail, EventFile, EventSummary } from "./types";
+
+// Panel list reads are "use cache: private": cached per session in the browser
+// only (never in a shared server cache, so RLS results never cross members)
+// for the "minutes" profile (5 min client stale time), which lets the panel
+// prefetch and reopen pages instantly. The Server Actions that change this
+// data call revalidatePath, which clears that client cache for the actor.
 
 // All reads use the user's session; RLS only returns rows to members.
 
 // `meetup_url` rides along for the panel home's "next meeting" card.
 export async function listEvents(): Promise<(EventSummary & { meetup_url: string | null })[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")

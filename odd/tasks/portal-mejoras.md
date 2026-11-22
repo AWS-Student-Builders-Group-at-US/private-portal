@@ -53,6 +53,8 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
       reunión" for group meetings, the shared iCal link at the bottom of Equipo, and
       update-safe feed fields (CREATED, LAST-MODIFIED, SEQUENCE, hourly refresh hints).
 
+- [x] T8 Performance (branch `perf/panel-cache`, PR #60): instant panel shell, per-session
+      private caches, prefetch of cached sections, batched busy-block reads.
 - [x] T9 UX/UI of the panel lists (branch `ux/panel-listas`, side session; no data-fetching,
       query, `loading.tsx` or Suspense changes): group, condense and give a clear hierarchy to
       the long flat lists found in the audit below; mobile 375 px and desktop `max-w-6xl`.
@@ -261,3 +263,26 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
 Open the PR into `main`; after merge, check the first `cron/diario` log for `reminders`.
 T7: review `feat/calendario-equipo` on the Vercel preview (Equipo tab, both modes, schedule a
 test meeting and see it in a subscribed calendar), then open its PR.
+
+- T8 (route: inline; worktree `core-team-app-perf`). Before: every panel route's static shell was
+  1,873 bytes holding only "Cargando…" (the layout's Suspense wrapped the whole AppShell behind
+  the session read); team calendar critical path ~5 sequential Supabase round trips (claims →
+  member → week batch → per-member staleness RPC → per-member busy read). After: the AppShell
+  (nav) renders outside the member gate, so the static shell of `/panel`, `/panel/calendario`,
+  `/panel/tareas`, `/panel/correo` is ~25 KB with full navigation; nav `usePathname()` sits
+  behind Suspense (required for dynamic `[id]` routes). Panel reads (`getCurrentMember`, week
+  data, feeds, export URL, tasks, events, posts, metrics, reminders, suggestions, links, Drive
+  folder id) are `"use cache: private"` + `cacheLife("minutes")`: browser-only per-session
+  cache, never a shared server cache, so no cross-member leaks; all mutating actions already
+  call `revalidatePath`/`updateTag`, which clears the client cache for the actor. Shared
+  server `use cache` was not used: it would need a non-cookie (admin) client, outside the
+  AGENTS.md allowlist (decision for the user). Inbox: private, 60 s stale (docs: not kept in
+  any server cache across production requests; out of the App Shell, so IMAP runs only on
+  open). Busy blocks: one batched read in parallel with the rest of the week; the staleness
+  check moved into `after()` with the admin client (`refreshStaleFeedsAfterResponse`), so the
+  team week is 1 round trip after the member read. Nav links use `prefetch={true}` for
+  calendario/tareas/eventos/publicaciones/recursos (`navPrefetch`), default for the rest.
+  RED→GREEN: `busy-rows.test.ts`, `nav-prefetch.test.ts` (missing modules, then 7 pass);
+  `busy.test.ts` rewritten. Checks: eslint clean, `tsc --noEmit` clean, `npm test` 67 files /
+  553 tests, `next build` green. NOT verified at runtime (no Google sign-in; a mock Supabase
+  harness was started but not run) — private-cache behavior must be checked in a preview.

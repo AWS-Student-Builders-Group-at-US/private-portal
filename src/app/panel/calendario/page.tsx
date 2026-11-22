@@ -1,10 +1,9 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { MyCalendars } from "@/features/calendars/components/my-calendars";
 import { SharedCalendarLink } from "@/features/calendars/components/shared-calendar-link";
-import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
-import { resolveSiteUrl } from "@/features/checkin/url";
+import { refreshStaleFeedsAfterResponse } from "@/features/calendars/busy";
+import { getMyExportUrl, listMyFeeds } from "@/features/calendars/queries";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
 import { MyEntries } from "@/features/calendar-entries/components/my-entries";
 import { GroupMeetings } from "@/features/calendar-entries/components/group-meetings";
@@ -82,6 +81,7 @@ async function MySection({
 }) {
   const member = await getCurrentMember();
   const [week, feeds] = await Promise.all([getMyWeek(member.email, monday), listMyFeeds()]);
+  refreshStaleFeedsAfterResponse([member.email]);
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
@@ -123,12 +123,8 @@ async function TeamSection({
   thisMonday: string;
   today: string;
 }) {
-  const [week, token, requestHeaders] = await Promise.all([
-    getTeamWeek(monday),
-    getMyExportToken(),
-    headers(),
-  ]);
-  const exportUrl = buildExportUrl(resolveSiteUrl(requestHeaders), token);
+  const [week, exportUrl] = await Promise.all([getTeamWeek(monday), getMyExportUrl()]);
+  refreshStaleFeedsAfterResponse(week.members.map((m) => m.email));
   const meetings = week.entries.filter((entry) => entry.is_group_meeting);
   const authors = Object.fromEntries(week.members.map((m) => [m.email, m.name]));
   return (
@@ -140,13 +136,14 @@ async function TeamSection({
           semana puede no incluir todos los eventos de Google del equipo.
         </p>
       )}
-      <TeamView key={monday} week={week} today={today} />
+      {/* Meetings first so "Programar reunión" is visible without scrolling past the grid. */}
       <GroupMeetings
         key={`meetings-${monday}`}
         meetings={meetings}
         authors={authors}
         defaultDate={week.dates.includes(today) ? today : monday}
       />
+      <TeamView key={monday} week={week} today={today} />
       <SharedCalendarLink url={exportUrl} />
     </div>
   );

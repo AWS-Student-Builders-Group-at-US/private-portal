@@ -2,7 +2,7 @@ import { Users } from "lucide-react";
 import { formatDay } from "@/features/availability/dates";
 import { minutesToTime } from "@/features/availability/slots";
 import { cn } from "@/lib/utils";
-import type { AgendaItem } from "../agenda";
+import { BUSY_LABEL, type AgendaItem } from "../agenda";
 import { hourRange, layoutDay } from "../week-layout";
 
 // Height of one hour row; blocks are positioned in percentages of the column.
@@ -75,6 +75,7 @@ export function TeamWeekCalendar({
               <ul>
                 {layoutDay(items).map((block) => {
                   const google = block.kind === "google";
+                  const busy = block.label === BUSY_LABEL;
                   const text = `${block.name}, ${block.start}–${block.end}: ${block.label}${block.groupMeeting ? " (reunión del grupo)" : ""}${google ? " (calendario de Google)" : ""}`;
                   return (
                     <li
@@ -95,6 +96,7 @@ export function TeamWeekCalendar({
                       }}
                     >
                       <span className="sr-only">{text}</span>
+                      {/* Busy-only blocks lead with who and when; titled blocks keep the title first. */}
                       <span aria-hidden className="flex flex-col">
                         <span
                           className={cn(
@@ -103,12 +105,14 @@ export function TeamWeekCalendar({
                           )}
                         >
                           {block.groupMeeting && <Users className="size-3 shrink-0" />}
-                          {block.label}
+                          {busy ? block.name : block.label}
                         </span>
                         <span className="text-muted-foreground tabular-nums">
                           {block.start}–{block.end}
                         </span>
-                        <span className="truncate text-muted-foreground">{block.name}</span>
+                        {!busy && (
+                          <span className="truncate text-muted-foreground">{block.name}</span>
+                        )}
                       </span>
                     </li>
                   );

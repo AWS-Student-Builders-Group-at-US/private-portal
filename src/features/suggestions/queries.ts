@@ -1,7 +1,14 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { SuggestionStatus } from "./schema";
 import type { Suggestion } from "./types";
+
+// Panel list reads are "use cache: private": cached per session in the browser
+// only (never in a shared server cache, so RLS results never cross members)
+// for the "minutes" profile (5 min client stale time), which lets the panel
+// prefetch and reopen pages instantly. The Server Actions that change this
+// data call revalidatePath, which clears that client cache for the actor.
 
 type Row = {
   id: string;
@@ -14,6 +21,8 @@ type Row = {
 
 // All suggestions with vote counts; `me` marks the current member's votes.
 export async function listSuggestions(me: string): Promise<Suggestion[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("suggestions")
