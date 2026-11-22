@@ -1,5 +1,7 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
+import { ShowMore } from "@/components/show-more";
 import { useCallback, useState, useTransition } from "react";
 import { CalendarPlus, Pencil, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,20 +49,23 @@ export function MyEntries({
         />
       )}
       {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <EmptyState>
           No tienes entradas esta semana. Con «Añadir al calendario» apuntas algo en tu
           calendario: cuenta como ocupado y tú decides si los demás ven el título.
-        </p>
+        </EmptyState>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ShowMore limit={ENTRIES_SHOWN} noun="entradas" className="divide-y rounded-lg border">
           {entries.map((entry) => (
             <EntryRow key={entry.id} entry={entry} />
           ))}
-        </ul>
+        </ShowMore>
       )}
     </section>
   );
 }
+
+// Entries (and group meetings) listed before "Ver más".
+export const ENTRIES_SHOWN = 5;
 
 export function formatEntryRange(entry: { starts_at: string; ends_at: string }) {
   const start = utcIsoToMadridLocal(entry.starts_at);

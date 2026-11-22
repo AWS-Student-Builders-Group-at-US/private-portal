@@ -1,5 +1,7 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
+import { ShowMore } from "@/components/show-more";
 import { useCallback, useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,10 +25,10 @@ export function NoteList({
   authors?: Map<string, string>;
 }) {
   if (notes.length === 0) {
-    return <p className="text-sm text-muted-foreground">{empty}</p>;
+    return <EmptyState>{empty}</EmptyState>;
   }
   return (
-    <ul className="divide-y rounded-lg border">
+    <ShowMore limit={NOTES_SHOWN} noun="notas" className="divide-y rounded-lg border">
       {notes.map((note) => (
         <NoteRow
           key={note.id}
@@ -35,9 +37,12 @@ export function NoteList({
           author={authors?.get(note.member_email) ?? (authors ? note.member_email : undefined)}
         />
       ))}
-    </ul>
+    </ShowMore>
   );
 }
+
+// Notes listed before "Ver más".
+const NOTES_SHOWN = 4;
 
 function NoteRow({
   note,

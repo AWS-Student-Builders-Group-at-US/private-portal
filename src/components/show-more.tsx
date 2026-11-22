@@ -11,12 +11,14 @@ export function ShowMore({
   limit,
   children,
   className,
+  toggleClassName,
   as: List = "ul",
   noun,
 }: {
   limit: number;
   children: React.ReactNode;
   className?: string;
+  toggleClassName?: string;
   as?: "ul" | "ol";
   // Optional plural noun for the toggle ("Ver 3 notas más").
   noun?: string;
@@ -38,7 +40,10 @@ export function ShowMore({
           aria-expanded={expanded}
           aria-controls={id}
           onClick={() => setExpanded((open) => !open)}
-          className="inline-flex w-fit items-center gap-1 rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          className={cn(
+            "inline-flex w-fit items-center gap-1 rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+            toggleClassName,
+          )}
         >
           <ChevronDown
             aria-hidden
