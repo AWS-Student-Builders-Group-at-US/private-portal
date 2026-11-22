@@ -1,7 +1,5 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MyCalendars } from "@/features/calendars/components/my-calendars";
 import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
@@ -9,9 +7,10 @@ import { resolveSiteUrl } from "@/features/checkin/url";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
 import { MyEntries } from "@/features/calendar-entries/components/my-entries";
 import { TeamView } from "@/features/availability/components/team-view";
-import { formatDay, isValidIsoDate, madridToday } from "@/features/availability/dates";
+import { WeekNav } from "@/features/availability/components/week-nav";
+import { isValidIsoDate, madridToday } from "@/features/availability/dates";
 import { getMyWeek, getTeamWeek } from "@/features/availability/queries";
-import { addDays, weekStart } from "@/features/availability/slots";
+import { weekStart } from "@/features/availability/slots";
 import { getCurrentMember } from "@/lib/auth/member";
 
 export default async function CalendarPage({
@@ -37,7 +36,7 @@ export default async function CalendarPage({
         </Tab>
       </nav>
       {team ? (
-        <TeamSection monday={monday} thisMonday={thisMonday} />
+        <TeamSection monday={monday} thisMonday={thisMonday} today={today} />
       ) : (
         <MySection monday={monday} thisMonday={thisMonday} today={today} />
       )}
@@ -100,11 +99,7 @@ async function MySection({
           tus entradas). Con «Añadir nota» dejas una nota que verá todo el equipo (por ejemplo,
           «No puedo presencial»).
         </p>
-        <WeekNav
-          monday={monday}
-          thisMonday={thisMonday}
-          weekHref={(date) => `/panel/calendario?semana=${date}`}
-        />
+        <WeekNav monday={monday} thisMonday={thisMonday} />
         {week.outsideGoogleWindow && (
           <p className="text-sm text-muted-foreground" role="note">
             Los calendarios de Google solo se cargan de un mes atrás a un mes adelante; esta
@@ -123,68 +118,26 @@ async function MySection({
   );
 }
 
-function WeekNav({
-  monday,
-  thisMonday,
-  weekHref,
-}: {
-  monday: string;
-  thisMonday: string;
-  weekHref: (date: string) => string;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Link
-        href={weekHref(addDays(monday, -7))}
-        className={buttonVariants({ variant: "outline", size: "icon" })}
-        aria-label="Semana anterior"
-      >
-        <ChevronLeft />
-      </Link>
-      <span className="text-sm font-medium">
-        {formatDay(monday)} – {formatDay(addDays(monday, 6))}
-      </span>
-      <Link
-        href={weekHref(addDays(monday, 7))}
-        className={buttonVariants({ variant: "outline", size: "icon" })}
-        aria-label="Semana siguiente"
-      >
-        <ChevronRight />
-      </Link>
-      {monday !== thisMonday && (
-        <Link
-          href={weekHref(thisMonday)}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-        >
-          Esta semana
-        </Link>
-      )}
-    </div>
-  );
-}
-
 async function TeamSection({
   monday,
   thisMonday,
+  today,
 }: {
   monday: string;
   thisMonday: string;
+  today: string;
 }) {
   const week = await getTeamWeek(monday);
   return (
     <div className="flex flex-col gap-4">
-      <WeekNav
-        monday={monday}
-        thisMonday={thisMonday}
-        weekHref={(date) => `/panel/calendario?vista=equipo&semana=${date}`}
-      />
+      <WeekNav monday={monday} thisMonday={thisMonday} />
       {week.outsideGoogleWindow && (
         <p className="text-sm text-muted-foreground" role="note">
           Los calendarios de Google solo se cargan de un mes atrás a un mes adelante; esta
           semana puede no incluir todos los eventos de Google del equipo.
         </p>
       )}
-      <TeamView key={monday} week={week} />
+      <TeamView key={monday} week={week} today={today} />
     </div>
   );
 }
