@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { StatusBanner } from "@/components/status-banner";
 import { buttonVariants } from "@/components/ui/button";
+import { groupBy } from "@/lib/group";
 import { cn } from "@/lib/utils";
 import { formatMadridDateTimeShort, utcIsoToMadridLocal } from "@/features/events/time";
 import { formatMonth, monthGrid, parseMonth, shiftMonth } from "@/features/posts/calendar";
@@ -87,29 +88,94 @@ export default async function PostsPage({ searchParams }: PageProps<"/panel/publ
           {posts.length === 0 ? "Todavía no hay publicaciones." : "No hay publicaciones con ese estado."}
         </p>
       ) : (
-        <ul className="divide-y rounded-lg border">
-          {visible.map((post) => (
-            <li key={post.id}>
-              <Link href={`/panel/publicaciones/${post.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate font-medium">{post.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {post.scheduled_at ? formatMadridDateTimeShort(post.scheduled_at) : "Sin fecha"} ·{" "}
-                    {post.targets.map((t) => POST_TARGET_LABELS[t]).join(", ")}
-                    {post.event_title && ` · ${post.event_title}`}
-                    {!post.show_on_site && " · Oculta en la web"}
-                  </span>
-                  {post.status === "published" && metrics.has(post.id) && (
-                    <PostMetricsInline metrics={metrics.get(post.id)!} />
-                  )}
-                </span>
-                {post.source === "zernio" && <ZernioBadge />}
-                <PostStatusBadge status={post.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <PostMonths
+          posts={visible}
+          thisMonth={thisMonth}
+          row={(post) => <PostRow key={post.id} post={post} metrics={metrics} />}
+        />
       )}
+    </div>
+  );
+}
+
+function PostRow({
+  post,
+  metrics,
+}: {
+  post: Post;
+  metrics: Awaited<ReturnType<typeof listPostMetrics>>;
+}) {
+  return (
+    <li>
+      <Link href={`/panel/publicaciones/${post.id}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate font-medium">{post.title}</span>
+          <span className="text-xs text-muted-foreground">
+            {post.scheduled_at ? formatMadridDateTimeShort(post.scheduled_at) : "Sin fecha"} ·{" "}
+            {post.targets.map((t) => POST_TARGET_LABELS[t]).join(", ")}
+            {post.event_title && ` · ${post.event_title}`}
+            {!post.show_on_site && " · Oculta en la web"}
+          </span>
+          {post.status === "published" && metrics.has(post.id) && (
+            <PostMetricsInline metrics={metrics.get(post.id)!} />
+          )}
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3">
+          {post.source === "zernio" && <ZernioBadge />}
+          <PostStatusBadge status={post.status} />
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+// List view grouped by scheduled month, in the list's order (oldest first,
+// undated last). Months before the current one start collapsed.
+function PostMonths({
+  posts,
+  thisMonth,
+  row,
+}: {
+  posts: Post[];
+  thisMonth: string;
+  row: (post: Post) => React.ReactNode;
+}) {
+  const months = groupBy(posts, (post) =>
+    post.scheduled_at ? utcIsoToMadridLocal(post.scheduled_at).slice(0, 7) : null,
+  );
+  return (
+    <div className="flex flex-col gap-5">
+      {months.map(({ key, items }) => {
+        const heading = key ? formatMonth(key) : "Sin fecha";
+        const count = (
+          <span className="text-xs font-normal text-muted-foreground">{items.length}</span>
+        );
+        const list = <ul className="divide-y">{items.map(row)}</ul>;
+        if (key !== null && key < thisMonth) {
+          return (
+            <details key={key} className="group rounded-lg border">
+              <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+                <ChevronRight
+                  aria-hidden
+                  className="size-4 text-muted-foreground transition-transform group-open:rotate-90"
+                />
+                <span className="first-letter:uppercase">{heading}</span>
+                {count}
+              </summary>
+              <div className="border-t">{list}</div>
+            </details>
+          );
+        }
+        return (
+          <section key={key ?? "-"} className="flex flex-col gap-2">
+            <h2 className="flex items-baseline gap-2 text-sm font-semibold">
+              <span className="first-letter:uppercase">{heading}</span>
+              {count}
+            </h2>
+            <div className="rounded-lg border">{list}</div>
+          </section>
+        );
+      })}
     </div>
   );
 }
