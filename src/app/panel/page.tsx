@@ -16,6 +16,7 @@ import { madridToday } from "@/features/tasks/dates";
 import { filterTasks, sortTasks } from "@/features/tasks/filters";
 import { listTasks } from "@/features/tasks/queries";
 import { listSuggestions } from "@/features/suggestions/queries";
+import { EmptyState } from "@/components/empty-state";
 import { getCurrentMember } from "@/lib/auth/member";
 
 const HOME_LIMIT = 3;
@@ -57,7 +58,7 @@ export default async function HomePage() {
           Próxima reunión
         </h2>
         {nextMeeting ? (
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 px-4 py-4">
+          <div className="flex flex-col gap-2 rounded-lg border border-l-4 border-l-[var(--aws-orange)] bg-muted/40 px-4 py-4">
             <Link
               href={`/panel/eventos/${nextMeeting.id}`}
               className="text-lg font-semibold underline-offset-4 hover:underline"
@@ -89,61 +90,89 @@ export default async function HomePage() {
             )}
           </div>
         ) : (
-          <Empty>No hay ninguna reunión programada.</Empty>
+          <EmptyState>No hay ninguna reunión programada.</EmptyState>
         )}
       </section>
 
-      <HomeSection
-        title={`Mis tareas pendientes${myPending.length ? ` (${myPending.length})` : ""}`}
-        href="/panel/tareas?persona=yo"
-        linkLabel="Ver tareas"
-      >
-        {myPending.length === 0 ? (
-          <Empty>No tienes tareas pendientes.</Empty>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {myPending.slice(0, HOME_LIMIT + 2).map((task) => (
-              <li key={task.id}>
-                <Link
-                  href={`/panel/tareas/${task.id}`}
-                  className="flex flex-col gap-1 px-4 py-3 hover:bg-muted"
-                >
-                  <span className="truncate font-medium">{task.title}</span>
-                  <TaskMeta task={task} today={today} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </HomeSection>
+      <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+        <div className="flex min-w-0 flex-col gap-8">
+          <HomeSection
+            title={`Mis tareas pendientes${myPending.length ? ` (${myPending.length})` : ""}`}
+            href="/panel/tareas?persona=yo"
+            linkLabel="Ver tareas"
+          >
+            {myPending.length === 0 ? (
+              <EmptyState>No tienes tareas pendientes.</EmptyState>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {myPending.slice(0, HOME_LIMIT + 2).map((task) => (
+                  <li key={task.id}>
+                    <Link
+                      href={`/panel/tareas/${task.id}`}
+                      className="flex flex-col gap-1 px-4 py-3 hover:bg-muted"
+                    >
+                      <span className="truncate font-medium">{task.title}</span>
+                      <TaskMeta task={task} today={today} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HomeSection>
 
-      <MyReminders reminders={reminders} today={today} />
+          <MyReminders reminders={reminders} today={today} />
+        </div>
 
-      <HomeSection title="Próximos eventos" href="/panel/eventos" linkLabel="Ver eventos">
-        {upcoming.length === 0 ? (
-          <Empty>No hay eventos próximos.</Empty>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {upcoming.map((event) => (
-              <li key={event.id}>
-                <Link
-                  href={`/panel/eventos/${event.id}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
-                >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium">{event.title}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {formatMadridDateTimeShort(event.starts_at)}
-                      {event.location && ` · ${event.location}`}
+        <div className="flex min-w-0 flex-col gap-8">
+          <HomeSection title="Próximos eventos" href="/panel/eventos" linkLabel="Ver eventos">
+            {upcoming.length === 0 ? (
+              <EmptyState>No hay eventos próximos.</EmptyState>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {upcoming.map((event) => (
+                  <li key={event.id}>
+                    <Link
+                      href={`/panel/eventos/${event.id}`}
+                      className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
+                    >
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">{event.title}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {formatMadridDateTimeShort(event.starts_at)}
+                          {event.location && ` · ${event.location}`}
+                        </span>
+                      </span>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HomeSection>
+
+          <HomeSection
+            title={`Sugerencias nuevas${fresh.length ? ` (${fresh.length})` : ""}`}
+            href="/panel/sugerencias"
+            linkLabel="Ver sugerencias"
+          >
+            {topFresh.length === 0 ? (
+              <EmptyState>No hay sugerencias nuevas.</EmptyState>
+            ) : (
+              <ul className="divide-y rounded-lg border">
+                {topFresh.map((suggestion) => (
+                  <li key={suggestion.id} className="flex items-start gap-3 px-4 py-3">
+                    <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground tabular-nums">
+                      <ThumbsUp className="size-3.5" aria-hidden />
+                      {suggestion.votes}
                     </span>
-                  </span>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </HomeSection>
+                    <p className="line-clamp-2 text-sm">{suggestion.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HomeSection>
+        </div>
+      </div>
 
       <HomeSection title="Publicaciones" href="/panel/publicaciones" linkLabel="Ver publicaciones">
         <div className="grid gap-4 md:grid-cols-2">
@@ -162,27 +191,6 @@ export default async function HomePage() {
         </div>
       </HomeSection>
 
-      <HomeSection
-        title={`Sugerencias nuevas${fresh.length ? ` (${fresh.length})` : ""}`}
-        href="/panel/sugerencias"
-        linkLabel="Ver sugerencias"
-      >
-        {topFresh.length === 0 ? (
-          <Empty>No hay sugerencias nuevas.</Empty>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {topFresh.map((suggestion) => (
-              <li key={suggestion.id} className="flex items-start gap-3 px-4 py-3">
-                <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground tabular-nums">
-                  <ThumbsUp className="size-3.5" aria-hidden />
-                  {suggestion.votes}
-                </span>
-                <p className="line-clamp-2 text-sm">{suggestion.body}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </HomeSection>
     </div>
   );
 }
@@ -226,7 +234,7 @@ function PostList({
     <div className="flex flex-col gap-2">
       <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
       {posts.length === 0 ? (
-        <Empty>{emptyText}</Empty>
+        <EmptyState>{emptyText}</EmptyState>
       ) : (
         <ul className="divide-y rounded-lg border">
           {posts.map((post) => {
@@ -253,8 +261,4 @@ function PostList({
       )}
     </div>
   );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
 }
