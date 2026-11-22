@@ -140,13 +140,14 @@ async function TeamSection({
           semana puede no incluir todos los eventos de Google del equipo.
         </p>
       )}
-      <TeamView key={monday} week={week} today={today} />
+      {/* Meetings first so "Programar reunión" is visible without scrolling past the grid. */}
       <GroupMeetings
         key={`meetings-${monday}`}
         meetings={meetings}
         authors={authors}
         defaultDate={week.dates.includes(today) ? today : monday}
       />
+      <TeamView key={monday} week={week} today={today} />
       <SharedCalendarLink url={exportUrl} />
     </div>
   );
