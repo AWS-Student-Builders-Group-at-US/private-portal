@@ -68,7 +68,17 @@ export function formatEntryRange(entry: { starts_at: string; ends_at: string }) 
   return `${formatDay(start.slice(0, 10))} · ${start.slice(11, 16)}–${end.slice(11, 16)}`;
 }
 
-function EntryRow({ entry }: { entry: CalendarEntry }) {
+// One entry with edit and delete when it is the member's own. `author` names
+// the owner of someone else's entry; `meetingOnly` edits it as a group meeting.
+export function EntryRow({
+  entry,
+  author,
+  meetingOnly = false,
+}: {
+  entry: CalendarEntry;
+  author?: string;
+  meetingOnly?: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -81,8 +91,9 @@ function EntryRow({ entry }: { entry: CalendarEntry }) {
           action={updateCalendarEntry.bind(null, entry.id)}
           entry={entry}
           defaultDate={utcIsoToMadridLocal(entry.starts_at).slice(0, 10)}
-          title="Editar entrada"
+          title={meetingOnly ? "Editar reunión" : "Editar entrada"}
           submitLabel="Guardar cambios"
+          meetingOnly={meetingOnly}
           onDone={close}
           onCancel={close}
         />
@@ -102,7 +113,10 @@ function EntryRow({ entry }: { entry: CalendarEntry }) {
     <li className="flex items-start justify-between gap-3 px-4 py-3">
       <div className="flex min-w-0 flex-col gap-0.5">
         <p className="font-medium break-words">{entry.title}</p>
-        <p className="text-sm text-muted-foreground">{formatEntryRange(entry)}</p>
+        <p className="text-sm text-muted-foreground">
+          {formatEntryRange(entry)}
+          {author && ` · ${author}`}
+        </p>
         <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           {entry.is_group_meeting ? (
             <>
@@ -124,25 +138,27 @@ function EntryRow({ entry }: { entry: CalendarEntry }) {
           </p>
         )}
       </div>
-      <div className="flex shrink-0 gap-1">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setEditing(true)}
-          aria-label={`Editar «${entry.title}»`}
-        >
-          <Pencil />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={remove}
-          disabled={pending}
-          aria-label={`Eliminar «${entry.title}»`}
-        >
-          <Trash2 />
-        </Button>
-      </div>
+      {entry.is_own && (
+        <div className="flex shrink-0 gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setEditing(true)}
+            aria-label={`Editar «${entry.title}»`}
+          >
+            <Pencil />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={remove}
+            disabled={pending}
+            aria-label={`Eliminar «${entry.title}»`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      )}
     </li>
   );
 }

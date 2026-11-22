@@ -6,6 +6,7 @@ import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calend
 import { resolveSiteUrl } from "@/features/checkin/url";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
 import { MyEntries } from "@/features/calendar-entries/components/my-entries";
+import { GroupMeetings } from "@/features/calendar-entries/components/group-meetings";
 import { TeamView } from "@/features/availability/components/team-view";
 import { WeekNav } from "@/features/availability/components/week-nav";
 import { isValidIsoDate, madridToday } from "@/features/availability/dates";
@@ -128,6 +129,8 @@ async function TeamSection({
   today: string;
 }) {
   const week = await getTeamWeek(monday);
+  const meetings = week.entries.filter((entry) => entry.is_group_meeting);
+  const authors = Object.fromEntries(week.members.map((m) => [m.email, m.name]));
   return (
     <div className="flex flex-col gap-4">
       <WeekNav monday={monday} thisMonday={thisMonday} />
@@ -138,6 +141,12 @@ async function TeamSection({
         </p>
       )}
       <TeamView key={monday} week={week} today={today} />
+      <GroupMeetings
+        key={`meetings-${monday}`}
+        meetings={meetings}
+        authors={authors}
+        defaultDate={week.dates.includes(today) ? today : monday}
+      />
     </div>
   );
 }
