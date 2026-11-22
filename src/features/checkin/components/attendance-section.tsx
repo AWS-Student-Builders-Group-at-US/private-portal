@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { ShowMore } from "@/components/show-more";
 import { formatMadridDateTimeShort } from "@/features/events/time";
 import { buttonVariants } from "@/components/ui/button";
 import { getFormVersionIndex } from "@/features/checkin-forms/queries";
@@ -100,7 +101,7 @@ export async function AttendanceSection({ eventId }: { eventId: string }) {
           Todavía no hay asistentes registrados.
         </p>
       ) : (
-        <ul className="flex flex-col divide-y">
+        <ShowMore limit={10} noun="asistentes" className="flex flex-col divide-y">
           {attendees.map((attendee) => (
             <li
               key={attendee.id}
@@ -136,7 +137,7 @@ export async function AttendanceSection({ eventId }: { eventId: string }) {
               />
             </li>
           ))}
-        </ul>
+        </ShowMore>
       )}
     </section>
   );

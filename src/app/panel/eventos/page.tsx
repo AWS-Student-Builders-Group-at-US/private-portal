@@ -35,7 +35,12 @@ export default async function EventsPage({
         events={upcoming}
         emptyText="No hay eventos próximos."
       />
-      <EventList title="Pasados" events={past} emptyText="No hay eventos pasados." />
+      <EventList
+        title="Pasados"
+        events={past}
+        emptyText="No hay eventos pasados."
+        limit={5}
+      />
     </div>
   );
 }
