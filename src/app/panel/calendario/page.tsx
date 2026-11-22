@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { MyCalendars } from "@/features/calendars/components/my-calendars";
+import { SharedCalendarLink } from "@/features/calendars/components/shared-calendar-link";
 import { buildExportUrl, getMyExportToken, listMyFeeds } from "@/features/calendars/queries";
 import { resolveSiteUrl } from "@/features/checkin/url";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
@@ -80,13 +81,7 @@ async function MySection({
   today: string;
 }) {
   const member = await getCurrentMember();
-  const [week, feeds, token, requestHeaders] = await Promise.all([
-    getMyWeek(member.email, monday),
-    listMyFeeds(),
-    getMyExportToken(),
-    headers(),
-  ]);
-  const exportUrl = buildExportUrl(resolveSiteUrl(requestHeaders), token);
+  const [week, feeds] = await Promise.all([getMyWeek(member.email, monday), listMyFeeds()]);
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
@@ -114,7 +109,7 @@ async function MySection({
           defaultDate={week.dates.includes(today) ? today : monday}
         />
       </section>
-      <MyCalendars feeds={feeds} exportUrl={exportUrl} />
+      <MyCalendars feeds={feeds} />
     </div>
   );
 }
@@ -128,7 +123,12 @@ async function TeamSection({
   thisMonday: string;
   today: string;
 }) {
-  const week = await getTeamWeek(monday);
+  const [week, token, requestHeaders] = await Promise.all([
+    getTeamWeek(monday),
+    getMyExportToken(),
+    headers(),
+  ]);
+  const exportUrl = buildExportUrl(resolveSiteUrl(requestHeaders), token);
   const meetings = week.entries.filter((entry) => entry.is_group_meeting);
   const authors = Object.fromEntries(week.members.map((m) => [m.email, m.name]));
   return (
@@ -147,6 +147,7 @@ async function TeamSection({
         authors={authors}
         defaultDate={week.dates.includes(today) ? today : monday}
       />
+      <SharedCalendarLink url={exportUrl} />
     </div>
   );
 }

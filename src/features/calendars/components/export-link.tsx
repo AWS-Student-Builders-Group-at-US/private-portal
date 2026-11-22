@@ -52,8 +52,8 @@ export function ExportLink({ url }: { url: string }) {
       ) : (
         <div className="flex flex-col gap-3 rounded-lg border border-destructive/40 p-4">
           <p className="text-sm">
-            El enlace actual dejará de funcionar y tendrás que volver a suscribirte en
-            Google Calendar. ¿Continuar?
+            El enlace actual dejará de funcionar y tendrás que volver a suscribirte en tu
+            app de calendario. ¿Continuar?
           </p>
           <div className="flex gap-2">
             <Button variant="destructive" onClick={regenerate} disabled={pending}>
