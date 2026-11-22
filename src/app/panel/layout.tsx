@@ -9,19 +9,24 @@ export const metadata: Metadata = {
 };
 
 // Protected area: only Core Team members get past MemberGate.
-// The session read is request-time data, so with Cache Components it must
-// sit behind a Suspense boundary.
+// The navigation shell holds no member data, so it stays outside the
+// boundary and is part of the static shell (instant on every visit); only
+// the page content waits for the session read, which with Cache Components
+// must sit behind a Suspense boundary. Signed-out visitors never get here
+// (src/lib/supabase/proxy.ts redirects them to /login).
 export default function PanelLayout({ children }: LayoutProps<"/panel">) {
   return (
-    <Suspense
-      fallback={<p className="p-8 text-sm text-muted-foreground">Cargando…</p>}
-    >
-      <MemberGate>{children}</MemberGate>
-    </Suspense>
+    <AppShell>
+      <Suspense
+        fallback={<p className="text-sm text-muted-foreground">Cargando…</p>}
+      >
+        <MemberGate>{children}</MemberGate>
+      </Suspense>
+    </AppShell>
   );
 }
 
 async function MemberGate({ children }: { children: React.ReactNode }) {
   await getCurrentMember();
-  return <AppShell>{children}</AppShell>;
+  return children;
 }

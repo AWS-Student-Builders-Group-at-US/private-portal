@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
@@ -14,15 +14,32 @@ import {
   isActive,
   isMenuActive,
 } from "./nav-items";
+import { navPrefetch } from "./nav-prefetch";
 
-export function SidebarNav() {
-  const pathname = usePathname();
+// The navigation is part of the static shell. On routes with unknown dynamic
+// params (e.g. /panel/tareas/[id]) usePathname() suspends while prerendering,
+// so each bar renders without an active item until the pathname resolves.
+function withPathname(View: (props: { pathname: string }) => React.ReactNode) {
+  function Active() {
+    return <View pathname={usePathname()} />;
+  }
+  return function Nav() {
+    return (
+      <Suspense fallback={<View pathname="" />}>
+        <Active />
+      </Suspense>
+    );
+  };
+}
+
+export const SidebarNav = withPathname(function SidebarNavView({ pathname }) {
   return (
     <nav className="flex flex-col gap-1" aria-label="Navegación principal">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
+          prefetch={navPrefetch(href)}
           aria-current={isActive(href, pathname) ? "page" : undefined}
           className={cn(
             "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -36,7 +53,7 @@ export function SidebarNav() {
       ))}
     </nav>
   );
-}
+});
 
 // Link out of the panel to the public home page (/).
 export function BackToSiteLink() {
@@ -56,8 +73,7 @@ const bottomItemClass =
 const bottomItemActiveClass =
   "font-medium text-foreground [&_svg]:text-[var(--aws-orange-strong)]";
 
-export function BottomNav() {
-  const pathname = usePathname();
+export const BottomNav = withPathname(function BottomNavView({ pathname }) {
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
@@ -67,6 +83,7 @@ export function BottomNav() {
         <Link
           key={href}
           href={href}
+          prefetch={navPrefetch(href)}
           aria-current={isActive(href, pathname) ? "page" : undefined}
           className={cn(bottomItemClass, isActive(href, pathname) && bottomItemActiveClass)}
         >
@@ -77,7 +94,7 @@ export function BottomNav() {
       <MenuDrawer pathname={pathname} />
     </nav>
   );
-}
+});
 
 // Mobile drawer with the sections that do not fit in the bottom bar.
 // Base UI's Dialog provides the dialog role, focus trap, Esc to close and
@@ -112,6 +129,7 @@ function MenuDrawer({ pathname }: { pathname: string }) {
                 <li key={href}>
                   <Link
                     href={href}
+                    prefetch={navPrefetch(href)}
                     onClick={() => setOpen(false)}
                     aria-current={isActive(href, pathname) ? "page" : undefined}
                     className={cn(

@@ -1,21 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// getBusyBlocks is server-only and talks to Supabase; these mocks keep the
-// test on its scheduling logic (serve cached blocks, refresh after the response).
+// busy.ts is server-only and talks to Supabase; these mocks keep the test on
+// its read (one query, grouped per member) and scheduling logic (refresh
+// stale feeds after the response, never during it).
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   refreshBusyBlocks: vi.fn(),
-  stale: true as boolean,
+  listStaleFeedEmails: vi.fn(),
+  eq: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: mocks.after }));
-vi.mock("./refresh", () => ({ refreshBusyBlocks: mocks.refreshBusyBlocks }));
+vi.mock("./refresh", () => ({
+  refreshBusyBlocks: mocks.refreshBusyBlocks,
+  listStaleFeedEmails: mocks.listStaleFeedEmails,
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => {
     const rows = {
       data: [
         {
+          member_email: "Ana@Example.org",
           starts_at: "2026-11-23T09:00:00.000Z",
           ends_at: "2026-11-23T10:00:00.000Z",
           weight: 1,
@@ -26,40 +32,33 @@ vi.mock("@/lib/supabase/server", () => ({
     };
     const query = {
       select: () => query,
-      eq: () => query,
+      eq: (...args: unknown[]) => {
+        mocks.eq(...args);
+        return query;
+      },
       lt: () => query,
       gt: () => query,
       order: async () => rows,
     };
-    return {
-      rpc: async () => ({ data: mocks.stale, error: null }),
-      from: () => query,
-    };
+    return { from: () => query };
   },
 }));
 
-import { getBusyBlocks } from "./busy";
+import { listBusyBlocks, refreshStaleFeedsAfterResponse } from "./busy";
 
 const from = new Date("2026-11-23T00:00:00.000Z");
 const to = new Date("2026-11-30T00:00:00.000Z");
 
-describe("getBusyBlocks", () => {
+describe("listBusyBlocks", () => {
   beforeEach(() => {
     mocks.after.mockReset();
-    mocks.refreshBusyBlocks.mockReset();
-    // A Google fetch that never settles: getBusyBlocks must not wait for it.
-    mocks.refreshBusyBlocks.mockReturnValue(new Promise<void>(() => {}));
-    mocks.stale = true;
+    mocks.eq.mockReset();
   });
 
-  it("returns the cached blocks without waiting for a stale refresh", async () => {
-    const result = await Promise.race([
-      getBusyBlocks("Ana@Example.org", from, to),
-      new Promise<"blocked">((resolve) => setTimeout(() => resolve("blocked"), 200)),
-    ]);
+  it("returns the stored blocks per member without scheduling any work", async () => {
+    const result = await listBusyBlocks(from, to);
 
-    expect(result).not.toBe("blocked");
-    expect(result).toEqual([
+    expect(result.get("ana@example.org")).toEqual([
       {
         start: new Date("2026-11-23T09:00:00.000Z"),
         end: new Date("2026-11-23T10:00:00.000Z"),
@@ -67,24 +66,49 @@ describe("getBusyBlocks", () => {
         feedId: "feed-1",
       },
     ]);
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.eq).not.toHaveBeenCalled();
   });
 
-  it("schedules the refresh of stale feeds after the response", async () => {
-    await getBusyBlocks("Ana@Example.org", from, to);
+  it("filters by the lowercased email when one member is asked for", async () => {
+    await listBusyBlocks(from, to, "Ana@Example.org");
+
+    expect(mocks.eq).toHaveBeenCalledWith("member_email", "ana@example.org");
+  });
+});
+
+describe("refreshStaleFeedsAfterResponse", () => {
+  beforeEach(() => {
+    mocks.after.mockReset();
+    mocks.refreshBusyBlocks.mockReset();
+    mocks.listStaleFeedEmails.mockReset();
+    mocks.listStaleFeedEmails.mockResolvedValue(["ana@example.org"]);
+    // A Google fetch that never settles: scheduling must not wait for it.
+    mocks.refreshBusyBlocks.mockReturnValue(new Promise<void>(() => {}));
+  });
+
+  it("only schedules the work; the check and refresh run after the response", async () => {
+    refreshStaleFeedsAfterResponse(["ana@example.org", "luis@example.org"]);
 
     expect(mocks.after).toHaveBeenCalledTimes(1);
+    expect(mocks.listStaleFeedEmails).not.toHaveBeenCalled();
     expect(mocks.refreshBusyBlocks).not.toHaveBeenCalled();
-    const task = mocks.after.mock.calls[0][0] as () => unknown;
+
+    const task = mocks.after.mock.calls[0][0] as () => Promise<unknown>;
     void task();
-    expect(mocks.refreshBusyBlocks).toHaveBeenCalledWith("ana@example.org");
+    await vi.waitFor(() =>
+      expect(mocks.refreshBusyBlocks).toHaveBeenCalledWith("ana@example.org"),
+    );
+    expect(mocks.listStaleFeedEmails).toHaveBeenCalledWith([
+      "ana@example.org",
+      "luis@example.org",
+    ]);
+    expect(mocks.refreshBusyBlocks).toHaveBeenCalledTimes(1);
   });
 
-  it("does not schedule a refresh when the feeds are fresh", async () => {
-    mocks.stale = false;
-
-    await getBusyBlocks("ana@example.org", from, to);
+  it("schedules nothing without emails", () => {
+    refreshStaleFeedsAfterResponse([]);
 
     expect(mocks.after).not.toHaveBeenCalled();
-    expect(mocks.refreshBusyBlocks).not.toHaveBeenCalled();
   });
 });

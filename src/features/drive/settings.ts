@@ -1,4 +1,5 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isDriveId, readServiceAccountKey } from "./config";
 
@@ -7,9 +8,12 @@ export type FolderSource = "settings" | "env";
 /**
  * The Drive folder shown in /panel/recursos: `app_settings.drive_folder_id`
  * (set from Ajustes) first, then env GOOGLE_DRIVE_FOLDER_ID. Read with the
- * member's session (RLS). Request-time: call it outside any cache scope.
+ * member's session (RLS), so it is "use cache: private" (cached per session in
+ * the browser only); the settings action calls revalidatePath, which clears it.
  */
 export async function getDriveFolderId(): Promise<{ folderId: string | null; source: FolderSource | null }> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("app_settings")
