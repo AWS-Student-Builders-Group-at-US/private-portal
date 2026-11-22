@@ -48,6 +48,10 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
       portal SENDS; inbound emails are still never stored): a "Recordarme por correo" tick on
       tasks (assignees emailed the day before the due date) and free reminders per member
       (emailed to their owner on the chosen date), both sent by the daily cron.
+- [x] T7 Shared team calendar in "Equipo" (branch `feat/calendario-equipo`): a
+      Disponibilidad/Calendario toggle (counts map unchanged; new week calendar), "Programar
+      reunión" for group meetings, the shared iCal link at the bottom of Equipo, and
+      update-safe feed fields (CREATED, LAST-MODIFIED, SEQUENCE, hourly refresh hints).
 
 ## Delivery strategy
 
@@ -173,6 +177,41 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   the sandbox); the browser UI (needs Google sign-in). The cron is daily on Vercel Hobby, so
   "24 h before" means the morning of the day before the due date.
 
+- T7 (route: direct inline in a side session; ~750 authored lines over 4 work units, mostly
+  the week calendar component and re-indentation of the unchanged counts view). No migration:
+  `events` and `calendar_entries` already have `created_at`/`updated_at`. Feed
+  (`ics-export.ts`): VCALENDAR gains `REFRESH-INTERVAL;VALUE=DURATION:PT1H` and
+  `X-PUBLISHED-TTL:PT1H`; every VEVENT keeps its stable UID (`<id>@host`, `entry-<id>@host`)
+  and DTSTAMP and gains CREATED, LAST-MODIFIED and `SEQUENCE` = whole seconds between
+  `created_at` and `updated_at` (grows with each edit, 0 when missing); deleted rows simply
+  drop out. The route still reads only `is_group_meeting` entries. Week calendar:
+  `week-layout.ts` (`layoutDay` puts overlapping agenda items in side-by-side lanes per group
+  of overlaps, touching items do not overlap, items crossing midnight run to 24:00;
+  `hourRange` widens 08:00–22:00 to whole hours) drawn by `TeamWeekCalendar` (days as
+  columns, hour rows, blocks in each person's colour, Google busy lighter, group meetings with
+  a ring and icon, per-day screen-reader lists; scrolls horizontally inside its own box with a
+  sticky hour column). `TeamView` gets a segmented toggle (`aria-pressed`) stored in
+  `?modo=calendario` via `history.replaceState`; the counts map, legend and agenda list are
+  byte-identical apart from indentation (`git diff -w`). `WeekNav` became a client component
+  that keeps the current search params, so the mode survives week navigation and reloads.
+  Meetings: `EntryForm` `meetingOnly` (hidden `is_group_meeting=on`, `visibility=details`,
+  same action and schema); `GroupMeetings` on Equipo ("Programar reunión" + the week's
+  meetings with author; edit/delete only on `is_own`, RLS already limits writes to the
+  owner). iCal: `SharedCalendarLink` at the bottom of Equipo (copy, regenerate kept, webcal
+  shortcut, Google/Apple/Outlook steps, read-only copy); `MyCalendars` keeps only a pointer.
+  RED: 4 `ics-export` tests failed (no `sequenceFrom`, missing fields), `week-layout.test.ts`
+  failed (module missing); GREEN: 14 + 9 tests. Checks per commit: eslint clean on changed
+  paths, `tsc --noEmit` clean, `npm test` 545 tests passed; final `next build` with dummy
+  Supabase env vars succeeded (`/panel/calendario` stays `◐`). Commits: `45a5db5` (feed),
+  `f0b09e0` (week view + toggle), `b3253f5` (meetings), `73d3aa8` (iCal link). Visual check:
+  the calendar, meeting form and link section rendered with sample data on a temporary
+  unauthenticated route (removed, never committed), desktop and 375 px (no page-level
+  horizontal scroll). Not verified: the real `/panel/calendario?vista=equipo` page with live
+  data (needs Google sign-in), saving a meeting against Supabase, and how each calendar app
+  treats the refresh hints (Google ignores them and refreshes on its own schedule).
+
 ## Next step
 
 Open the PR into `main`; after merge, check the first `cron/diario` log for `reminders`.
+T7: review `feat/calendario-equipo` on the Vercel preview (Equipo tab, both modes, schedule a
+test meeting and see it in a subscribed calendar), then open its PR.

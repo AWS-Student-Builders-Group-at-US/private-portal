@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildTeamCalendar, escapeText, foldLine, formatUtc } from "./ics-export";
+import {
+  buildTeamCalendar,
+  escapeText,
+  foldLine,
+  formatUtc,
+  sequenceFrom,
+} from "./ics-export";
 
 describe("escapeText", () => {
   it("escapes backslashes, commas, semicolons and newlines", () => {
@@ -130,5 +136,78 @@ describe("group calendar", () => {
     expect(lines).toContain("DTSTART:20260716T160000Z");
     expect(lines).toContain("DTEND:20260716T170000Z");
     expect(lines).toContain("DESCRIPTION:Orden del día:\\nnoticias");
+  });
+});
+
+describe("update-safe fields", () => {
+  const ics = buildTeamCalendar(
+    [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        title: "Meetup",
+        starts_at: "2026-07-15T17:00:00Z",
+        ends_at: null,
+        location: null,
+        meetup_url: null,
+        created_at: "2026-06-01T10:00:00Z",
+        updated_at: "2026-06-01T10:02:05.500Z",
+      },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        title: "Sin marcas de tiempo",
+        starts_at: "2026-07-20T17:00:00Z",
+        ends_at: null,
+        location: null,
+        meetup_url: null,
+      },
+    ],
+    {
+      now: new Date("2026-07-01T00:00:00Z"),
+      domain: "app.example.com",
+      groupMeetings: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          title: "Reunión",
+          notes: null,
+          starts_at: "2026-07-16T16:00:00Z",
+          ends_at: "2026-07-16T17:00:00Z",
+          created_at: "2026-06-10T08:00:00Z",
+          updated_at: "2026-06-10T08:00:00Z",
+        },
+      ],
+    },
+  );
+  const events = ics
+    .split("BEGIN:VEVENT")
+    .slice(1)
+    .map((block) => block.split("\r\n"));
+
+  it("asks subscribers to refresh every hour", () => {
+    const header = ics.split("BEGIN:VEVENT")[0].split("\r\n");
+    expect(header).toContain("REFRESH-INTERVAL;VALUE=DURATION:PT1H");
+    expect(header).toContain("X-PUBLISHED-TTL:PT1H");
+  });
+
+  it("writes CREATED, LAST-MODIFIED and a SEQUENCE that grows with each edit", () => {
+    expect(events[0]).toContain("CREATED:20260601T100000Z");
+    expect(events[0]).toContain("LAST-MODIFIED:20260601T100205Z");
+    expect(events[0]).toContain("SEQUENCE:125");
+    expect(events[2]).toContain("SEQUENCE:0");
+    expect(events[2]).toContain("LAST-MODIFIED:20260610T080000Z");
+  });
+
+  it("falls back to SEQUENCE 0 without timestamps and keeps the UID stable", () => {
+    expect(events[1]).toContain("SEQUENCE:0");
+    expect(events[1].some((line) => line.startsWith("LAST-MODIFIED"))).toBe(false);
+    expect(events[1]).toContain("UID:22222222-2222-4222-8222-222222222222@app.example.com");
+  });
+});
+
+describe("sequenceFrom", () => {
+  it("counts whole seconds between creation and the last update, never negative", () => {
+    expect(sequenceFrom("2026-06-01T10:00:00Z", "2026-06-01T10:00:09.900Z")).toBe(9);
+    expect(sequenceFrom("2026-06-01T10:00:00Z", "2026-06-01T09:00:00Z")).toBe(0);
+    expect(sequenceFrom(undefined, "2026-06-01T09:00:00Z")).toBe(0);
+    expect(sequenceFrom("bad", "2026-06-01T09:00:00Z")).toBe(0);
   });
 });

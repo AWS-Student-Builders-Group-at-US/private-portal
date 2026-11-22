@@ -12,12 +12,15 @@ const fieldClass =
 type EntryAction = (prev: EntryFormState, formData: FormData) => Promise<EntryFormState>;
 
 // Form for a new calendar entry or to edit one of the member's own entries.
+// `meetingOnly` (the "Equipo" tab) always saves a group meeting, so it hides
+// the group-meeting checkbox and the visibility choice.
 export function EntryForm({
   action,
   entry,
   defaultDate,
   title,
   submitLabel,
+  meetingOnly = false,
   onDone,
   onCancel,
 }: {
@@ -26,6 +29,7 @@ export function EntryForm({
   defaultDate: string;
   title: string;
   submitLabel: string;
+  meetingOnly?: boolean;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -128,6 +132,17 @@ export function EntryForm({
         />
         <FieldErrors errors={errors("notes")} />
       </div>
+      {meetingOnly ? (
+        <>
+          <input type="hidden" name="is_group_meeting" value="on" />
+          <input type="hidden" name="visibility" value="details" />
+          <p className="text-xs text-muted-foreground">
+            Todo el equipo verá el título y las notas, y la reunión aparecerá en el calendario
+            compartido.
+          </p>
+        </>
+      ) : (
+        <>
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"
@@ -170,6 +185,8 @@ export function EntryForm({
       </fieldset>
       {/* A disabled fieldset does not submit its radios. */}
       {groupMeeting && <input type="hidden" name="visibility" value="details" />}
+        </>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Guardando…" : submitLabel}

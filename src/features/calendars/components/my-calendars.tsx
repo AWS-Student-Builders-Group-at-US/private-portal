@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatMadridDateTimeShort } from "@/features/events/time";
 import { MAX_FEEDS_PER_MEMBER, type FeedSummary } from "../queries";
 import {
@@ -6,11 +7,11 @@ import {
   FeedWeightSelect,
   RefreshFeedsButton,
 } from "./calendar-feeds";
-import { ExportLink } from "./export-link";
+import { SHARED_CALENDAR_ANCHOR } from "./shared-calendar-link";
 
-// "Mis calendarios de Google" and the shared group calendar subscription link, shown on
-// "Mi disponibilidad".
-export function MyCalendars({ feeds, exportUrl }: { feeds: FeedSummary[]; exportUrl: string }) {
+// "Mis calendarios de Google", shown on "Mi disponibilidad", plus a pointer to
+// the shared group calendar link (it lives at the bottom of "Equipo").
+export function MyCalendars({ feeds }: { feeds: FeedSummary[] }) {
   return (
     <>
       <section id="calendarios" className="flex scroll-mt-4 flex-col gap-4">
@@ -73,22 +74,17 @@ export function MyCalendars({ feeds, exportUrl }: { feeds: FeedSummary[]; export
         )}
       </section>
 
-      <section className="flex max-w-xl flex-col gap-4">
-        <h2 className="text-lg font-semibold">
-          Suscribirse al calendario «AWS US - Student Builder Group»
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Añade este enlace a Google Calendar para ver los eventos del equipo y las reuniones
-          del grupo (las entradas marcadas como «Reunión del grupo»). Tus demás entradas no
-          aparecen. El enlace es personal: no lo compartas.
-        </p>
-        <ExportLink url={exportUrl} />
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>En Google Calendar, junto a «Otros calendarios», pulsa +.</li>
-          <li>Elige «Desde URL», pega el enlace y pulsa «Añadir calendario».</li>
-          <li>Google lo actualiza cada pocas horas.</li>
-        </ol>
-      </section>
+      <p className="max-w-xl text-sm text-muted-foreground">
+        El enlace para suscribirte al calendario compartido del grupo (eventos y reuniones del
+        grupo) está al final de la pestaña{" "}
+        <Link
+          href={`/panel/calendario?vista=equipo#${SHARED_CALENDAR_ANCHOR}`}
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          Equipo
+        </Link>
+        .
+      </p>
     </>
   );
 }

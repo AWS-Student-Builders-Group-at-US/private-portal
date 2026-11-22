@@ -12,6 +12,8 @@ export type ExportEvent = {
   ends_at: string | null;
   location: string | null;
   meetup_url: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 // A calendar entry with is_group_meeting = true.
@@ -21,6 +23,8 @@ export type GroupMeeting = {
   notes: string | null;
   starts_at: string;
   ends_at: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 // Events without an end time are shown as two hours long.
@@ -63,6 +67,37 @@ export function formatUtc(date: Date) {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+// SEQUENCE must grow with every edit so subscribers update the event instead
+// of keeping a stale copy: whole seconds between creation and the last update
+// (0 when either is missing or invalid). Fits the 32-bit integer RFC 5545 asks
+// for unless an event is edited ~68 years after it was created.
+export function sequenceFrom(createdAt?: string | null, updatedAt?: string | null) {
+  if (!createdAt || !updatedAt) return 0;
+  const seconds = Math.floor((Date.parse(updatedAt) - Date.parse(createdAt)) / 1000);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+}
+
+// Change-tracking properties shared by every VEVENT: with a stable UID they let
+// calendar apps replace an edited event in place; a deleted row simply stops
+// appearing in the feed.
+function revisionLines({
+  created_at,
+  updated_at,
+}: {
+  created_at?: string | null;
+  updated_at?: string | null;
+}) {
+  const lines: string[] = [];
+  const created = created_at ? new Date(created_at) : null;
+  const updated = updated_at ? new Date(updated_at) : null;
+  if (created && !Number.isNaN(created.getTime())) lines.push(`CREATED:${formatUtc(created)}`);
+  if (updated && !Number.isNaN(updated.getTime())) {
+    lines.push(`LAST-MODIFIED:${formatUtc(updated)}`);
+  }
+  lines.push(`SEQUENCE:${sequenceFrom(created_at, updated_at)}`);
+  return lines;
+}
+
 export function buildTeamCalendar(
   events: ExportEvent[],
   {
@@ -79,6 +114,9 @@ export function buildTeamCalendar(
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeText(GROUP_CALENDAR_NAME)}`,
     "X-WR-TIMEZONE:Europe/Madrid",
+    // Refresh hints (Apple/Outlook honour them; Google uses its own schedule).
+    "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+    "X-PUBLISHED-TTL:PT1H",
   ];
   for (const event of events) {
     const start = new Date(event.starts_at);
@@ -92,6 +130,7 @@ export function buildTeamCalendar(
       `DTSTART:${formatUtc(start)}`,
       `DTEND:${formatUtc(end)}`,
       `SUMMARY:${escapeText(event.title)}`,
+      ...revisionLines(event),
     );
     if (event.location) lines.push(`LOCATION:${escapeText(event.location)}`);
     if (event.meetup_url) {
@@ -109,6 +148,7 @@ export function buildTeamCalendar(
       `DTSTART:${formatUtc(new Date(meeting.starts_at))}`,
       `DTEND:${formatUtc(new Date(meeting.ends_at))}`,
       `SUMMARY:${escapeText(meeting.title)}`,
+      ...revisionLines(meeting),
     );
     if (meeting.notes) lines.push(`DESCRIPTION:${escapeText(meeting.notes)}`);
     lines.push("END:VEVENT");
