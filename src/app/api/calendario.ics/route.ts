@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const since = new Date(now.getTime() - PAST_DAYS * 24 * 60 * 60 * 1000);
   const { data: events, error } = await admin
     .from("events")
-    .select("id, title, starts_at, ends_at, location, meetup_url")
+    .select("id, title, starts_at, ends_at, location, meetup_url, created_at, updated_at")
     .gte("starts_at", since.toISOString())
     .order("starts_at", { ascending: true });
   if (error) return new Response("Service unavailable", { status: 503 });
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   // the feed working with the events alone.
   const { data: meetings } = await admin
     .from("calendar_entries")
-    .select("id, title, notes, starts_at, ends_at")
+    .select("id, title, notes, starts_at, ends_at, created_at, updated_at")
     .eq("is_group_meeting", true)
     .gte("starts_at", since.toISOString())
     .order("starts_at", { ascending: true });
