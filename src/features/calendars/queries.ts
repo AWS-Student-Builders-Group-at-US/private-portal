@@ -1,5 +1,8 @@
 import "server-only";
+import { cacheLife } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSiteUrl } from "@/features/checkin/url";
 import { maskIcsUrl } from "./url";
 
 export const MAX_FEEDS_PER_MEMBER = 5;
@@ -17,8 +20,12 @@ export type FeedSummary = {
 };
 
 // The signed-in member's feeds. RLS only returns their own rows; the secret
-// URL is masked here so it never reaches the browser.
+// URL is masked here so it never reaches the browser. Cached per session in
+// the browser only ("use cache: private"); the feed actions revalidate the
+// calendar path, which clears it.
 export async function listMyFeeds(): Promise<FeedSummary[]> {
+  "use cache: private";
+  cacheLife("minutes");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("calendar_feeds")
@@ -40,6 +47,15 @@ export async function getMyExportToken(): Promise<string> {
     throw new Error("No se pudo preparar tu enlace de suscripción.");
   }
   return data;
+}
+
+// The signed-in member's personal iCal subscription URL on this site. Cached
+// per session in the browser only: it holds the member's secret token.
+export async function getMyExportUrl(): Promise<string> {
+  "use cache: private";
+  cacheLife("minutes");
+  const [token, requestHeaders] = await Promise.all([getMyExportToken(), headers()]);
+  return buildExportUrl(resolveSiteUrl(requestHeaders), token);
 }
 
 export function buildExportUrl(siteUrl: string, token: string) {

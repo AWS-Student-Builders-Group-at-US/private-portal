@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { staleFeedEmails } from "./busy-rows";
 import { extractBusyBlocks } from "./ics-parse";
 import { parseGoogleIcalUrl } from "./url";
 import { googleWindow } from "./window";
@@ -62,6 +63,30 @@ export async function fetchIcs(url: string): Promise<string> {
 }
 
 type FeedRow = { id: string; ics_url: string; weight: number | string | null };
+
+// Feeds older than this are refreshed in the background on the next view.
+const STALE_AFTER_MS = 15 * 60 * 1000;
+
+/**
+ * Lowercased emails, among `emails`, of the members with a feed never fetched
+ * or last fetched more than 15 minutes ago. Uses the admin client so it can
+ * run inside `after()`; returns [] on any failure.
+ */
+export async function listStaleFeedEmails(emails: string[]): Promise<string[]> {
+  const wanted = [...new Set(emails.map((email) => email.toLowerCase()))];
+  if (wanted.length === 0) return [];
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("calendar_feeds")
+      .select("member_email, last_fetched_at")
+      .in("member_email", wanted);
+    if (error || !data) return [];
+    return staleFeedEmails(data, new Date(), STALE_AFTER_MS);
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Re-fetches every feed of one member with the admin client and replaces that

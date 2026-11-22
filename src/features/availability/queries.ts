@@ -1,6 +1,7 @@
 import "server-only";
+import { cacheLife } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getBusyBlocks } from "@/features/calendars/busy";
+import { listBusyBlocks, type BusyBlockRow } from "@/features/calendars/busy";
 import { isOutsideGoogleWindow } from "@/features/calendars/window";
 import { madridLocalToUtcIso } from "@/features/events/time";
 import { hideCommonAccount } from "@/features/members/common-account";
@@ -19,6 +20,12 @@ import { addDays, busyBlocksToRanges, weekDates } from "./slots";
 import type { AvailabilityNote, MyWeek, TeamWeek } from "./types";
 
 // All reads use the user's session; RLS only returns rows to members.
+// getMyWeek and getTeamWeek are "use cache: private": cached per session in
+// the browser only (never in a shared server cache), so the calendar can be
+// prefetched and reopened instantly; every calendar Server Action calls
+// revalidatePath, which clears that client cache for the member who changed
+// something. Google feeds are refreshed by the page with
+// refreshStaleFeedsAfterResponse (after() cannot run in a cached scope).
 // Occupation comes from Google calendars, the member's calendar entries and
 // their hand slot edits (which win, see occupation.ts); the legacy
 // availability_template/availability_override tables are no longer read.
@@ -93,17 +100,19 @@ async function getWeekNotes(dates: string[], email?: string): Promise<Availabili
 // and their hand edits (which replace both in the edited slots), plus their
 // notes and entries.
 export async function getMyWeek(email: string, monday: string): Promise<MyWeek> {
+  "use cache: private";
+  cacheLife("minutes");
   const dates = weekDates(monday);
   const { from, to } = weekBounds(monday);
-  const [blocks, notes, manual, allEntries] = await Promise.all([
-    getBusyBlocks(email, from, to).catch(() => []),
+  const [busyByMember, notes, manual, allEntries] = await Promise.all([
+    listBusyBlocks(from, to, email).catch(() => new Map<string, BusyBlockRow[]>()),
     getWeekNotes(dates, email),
     getWeekManual(dates, email),
     listCalendarEntries(from, to),
   ]);
   const entries = allEntries.filter((entry) => entry.is_own);
   const data = {
-    busy: busyBlocksToRanges(blocks),
+    busy: busyBlocksToRanges(busyByMember.get(email.toLowerCase()) ?? []),
     manual: manual.get(email) ?? [],
     entries: entryRanges(entries),
   };
@@ -120,14 +129,19 @@ export async function getMyWeek(email: string, monday: string): Promise<MyWeek> 
 // `monday`, plus every member's notes, calendar entries and merged Google busy
 // time for that week.
 export async function getTeamWeek(monday: string): Promise<TeamWeek> {
+  "use cache: private";
+  cacheLife("minutes");
   const dates = weekDates(monday);
   const supabase = await createClient();
   const { from, to } = weekBounds(monday);
-  const [membersResult, allNotes, manual, allEntries] = await Promise.all([
+  // One round trip: every member's busy blocks come in a single read, in
+  // parallel with the members list.
+  const [membersResult, allNotes, manual, allEntries, busyByEmail] = await Promise.all([
     supabase.from("members").select("email, name, color").order("name"),
     getWeekNotes(dates),
     getWeekManual(dates),
     listCalendarEntries(from, to),
+    listBusyBlocks(from, to).catch(() => new Map<string, BusyBlockRow[]>()),
   ]);
   if (membersResult.error) {
     throw new Error("No se pudo cargar la disponibilidad del equipo.");
@@ -137,15 +151,11 @@ export async function getTeamWeek(monday: string): Promise<TeamWeek> {
   const notes = hideCommonAccount(allNotes, (note) => note.member_email);
   const entries = hideCommonAccount(allEntries, (entry) => entry.member_email);
 
-  const busyByMember = await Promise.all(
-    members.data.map((m) => getBusyBlocks(m.email, from, to).catch(() => [])),
-  );
-
   const occupation: OccupationByMember = {};
   const online: OnlineByMember = {};
   const google: TeamWeek["google"] = {};
-  members.data.forEach((member, i) => {
-    const busy = busyBlocksToRanges(busyByMember[i]);
+  members.data.forEach((member) => {
+    const busy = busyBlocksToRanges(busyByEmail.get(member.email.toLowerCase()) ?? []);
     const data = {
       busy,
       manual: manual.get(member.email) ?? [],
