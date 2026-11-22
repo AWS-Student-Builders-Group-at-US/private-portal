@@ -1,12 +1,14 @@
 "use client";
 
+import { EmptyState } from "@/components/empty-state";
+import { ShowMore } from "@/components/show-more";
 import { useCallback, useState } from "react";
 import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createCalendarEntry } from "../actions";
 import type { CalendarEntry } from "../types";
 import { EntryForm } from "./entry-form";
-import { EntryRow } from "./my-entries";
+import { ENTRIES_SHOWN, EntryRow } from "./my-entries";
 
 // "Reuniones del grupo" on the "Equipo" tab: "Programar reunión" saves a
 // calendar entry marked as a group meeting (it goes to the shared iCal feed),
@@ -46,12 +48,12 @@ export function GroupMeetings({
         />
       )}
       {meetings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <EmptyState>
           No hay reuniones del grupo esta semana. Con «Programar reunión» creas una que verá todo
           el equipo, aquí y en el calendario compartido.
-        </p>
+        </EmptyState>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ShowMore limit={ENTRIES_SHOWN} noun="reuniones" className="divide-y rounded-lg border">
           {meetings.map((meeting) => (
             <EntryRow
               key={meeting.id}
@@ -64,7 +66,7 @@ export function GroupMeetings({
               meetingOnly
             />
           ))}
-        </ul>
+        </ShowMore>
       )}
     </section>
   );

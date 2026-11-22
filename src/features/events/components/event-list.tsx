@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { ShowMore } from "@/components/show-more";
 import { formatMadridDateTimeShort } from "../time";
 import type { EventSummary } from "../types";
 
@@ -7,18 +9,30 @@ export function EventList({
   title,
   events,
   emptyText,
+  limit,
 }: {
   title: string;
   events: EventSummary[];
   emptyText: string;
+  // Shows only the first `limit` events with a "Ver más" toggle.
+  limit?: number;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <h2 className="text-lg font-semibold">
+        {title}
+        {events.length > 0 && (
+          <span className="ml-2 text-sm font-normal text-muted-foreground">{events.length}</span>
+        )}
+      </h2>
       {events.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
+        <EmptyState>{emptyText}</EmptyState>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ShowMore
+          limit={limit ?? events.length}
+          noun="eventos"
+          className="divide-y rounded-lg border"
+        >
           {events.map((event) => (
             <li key={event.id}>
               <Link
@@ -43,7 +57,7 @@ export function EventList({
               </Link>
             </li>
           ))}
-        </ul>
+        </ShowMore>
       )}
     </section>
   );

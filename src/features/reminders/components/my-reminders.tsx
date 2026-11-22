@@ -2,6 +2,8 @@
 
 import { useActionState, useCallback, useEffect, useId, useState, useTransition } from "react";
 import { BellPlus, MailCheck, Pencil, Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { ShowMore } from "@/components/show-more";
 import { Button } from "@/components/ui/button";
 import { formatDay } from "@/features/availability/dates";
 import { createReminder, deleteReminder, updateReminder } from "../actions";
@@ -10,6 +12,9 @@ import type { Reminder, ReminderFormState } from "../types";
 
 const fieldClass =
   "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive [color-scheme:light] dark:[color-scheme:dark]";
+
+// Reminders listed before "Ver más" (the panel home stays short).
+const REMINDERS_SHOWN = 4;
 
 type ReminderAction = (
   prev: ReminderFormState,
@@ -46,15 +51,15 @@ export function MyReminders({ reminders, today }: { reminders: Reminder[]; today
         />
       )}
       {reminders.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <EmptyState>
           No tienes recordatorios. Te enviamos un correo el día que elijas; solo tú los ves.
-        </p>
+        </EmptyState>
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ShowMore limit={REMINDERS_SHOWN} noun="recordatorios" className="divide-y rounded-lg border">
           {reminders.map((reminder) => (
             <ReminderRow key={reminder.id} reminder={reminder} today={today} />
           ))}
-        </ul>
+        </ShowMore>
       )}
     </section>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic, useState, useTransition } from "react";
+import { useId, useOptimistic, useState, useTransition } from "react";
 import { Popover } from "@base-ui/react/popover";
 import {
   ArrowDown,
@@ -13,6 +13,7 @@ import {
   Maximize2,
   Pencil,
 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/features/events/types";
 import { updateTaskAssignees, updateTaskField, type EditableTaskField } from "../actions";
@@ -78,6 +79,8 @@ export function TaskTable({
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
   const [, startTransition] = useTransition();
+  const [showDone, setShowDone] = useState(false);
+  const tableId = useId();
 
   // Applies the change at once and saves it; on failure the optimistic state
   // is dropped when the transition ends and the error is shown.
@@ -122,7 +125,10 @@ export function TaskTable({
     );
   }
 
-  const visible = sort ? sortTasksBy(rows, sort.key, sort.dir) : rows;
+  const sorted = sort ? sortTasksBy(rows, sort.key, sort.dir) : rows;
+  // Done tasks start collapsed so open work is what the table shows first.
+  const doneCount = sorted.filter((task) => task.status === "done").length;
+  const visible = showDone ? sorted : sorted.filter((task) => task.status !== "done");
 
   return (
     <div className="flex flex-col gap-3">
@@ -131,180 +137,203 @@ export function TaskTable({
           {error}
         </p>
       )}
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[60rem] text-sm">
-          <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-            <tr>
-              {COLUMNS.map((column) => {
-                const active = sort?.key === column.key;
-                const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    aria-sort={
-                      active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined
-                    }
-                    className="px-2 py-1.5 font-medium"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(column.key)}
-                      className={cn(
-                        "flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground",
-                        active && "text-foreground",
-                      )}
+      {visible.length === 0 ? (
+        <EmptyState>Todas estas tareas están hechas.</EmptyState>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <table id={tableId} className="w-full min-w-[60rem] text-sm">
+            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+              <tr>
+                {COLUMNS.map((column) => {
+                  const active = sort?.key === column.key;
+                  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      aria-sort={
+                        active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined
+                      }
+                      className="px-2 py-1.5 font-medium"
                     >
-                      {column.label}
-                      <Icon className={cn("size-3", !active && "opacity-40")} aria-hidden />
-                    </button>
-                  </th>
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(column.key)}
+                        className={cn(
+                          "flex items-center gap-1 rounded px-1 py-0.5 hover:text-foreground",
+                          active && "text-foreground",
+                        )}
+                      >
+                        {column.label}
+                        <Icon className={cn("size-3", !active && "opacity-40")} aria-hidden />
+                      </button>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {visible.map((task) => {
+                const overdue = isOverdue(task, today);
+                const done = task.status === "done";
+                return (
+                  <tr key={task.id} className={cn("align-top", STATUS_ROW_CLASS[task.status])}>
+                    <td className="w-60 max-w-60 px-2 py-1.5">
+                      <div className="flex items-start gap-1">
+                        <EditableText
+                          label={`Título de «${task.title}»`}
+                          value={task.title}
+                          required
+                          maxLength={200}
+                          onSave={(value) => saveField(task, "title", value)}
+                          className={cn("font-medium", done && "text-muted-foreground line-through")}
+                        />
+                        <Link
+                          href={`/panel/tareas/${task.id}`}
+                          aria-label={`Abrir «${task.title}»`}
+                          title="Abrir la tarea"
+                          className="mt-1 shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <Maximize2 className="size-3.5" />
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="w-44 max-w-44 px-2 py-1.5">
+                      <AssigneesCell
+                        task={task}
+                        members={members}
+                        onChange={(emails) => saveAssignees(task, emails)}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        aria-label={`Estado de «${task.title}»`}
+                        value={task.status}
+                        onChange={(e) => saveField(task, "status", e.target.value)}
+                        className={selectClass}
+                      >
+                        {TASK_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {TASK_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select
+                        aria-label={`Prioridad de «${task.title}»`}
+                        value={task.priority ?? ""}
+                        onChange={(e) => saveField(task, "priority", e.target.value)}
+                        className={cn(
+                          selectClass,
+                          "rounded-full",
+                          task.priority
+                            ? cn("border", PRIORITY_CLASS[task.priority])
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        <option value="">—</option>
+                        {TASK_PRIORITIES.map((priority) => (
+                          <option key={priority} value={priority}>
+                            {TASK_PRIORITY_LABELS[priority]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input
+                        type="date"
+                        aria-label={`Deadline de «${task.title}»`}
+                        value={task.due_date ?? ""}
+                        onChange={(e) => saveField(task, "due_date", e.target.value)}
+                        className={cn(
+                          selectClass,
+                          "text-sm [color-scheme:light] dark:[color-scheme:dark]",
+                          !task.due_date && "text-muted-foreground",
+                          overdue && "font-medium text-destructive",
+                        )}
+                      />
+                      {overdue && (
+                        <span className="block px-1.5 text-xs text-destructive">Vencida</span>
+                      )}
+                      <label
+                        title="Cada responsable recibe un correo el día antes de la fecha límite"
+                        className={cn(
+                          "mt-0.5 flex cursor-pointer items-center gap-1 px-1.5 text-xs",
+                          task.email_reminder ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={task.email_reminder}
+                          onChange={(e) => saveReminder(task, e.target.checked)}
+                          aria-label={`Recordarme por correo «${task.title}»`}
+                          className="size-3"
+                        />
+                        <Bell className="size-3" aria-hidden />
+                        Avisar
+                      </label>
+                    </td>
+                    <td className="w-72 max-w-72 px-2 py-1.5">
+                      <EditableLongText
+                        label={`Descripción de «${task.title}»`}
+                        value={task.description ?? ""}
+                        maxLength={5000}
+                        onSave={(value) => saveField(task, "description", value)}
+                        className="text-muted-foreground"
+                      />
+                    </td>
+                    <td className="w-40 max-w-40 px-2 py-1.5">
+                      <EditableText
+                        label={`Enlace de «${task.title}»`}
+                        value={task.link_url ?? ""}
+                        type="url"
+                        maxLength={TASK_LINK_MAX}
+                        placeholder="—"
+                        onSave={(value) => saveField(task, "link_url", value)}
+                        display={
+                          task.link_url ? (
+                            <a
+                              href={task.link_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={task.link_url}
+                              className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                            >
+                              Abrir
+                              <ExternalLink className="size-3.5" aria-hidden />
+                            </a>
+                          ) : undefined
+                        }
+                        editIcon={<Pencil className="size-3" />}
+                      />
+                    </td>
+                  </tr>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {visible.map((task) => {
-              const overdue = isOverdue(task, today);
-              const done = task.status === "done";
-              return (
-                <tr key={task.id} className={cn("align-top", STATUS_ROW_CLASS[task.status])}>
-                  <td className="w-60 max-w-60 px-2 py-1.5">
-                    <div className="flex items-start gap-1">
-                      <EditableText
-                        label={`Título de «${task.title}»`}
-                        value={task.title}
-                        required
-                        maxLength={200}
-                        onSave={(value) => saveField(task, "title", value)}
-                        className={cn("font-medium", done && "text-muted-foreground line-through")}
-                      />
-                      <Link
-                        href={`/panel/tareas/${task.id}`}
-                        aria-label={`Abrir «${task.title}»`}
-                        title="Abrir la tarea"
-                        className="mt-1 shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground"
-                      >
-                        <Maximize2 className="size-3.5" />
-                      </Link>
-                    </div>
-                  </td>
-                  <td className="w-44 max-w-44 px-2 py-1.5">
-                    <AssigneesCell
-                      task={task}
-                      members={members}
-                      onChange={(emails) => saveAssignees(task, emails)}
-                    />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select
-                      aria-label={`Estado de «${task.title}»`}
-                      value={task.status}
-                      onChange={(e) => saveField(task, "status", e.target.value)}
-                      className={selectClass}
-                    >
-                      {TASK_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {TASK_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select
-                      aria-label={`Prioridad de «${task.title}»`}
-                      value={task.priority ?? ""}
-                      onChange={(e) => saveField(task, "priority", e.target.value)}
-                      className={cn(
-                        selectClass,
-                        "rounded-full",
-                        task.priority
-                          ? cn("border", PRIORITY_CLASS[task.priority])
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      <option value="">—</option>
-                      {TASK_PRIORITIES.map((priority) => (
-                        <option key={priority} value={priority}>
-                          {TASK_PRIORITY_LABELS[priority]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      type="date"
-                      aria-label={`Deadline de «${task.title}»`}
-                      value={task.due_date ?? ""}
-                      onChange={(e) => saveField(task, "due_date", e.target.value)}
-                      className={cn(
-                        selectClass,
-                        "text-sm [color-scheme:light] dark:[color-scheme:dark]",
-                        !task.due_date && "text-muted-foreground",
-                        overdue && "font-medium text-destructive",
-                      )}
-                    />
-                    {overdue && (
-                      <span className="block px-1.5 text-xs text-destructive">Vencida</span>
-                    )}
-                    <label
-                      title="Cada responsable recibe un correo el día antes de la fecha límite"
-                      className={cn(
-                        "mt-0.5 flex cursor-pointer items-center gap-1 px-1.5 text-xs",
-                        task.email_reminder ? "text-foreground" : "text-muted-foreground",
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={task.email_reminder}
-                        onChange={(e) => saveReminder(task, e.target.checked)}
-                        aria-label={`Recordarme por correo «${task.title}»`}
-                        className="size-3"
-                      />
-                      <Bell className="size-3" aria-hidden />
-                      Avisar
-                    </label>
-                  </td>
-                  <td className="w-72 max-w-72 px-2 py-1.5">
-                    <EditableLongText
-                      label={`Descripción de «${task.title}»`}
-                      value={task.description ?? ""}
-                      maxLength={5000}
-                      onSave={(value) => saveField(task, "description", value)}
-                      className="text-muted-foreground"
-                    />
-                  </td>
-                  <td className="w-40 max-w-40 px-2 py-1.5">
-                    <EditableText
-                      label={`Enlace de «${task.title}»`}
-                      value={task.link_url ?? ""}
-                      type="url"
-                      maxLength={TASK_LINK_MAX}
-                      placeholder="—"
-                      onSave={(value) => saveField(task, "link_url", value)}
-                      display={
-                        task.link_url ? (
-                          <a
-                            href={task.link_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={task.link_url}
-                            className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
-                          >
-                            Abrir
-                            <ExternalLink className="size-3.5" aria-hidden />
-                          </a>
-                        ) : undefined
-                      }
-                      editIcon={<Pencil className="size-3" />}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {doneCount > 0 && (
+        <button
+          type="button"
+          aria-expanded={showDone}
+          aria-controls={tableId}
+          onClick={() => setShowDone((open) => !open)}
+          className="inline-flex w-fit items-center gap-1 rounded-md px-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <ChevronDown
+            aria-hidden
+            className={cn("size-4 transition-transform", showDone && "rotate-180")}
+          />
+          {showDone
+            ? "Ocultar tareas hechas"
+            : doneCount === 1
+              ? "Mostrar 1 tarea hecha"
+              : `Mostrar ${doneCount} tareas hechas`}
+        </button>
+      )}
     </div>
   );
 }

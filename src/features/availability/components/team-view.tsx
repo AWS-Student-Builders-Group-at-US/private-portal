@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { CalendarDays, Grid3x3, Laptop, Users } from "lucide-react";
 import { dayAgenda, memberColor } from "@/features/calendar-entries/agenda";
 import { TeamWeekCalendar } from "@/features/calendar-entries/components/team-week-calendar";
+import { EmptyState } from "@/components/empty-state";
+import { HelpDetails } from "@/components/help-details";
 import { cn } from "@/lib/utils";
 import { formatDay } from "../dates";
 import {
@@ -18,6 +20,7 @@ import { notesForCell } from "../notes";
 import { SLOTS_PER_DAY, minutesToTime, slotStart } from "../slots";
 import type { TeamWeek } from "../types";
 import { NoteList } from "./note-list";
+import { CommonFreeSlots, WeekAgenda } from "./team-agenda";
 
 const SLOTS = Array.from({ length: SLOTS_PER_DAY }, (_, i) => i);
 
@@ -190,77 +193,20 @@ export function TeamView({ week, today }: { week: TeamWeek; today: string }) {
         <section className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">Agenda de la semana</h2>
           <p className="text-sm text-muted-foreground">
-            Lo que tienen las personas seleccionadas cada día. Las entradas muestran su título si
-            su autor lo comparte; el resto, y lo que viene de Google, aparece como «Ocupado».
+            Quién tiene algo y cuándo. Debajo va el título si su autor lo comparte.
           </p>
-          {agenda.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Las personas seleccionadas no tienen nada apuntado esta semana.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {agenda.map((day) => (
-                <div key={day.date} className="flex flex-col gap-1">
-                  <h3 className="text-sm font-medium">{formatDay(day.date)}</h3>
-                  <ul className="divide-y rounded-lg border">
-                    {day.items.map((item) => (
-                      <li
-                        key={item.key}
-                        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-2 text-sm"
-                      >
-                        <span
-                          aria-hidden
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-muted-foreground tabular-nums">
-                          {item.start}–{item.end}
-                        </span>
-                        <span
-                          className={cn(
-                            "min-w-0 break-words",
-                            item.kind === "google" && "text-muted-foreground",
-                          )}
-                        >
-                          {item.label}
-                          {item.kind === "google" && (
-                            <span className="sr-only"> (calendario de Google)</span>
-                          )}
-                        </span>
-                        {item.groupMeeting && (
-                          <span className="inline-flex items-center gap-1 rounded-full border px-2 text-xs text-muted-foreground">
-                            <Users aria-hidden className="size-3" />
-                            Reunión del grupo
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
+          <WeekAgenda days={agenda} today={today} />
         </section>
       )}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Huecos en los que estáis todos</h2>
         {total === 0 ? (
-          <p className="text-sm text-muted-foreground">Selecciona al menos una persona.</p>
+          <EmptyState>Selecciona al menos una persona.</EmptyState>
         ) : common.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Esta semana no hay ninguna franja en la que estéis todos libres.
-          </p>
+          <EmptyState>Esta semana no hay ninguna franja en la que estéis todos libres.</EmptyState>
         ) : (
-          <ul className="divide-y rounded-lg border">
-            {common.map((range) => (
-              <li key={`${range.date}-${range.start}`} className="px-4 py-2 text-sm">
-                <span className="font-medium">{formatDay(range.date)}</span> ·{" "}
-                {range.start}–{range.end}
-              </li>
-            ))}
-          </ul>
+          <CommonFreeSlots ranges={common} />
         )}
       </section>
     </div>
@@ -330,14 +276,14 @@ function Legend({ total }: { total: number }) {
           <span key={i}>{formatOccupation(step)}</span>
         ))}
       </div>
-      <p>
+      <HelpDetails summary="¿Cómo se lee el mapa?">
         Cada franja cuenta cuántas de las personas seleccionadas están disponibles: 1 si está
         libre, 0,5 si tiene algo que podría mover, 0 si no puede. {formatOccupation(total)}{" "}
         (verde) = todos libres; 0 (rojo) = nadie libre. Junto al portátil{" "}
         <Laptop aria-label="(portátil)" className="inline size-3 align-[-2px]" />, cuántas de
         esas personas disponibles solo pueden online. Un punto en la franja indica que alguien
         dejó una nota.
-      </p>
+      </HelpDetails>
     </div>
   );
 }

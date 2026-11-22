@@ -53,8 +53,17 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
       reunión" for group meetings, the shared iCal link at the bottom of Equipo, and
       update-safe feed fields (CREATED, LAST-MODIFIED, SEQUENCE, hourly refresh hints).
 
-- [ ] T8 Performance (branch `perf/panel-cache`): instant panel shell, per-session private
-      caches, prefetch of cached sections, batched busy-block reads. Pending: runtime check.
+- [x] T8 Performance (branch `perf/panel-cache`, PR #60): instant panel shell, per-session
+      private caches, prefetch of cached sections, batched busy-block reads.
+- [x] T9 UX/UI of the panel lists (branch `ux/panel-listas`, side session; no data-fetching,
+      query, `loading.tsx` or Suspense changes): group, condense and give a clear hierarchy to
+      the long flat lists found in the audit below; mobile 375 px and desktop `max-w-6xl`.
+  - [x] T9a Shared `ShowMore` ("Ver N más", `aria-expanded`) and `EmptyState` primitives.
+  - [x] T9b Panel home: two-column dashboard on desktop, bounded reminders.
+  - [x] T9c Calendar Equipo: agenda as day cards, free slots grouped per day, bounded notes,
+        collapsible legend help; bounded "Tus entradas".
+  - [x] T9d Events (bounded past events), posts list grouped by month, tasks with "Hecho"
+        collapsed, event attendees bounded.
 
 ## Delivery strategy
 
@@ -212,6 +221,42 @@ on `feat/quick-wins-portal`; the mail client layout lives on `feat/correo-ui-loc
   horizontal scroll). Not verified: the real `/panel/calendario?vista=equipo` page with live
   data (needs Google sign-in), saving a meeting against Supabase, and how each calendar app
   treats the refresh hints (Google ignores them and refreshes on its own schedule).
+
+- T9 audit (2026-11-22, code read of every `src/app/panel/**` page; route: direct inline in a
+  side session, the user prefers sessions over subagents). Long flat lists found:
+  | Page | Where | Problem | Change |
+  | --- | --- | --- | --- |
+  | Home | whole page | six stacked full-width sections, long scroll | 2-column grid on `lg` |
+  | Home | Mis recordatorios | every reminder, unbounded | first 4 + "Ver más" |
+  | Calendario · Equipo | Agenda de la semana | one row per item per person per day (Google busy blocks of 5 people: easily 40+ rows) | day cards in a grid, first 4 per day + "Ver más" |
+  | Calendario · Equipo | Huecos en los que estáis todos | one row per free range (dozens) | one row per day with time chips |
+  | Calendario · Equipo | Notas del equipo | unbounded | first 4 + "Ver más" |
+  | Calendario · Equipo | legend | long paragraph always open | collapsible «¿Cómo se lee?» |
+  | Calendario · Mi disponibilidad | Tus entradas | unbounded | first 5 + "Ver más" |
+  | Eventos | Pasados | grows forever | first 5 + "Ver más" |
+  | Eventos · detalle | Asistentes | 100+ rows per event | first 10 + "Ver más" |
+  | Publicaciones | list view | one flat list of every post | grouped by month (newest first), «Sin fecha» last |
+  | Tareas | table | done tasks mixed with open ones | "Hecho" rows collapsed behind a toggle |
+  Fine as they are: Recursos (already grouped by category), Sugerencias (status tabs), Correo
+  (paged mail client), Bóveda (cards behind the vault password), Ajustes (five members),
+  Formularios (few). Not touched on purpose: the help paragraph of «Tu semana» lives in
+  `src/app/panel/calendario/page.tsx`, which the performance session and the unmerged
+  `fix/calendario-equipo-bloques` branch both edit; `team-week-calendar.tsx` likewise.
+
+- T9 changes and evidence: commits `abdee62` (ShowMore with `aria-expanded`/`aria-controls`,
+  EmptyState, HelpDetails on native `<details>`, `groupBy` with tests: RED module missing, GREEN
+  3 tests), `8d4092e` (home 2-column grid on `lg`, reminders first 4), `26b8f19` (Equipo agenda
+  as day cards with "Hoy" and who/when first, title only when shared; free slots one row per day
+  with chips; notes, own entries and group meetings bounded; legend help collapsible),
+  `22469ba` (past events first 5, attendees first 10), `5b96d20` (posts grouped by month in the
+  existing order, past months collapsed, undated last), `cc3ecbf` (done tasks collapsed behind
+  "Mostrar N tareas hechas"). Checks per commit: eslint clean on changed paths, `tsc --noEmit`
+  clean (after `next typegen`), `npm test` 548 passed. Visual check on a temporary unauthenticated
+  route with sample data (removed, never committed): desktop dark and 375 px light, no
+  page-level horizontal scroll, toggles flip `aria-expanded` and item counts (4→5, 8→10 rows);
+  public `/` renders at 375 px without horizontal scroll. Not verified: the real panel pages with
+  live data (Google sign-in), the posts month grouping on screen (reasoned from code), and the
+  final `next build` (pending: usage limit reached).
 
 ## Next step
 
