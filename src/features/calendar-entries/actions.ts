@@ -9,9 +9,19 @@ import { entryFormSchema } from "./schema";
 import type { EntryFormState } from "./types";
 
 // Every action runs with the user's session; RLS only lets members write
-// their own calendar entries.
+// their own calendar entries, and meeting organizers manage group meetings.
 
 const CALENDAR_PATH = "/panel/calendario";
+const NOT_ORGANIZER =
+  "Solo la cuenta común y las personas autorizadas en Ajustes pueden programar reuniones del grupo.";
+
+// The trigger on calendar_entries raises 'not_meeting_organizer' (42501).
+function saveError(error: { code?: string; message?: string }) {
+  if (error.code === "42501" || error.message?.includes("not_meeting_organizer")) {
+    return { message: NOT_ORGANIZER };
+  }
+  return { message: "No se pudo guardar la entrada. Inténtalo de nuevo." };
+}
 
 function formValues(formData: FormData) {
   const values: Record<string, string> = {};
@@ -43,7 +53,7 @@ export async function createCalendarEntry(
   const { error } = await supabase
     .from("calendar_entries")
     .insert({ ...parsed.data, member_email: email });
-  if (error) return { message: "No se pudo guardar la entrada. Inténtalo de nuevo." };
+  if (error) return saveError(error);
   revalidatePath(CALENDAR_PATH);
   return { ok: true };
 }
@@ -62,9 +72,8 @@ export async function updateCalendarEntry(
     .update(parsed.data)
     .eq("id", id)
     .select("id");
-  if (error || !data?.length) {
-    return { message: "No se pudo guardar la entrada. Inténtalo de nuevo." };
-  }
+  if (error) return saveError(error);
+  if (!data?.length) return { message: "No se pudo guardar la entrada. Inténtalo de nuevo." };
   revalidatePath(CALENDAR_PATH);
   return { ok: true };
 }

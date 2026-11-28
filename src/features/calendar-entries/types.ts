@@ -13,6 +13,8 @@ export type CalendarEntry = {
   ends_at: string;
   visibility: EntryVisibility;
   is_group_meeting: boolean;
+  // Video call link of a group meeting (null when none or hidden).
+  meeting_url: string | null;
   // The signed-in member owns the entry.
   is_own: boolean;
 };

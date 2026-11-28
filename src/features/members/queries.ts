@@ -8,10 +8,19 @@ import type { MemberRow } from "./types";
 // `total` still counts the common account (for the "last member" guard).
 export async function listMembers(): Promise<{ members: MemberRow[]; total: number }> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const columns = "email, name, area, created_at";
+  const withFlag = await supabase
     .from("members")
-    .select("email, name, area, created_at")
+    .select(`${columns}, can_schedule_meetings`)
     .order("name");
-  if (error) throw new Error("No se pudieron cargar los miembros.");
-  return { members: hideCommonAccount(data), total: data.length };
+  let rows: MemberRow[];
+  if (!withFlag.error) {
+    rows = withFlag.data.map((m) => ({ ...m, can_schedule_meetings: m.can_schedule_meetings === true }));
+  } else {
+    // Before the meeting_organizers migration the column does not exist yet.
+    const { data, error } = await supabase.from("members").select(columns).order("name");
+    if (error) throw new Error("No se pudieron cargar los miembros.");
+    rows = data.map((m) => ({ ...m, can_schedule_meetings: false }));
+  }
+  return { members: hideCommonAccount(rows), total: rows.length };
 }

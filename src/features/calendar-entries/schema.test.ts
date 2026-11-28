@@ -29,6 +29,24 @@ describe("entryFormSchema", () => {
     expect(parsed.visibility).toBe("details");
   });
 
+  it("keeps the meeting link of group meetings only", () => {
+    const url = "https://meet.example.com/abc-defg-hij";
+    const meeting = entryFormSchema.parse({ ...base, is_group_meeting: "on", meeting_url: ` ${url} ` });
+    expect(meeting.meeting_url).toBe(url);
+    const empty = entryFormSchema.parse({ ...base, is_group_meeting: "on", meeting_url: "" });
+    expect(empty.meeting_url).toBeNull();
+    const personal = entryFormSchema.parse({ ...base, meeting_url: url });
+    expect("meeting_url" in personal).toBe(false);
+  });
+
+  it("rejects meeting links that are not http(s)", () => {
+    for (const meeting_url of ["javascript:alert(1)", "meet.example.com/abc", "ftp://x.y"]) {
+      expect(
+        entryFormSchema.safeParse({ ...base, is_group_meeting: "on", meeting_url }).success,
+      ).toBe(false);
+    }
+  });
+
   it("keeps busy-only visibility and notes", () => {
     const parsed = entryFormSchema.parse({ ...base, visibility: "busy", notes: " Privado " });
     expect(parsed.visibility).toBe("busy");

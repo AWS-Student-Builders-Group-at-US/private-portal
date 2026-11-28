@@ -4,6 +4,7 @@ import { madridLocalToUtcIso } from "@/features/events/time";
 
 export const ENTRY_TITLE_MAX = 120;
 export const ENTRY_NOTES_MAX = 2000;
+export const ENTRY_MEETING_URL_MAX = 500;
 export const ENTRY_VISIBILITIES = ["details", "busy"] as const;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -31,6 +32,16 @@ export const entryFormSchema = z
       .trim()
       .max(ENTRY_NOTES_MAX, `Las notas admiten como máximo ${ENTRY_NOTES_MAX} caracteres.`)
       .optional(),
+    // Video call link (group meetings only; ignored otherwise).
+    meeting_url: z
+      .string()
+      .trim()
+      .max(ENTRY_MEETING_URL_MAX, `El enlace admite como máximo ${ENTRY_MEETING_URL_MAX} caracteres.`)
+      .refine(
+        (url) => url === "" || z.url({ protocol: /^https?$/ }).safeParse(url).success,
+        "Escribe un enlace que empiece por https://.",
+      )
+      .optional(),
     visibility: z.enum(ENTRY_VISIBILITIES, "Elige qué ven los demás."),
     // Checkbox: present ("on") when checked.
     is_group_meeting: z.string().optional(),
@@ -48,6 +59,9 @@ export const entryFormSchema = z
       ends_at: madridLocalToUtcIso(`${entry.date}T${entry.end_time}`),
       visibility: groupMeeting ? ("details" as const) : entry.visibility,
       is_group_meeting: groupMeeting,
+      // Only sent for group meetings, so personal entries keep saving even
+      // where the meeting_url column does not exist yet.
+      ...(groupMeeting ? { meeting_url: entry.meeting_url ? entry.meeting_url : null } : {}),
     };
   });
 

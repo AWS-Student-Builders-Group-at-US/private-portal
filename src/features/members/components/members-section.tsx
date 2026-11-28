@@ -33,6 +33,10 @@ export async function MembersSection({
           Solo las cuentas de Google de esta lista pueden iniciar sesión en el panel. Al quitar
           una cuenta, esa persona pierde el acceso de inmediato.
         </p>
+        <p className="text-sm text-muted-foreground">
+          Las reuniones del grupo solo las programa la cuenta común y las personas marcadas con
+          «Puede programar reuniones del grupo».
+        </p>
         {!canManage && (
           <p className="text-sm text-muted-foreground">
             Solo la cuenta común del grupo puede gestionar miembros.

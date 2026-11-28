@@ -12,15 +12,21 @@ import { ENTRIES_SHOWN, EntryRow } from "./my-entries";
 
 // "Reuniones del grupo" on the "Equipo" tab: "Programar reunión" saves a
 // calendar entry marked as a group meeting (it goes to the shared iCal feed),
-// and the week's meetings are listed; their authors can edit or delete them.
+// and the week's meetings are listed. Only meeting organizers (the common
+// account and the members it authorizes in Ajustes) see the button and can
+// edit or delete meetings; the database enforces it.
 export function GroupMeetings({
   meetings,
   authors,
   defaultDate,
+  canSchedule,
+  defaultMeetingUrl,
 }: {
   meetings: CalendarEntry[];
   authors: Record<string, string>;
   defaultDate: string;
+  canSchedule: boolean;
+  defaultMeetingUrl: string | null;
 }) {
   const [adding, setAdding] = useState(false);
   const close = useCallback(() => setAdding(false), []);
@@ -29,7 +35,7 @@ export function GroupMeetings({
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Reuniones del grupo</h2>
-        {!adding && (
+        {canSchedule && !adding && (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
             <CalendarPlus data-icon="inline-start" />
             Programar reunión
@@ -43,14 +49,17 @@ export function GroupMeetings({
           title="Nueva reunión del grupo"
           submitLabel="Programar reunión"
           meetingOnly
+          canSchedule
+          defaultMeetingUrl={defaultMeetingUrl}
           onDone={close}
           onCancel={close}
         />
       )}
       {meetings.length === 0 ? (
         <EmptyState>
-          No hay reuniones del grupo esta semana. Con «Programar reunión» creas una que verá todo
-          el equipo, aquí y en el calendario compartido.
+          {canSchedule
+            ? "No hay reuniones del grupo esta semana. Con «Programar reunión» creas una que verá todo el equipo, aquí y en el calendario compartido."
+            : "No hay reuniones del grupo esta semana."}
         </EmptyState>
       ) : (
         <ShowMore limit={ENTRIES_SHOWN} noun="reuniones" className="divide-y rounded-lg border">
@@ -64,6 +73,7 @@ export function GroupMeetings({
                   : (authors[meeting.member_email] ?? "Alguien del equipo")
               }
               meetingOnly
+              canSchedule={canSchedule}
             />
           ))}
         </ShowMore>
