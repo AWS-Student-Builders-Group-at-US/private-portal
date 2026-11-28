@@ -3,7 +3,7 @@
 import { EmptyState } from "@/components/empty-state";
 import { ShowMore } from "@/components/show-more";
 import { useCallback, useState, useTransition } from "react";
-import { CalendarPlus, Pencil, Trash2, Users } from "lucide-react";
+import { CalendarPlus, ExternalLink, Pencil, Trash2, Users, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDay } from "@/features/availability/dates";
 import { utcIsoToMadridLocal } from "@/features/events/time";
@@ -20,9 +20,11 @@ import { EntryForm } from "./entry-form";
 export function MyEntries({
   entries,
   defaultDate,
+  canSchedule = false,
 }: {
   entries: CalendarEntry[];
   defaultDate: string;
+  canSchedule?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const close = useCallback(() => setAdding(false), []);
@@ -44,6 +46,7 @@ export function MyEntries({
           defaultDate={defaultDate}
           title="Nueva entrada en tu calendario"
           submitLabel="Guardar entrada"
+          canSchedule={canSchedule}
           onDone={close}
           onCancel={close}
         />
@@ -56,7 +59,7 @@ export function MyEntries({
       ) : (
         <ShowMore limit={ENTRIES_SHOWN} noun="entradas" className="divide-y rounded-lg border">
           {entries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} />
+            <EntryRow key={entry.id} entry={entry} canSchedule={canSchedule} />
           ))}
         </ShowMore>
       )}
@@ -73,21 +76,26 @@ export function formatEntryRange(entry: { starts_at: string; ends_at: string }) 
   return `${formatDay(start.slice(0, 10))} · ${start.slice(11, 16)}–${end.slice(11, 16)}`;
 }
 
-// One entry with edit and delete when it is the member's own. `author` names
-// the owner of someone else's entry; `meetingOnly` edits it as a group meeting.
+// One entry with edit and delete when it is the member's own, or when it is
+// a group meeting and the member is a meeting organizer (`canSchedule`).
+// `author` names the owner of someone else's entry; `meetingOnly` edits it as
+// a group meeting.
 export function EntryRow({
   entry,
   author,
   meetingOnly = false,
+  canSchedule = false,
 }: {
   entry: CalendarEntry;
   author?: string;
   meetingOnly?: boolean;
+  canSchedule?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const close = useCallback(() => setEditing(false), []);
+  const canEdit = entry.is_own || (entry.is_group_meeting && canSchedule);
 
   if (editing) {
     return (
@@ -99,6 +107,7 @@ export function EntryRow({
           title={meetingOnly ? "Editar reunión" : "Editar entrada"}
           submitLabel="Guardar cambios"
           meetingOnly={meetingOnly}
+          canSchedule={canSchedule}
           onDone={close}
           onCancel={close}
         />
@@ -134,6 +143,18 @@ export function EntryRow({
             "Los demás ven el título y las notas"
           )}
         </p>
+        {entry.is_group_meeting && entry.meeting_url && (
+          <a
+            href={entry.meeting_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-fit items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+          >
+            <Video aria-hidden className="size-3.5" />
+            Unirse a la reunión
+            <ExternalLink aria-hidden className="size-3" />
+          </a>
+        )}
         {entry.notes && (
           <p className="text-sm whitespace-pre-wrap break-words">{entry.notes}</p>
         )}
@@ -143,7 +164,7 @@ export function EntryRow({
           </p>
         )}
       </div>
-      {entry.is_own && (
+      {canEdit && (
         <div className="flex shrink-0 gap-1">
           <Button
             variant="ghost"

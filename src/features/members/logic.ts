@@ -26,6 +26,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   not_member: "No tienes acceso a esta acción.",
   not_common_account: "Solo la cuenta común del grupo puede gestionar miembros.",
   cannot_remove_common_account: "No se puede eliminar la cuenta común del grupo.",
+  invalid_value: "No se pudo completar la operación.",
 };
 
 const FALLBACK = "No se pudo completar la operación.";

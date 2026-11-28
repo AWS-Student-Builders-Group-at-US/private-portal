@@ -21,6 +21,8 @@ export type GroupMeeting = {
   id: string;
   title: string;
   notes: string | null;
+  // Video call link (http/https, checked by the database).
+  meeting_url?: string | null;
   starts_at: string;
   ends_at: string;
   created_at?: string | null;
@@ -150,7 +152,17 @@ export function buildTeamCalendar(
       `SUMMARY:${escapeText(meeting.title)}`,
       ...revisionLines(meeting),
     );
-    if (meeting.notes) lines.push(`DESCRIPTION:${escapeText(meeting.notes)}`);
+    const description = [
+      meeting.meeting_url && `Enlace de la reunión: ${meeting.meeting_url}`,
+      meeting.notes,
+    ].filter(Boolean);
+    if (description.length > 0) {
+      lines.push(`DESCRIPTION:${escapeText(description.join("\n\n"))}`);
+    }
+    if (meeting.meeting_url) {
+      lines.push(`LOCATION:${escapeText(meeting.meeting_url)}`);
+      lines.push(`URL:${meeting.meeting_url}`);
+    }
     lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");

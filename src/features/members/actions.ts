@@ -76,6 +76,28 @@ export async function updateMember(
   return { ok: true };
 }
 
+// Lets a member create and manage group meetings, or takes it away. Only the
+// common account can (public.set_meeting_organizer checks it).
+export async function setMeetingOrganizer(
+  email: string,
+  enabled: boolean,
+): Promise<ActionResult> {
+  const parsed = memberEmailSchema.safeParse(email);
+  if (!parsed.success || typeof enabled !== "boolean") {
+    return { ok: false, message: memberErrorMessage("member_not_found") };
+  }
+  await getCurrentMember();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_meeting_organizer", {
+    p_email: parsed.data,
+    p_enabled: enabled,
+  });
+  if (error) return { ok: false, message: memberErrorMessage(error.message) };
+  revalidatePath("/panel/ajustes");
+  revalidatePath("/panel/calendario");
+  return { ok: true };
+}
+
 export async function removeMember(email: string): Promise<ActionResult> {
   const parsed = memberEmailSchema.safeParse(email);
   if (!parsed.success) return { ok: false, message: memberErrorMessage("member_not_found") };

@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useId, useState, useTransition } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { CalendarCheck, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatMadridDateTimeShort } from "@/features/events/time";
-import { removeMember, updateMember } from "../actions";
+import { removeMember, setMeetingOrganizer, updateMember } from "../actions";
 import { canRemoveMember } from "../logic";
 import { memberAreaLabel } from "../schema";
 import type { MemberFormState, MemberRow } from "../types";
@@ -30,6 +30,8 @@ export function MemberItem({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removing, startRemove] = useTransition();
+  const [savingOrganizer, startOrganizer] = useTransition();
+  const [organizer, setOrganizer] = useState(member.can_schedule_meetings);
   const removal = canRemoveMember({ me, target: member.email, memberCount });
   const isMe = member.email === me;
 
@@ -40,6 +42,18 @@ export function MemberItem({
       if (!result.ok) {
         setError(result.message);
         setConfirming(false);
+      }
+    });
+  };
+
+  const toggleOrganizer = (enabled: boolean) => {
+    setError(null);
+    setOrganizer(enabled);
+    startOrganizer(async () => {
+      const result = await setMeetingOrganizer(member.email, enabled);
+      if (!result.ok) {
+        setOrganizer(!enabled);
+        setError(result.message);
       }
     });
   };
@@ -56,6 +70,25 @@ export function MemberItem({
           <p className="text-xs text-muted-foreground">
             {memberAreaLabel(member.area)} · Añadido el {formatMadridDateTimeShort(member.created_at)}
           </p>
+          {canManage ? (
+            <label className="mt-1 flex w-fit cursor-pointer items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={organizer}
+                disabled={savingOrganizer}
+                onChange={(e) => toggleOrganizer(e.currentTarget.checked)}
+                className="size-3.5"
+              />
+              Puede programar reuniones del grupo
+            </label>
+          ) : (
+            organizer && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <CalendarCheck aria-hidden className="size-3" />
+                Programa reuniones del grupo
+              </p>
+            )
+          )}
         </div>
         {canManage && !editing && (
           <div className="flex items-center gap-1">

@@ -6,6 +6,10 @@ import { refreshStaleFeedsAfterResponse } from "@/features/calendars/busy";
 import { getMyExportUrl, listMyFeeds } from "@/features/calendars/queries";
 import { MyWeekGrid } from "@/features/availability/components/my-week";
 import { MyEntries } from "@/features/calendar-entries/components/my-entries";
+import {
+  canScheduleMeetings,
+  getLastMeetingUrl,
+} from "@/features/calendar-entries/queries";
 import { GroupMeetings } from "@/features/calendar-entries/components/group-meetings";
 import { TeamView } from "@/features/availability/components/team-view";
 import { WeekNav } from "@/features/availability/components/week-nav";
@@ -80,7 +84,11 @@ async function MySection({
   today: string;
 }) {
   const member = await getCurrentMember();
-  const [week, feeds] = await Promise.all([getMyWeek(member.email, monday), listMyFeeds()]);
+  const [week, feeds, canSchedule] = await Promise.all([
+    getMyWeek(member.email, monday),
+    listMyFeeds(),
+    canScheduleMeetings(),
+  ]);
   refreshStaleFeedsAfterResponse([member.email]);
   return (
     <div className="flex flex-col gap-8">
@@ -107,6 +115,7 @@ async function MySection({
           key={`entries-${monday}`}
           entries={week.entries}
           defaultDate={week.dates.includes(today) ? today : monday}
+          canSchedule={canSchedule}
         />
       </section>
       <MyCalendars feeds={feeds} />
@@ -123,7 +132,12 @@ async function TeamSection({
   thisMonday: string;
   today: string;
 }) {
-  const [week, exportUrl] = await Promise.all([getTeamWeek(monday), getMyExportUrl()]);
+  const [week, exportUrl, canSchedule, lastMeetingUrl] = await Promise.all([
+    getTeamWeek(monday),
+    getMyExportUrl(),
+    canScheduleMeetings(),
+    getLastMeetingUrl(),
+  ]);
   refreshStaleFeedsAfterResponse(week.members.map((m) => m.email));
   const meetings = week.entries.filter((entry) => entry.is_group_meeting);
   const authors = Object.fromEntries(week.members.map((m) => [m.email, m.name]));
@@ -142,6 +156,8 @@ async function TeamSection({
         meetings={meetings}
         authors={authors}
         defaultDate={week.dates.includes(today) ? today : monday}
+        canSchedule={canSchedule}
+        defaultMeetingUrl={lastMeetingUrl}
       />
       <TeamView key={monday} week={week} today={today} />
       <SharedCalendarLink url={exportUrl} />

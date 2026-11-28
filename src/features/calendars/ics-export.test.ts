@@ -117,6 +117,14 @@ describe("group calendar", () => {
           starts_at: "2026-07-16T16:00:00Z",
           ends_at: "2026-07-16T17:00:00Z",
         },
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          title: "Reunión online",
+          notes: "Traed ideas",
+          meeting_url: "https://meet.example.com/abc-defg-hij",
+          starts_at: "2026-07-17T16:00:00Z",
+          ends_at: "2026-07-17T17:00:00Z",
+        },
       ],
     },
   );
@@ -128,7 +136,7 @@ describe("group calendar", () => {
   });
 
   it("includes group meetings next to the events, with their own UIDs", () => {
-    expect(lines.filter((line) => line === "BEGIN:VEVENT")).toHaveLength(2);
+    expect(lines.filter((line) => line === "BEGIN:VEVENT")).toHaveLength(3);
     expect(lines).toContain(
       "UID:entry-33333333-3333-4333-8333-333333333333@app.example.com",
     );
@@ -136,6 +144,15 @@ describe("group calendar", () => {
     expect(lines).toContain("DTSTART:20260716T160000Z");
     expect(lines).toContain("DTEND:20260716T170000Z");
     expect(lines).toContain("DESCRIPTION:Orden del día:\\nnoticias");
+  });
+
+  it("adds the meeting link as URL, location and in the description", () => {
+    const meeting = ics.split("BEGIN:VEVENT")[3].replace(/\r\n /g, "");
+    expect(meeting).toContain("URL:https://meet.example.com/abc-defg-hij");
+    expect(meeting).toContain("LOCATION:https://meet.example.com/abc-defg-hij");
+    expect(meeting).toContain(
+      "DESCRIPTION:Enlace de la reunión: https://meet.example.com/abc-defg-hij\\n\\nTraed ideas",
+    );
   });
 });
 

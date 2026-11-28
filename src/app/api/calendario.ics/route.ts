@@ -41,18 +41,23 @@ export async function GET(request: NextRequest) {
 
   // Only group meetings, and only the columns the feed shows (no owner).
   // A failed read (e.g. before the calendar_entries migration runs) keeps
-  // the feed working with the events alone.
-  const { data: meetings } = await admin
-    .from("calendar_entries")
-    .select("id, title, notes, starts_at, ends_at, created_at, updated_at")
-    .eq("is_group_meeting", true)
-    .gte("starts_at", since.toISOString())
-    .order("starts_at", { ascending: true });
+  // the feed working with the events alone; without the meeting_url column
+  // (before the meeting_organizers migration) it retries without the link.
+  const readMeetings = (columns: string) =>
+    admin
+      .from("calendar_entries")
+      .select(columns)
+      .eq("is_group_meeting", true)
+      .gte("starts_at", since.toISOString())
+      .order("starts_at", { ascending: true });
+  const columns = "id, title, notes, starts_at, ends_at, created_at, updated_at";
+  const withLink = await readMeetings(`${columns}, meeting_url`);
+  const meetings = withLink.error ? (await readMeetings(columns)).data : withLink.data;
 
   const body = buildTeamCalendar(events as ExportEvent[], {
     now,
     domain: request.nextUrl.hostname,
-    groupMeetings: (meetings ?? []) as GroupMeeting[],
+    groupMeetings: (meetings ?? []) as unknown as GroupMeeting[],
   });
   return new Response(body, {
     headers: {

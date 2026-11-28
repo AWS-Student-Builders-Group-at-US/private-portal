@@ -13,6 +13,7 @@ const entry = (overrides: Partial<CalendarEntry>): CalendarEntry => ({
   ends_at: "2026-11-16T10:00:00Z",
   visibility: "details",
   is_group_meeting: false,
+  meeting_url: null,
   is_own: false,
   ...overrides,
 });

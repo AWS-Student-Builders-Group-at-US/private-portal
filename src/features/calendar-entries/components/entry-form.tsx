@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { utcIsoToMadridLocal } from "@/features/events/time";
-import { ENTRY_NOTES_MAX, ENTRY_TITLE_MAX } from "../schema";
+import { ENTRY_MEETING_URL_MAX, ENTRY_NOTES_MAX, ENTRY_TITLE_MAX } from "../schema";
 import type { CalendarEntry, EntryFormState } from "../types";
 
 const fieldClass =
@@ -13,7 +13,9 @@ type EntryAction = (prev: EntryFormState, formData: FormData) => Promise<EntryFo
 
 // Form for a new calendar entry or to edit one of the member's own entries.
 // `meetingOnly` (the "Equipo" tab) always saves a group meeting, so it hides
-// the group-meeting checkbox and the visibility choice.
+// the group-meeting checkbox and the visibility choice, and asks for the video
+// call link (prefilled with `defaultMeetingUrl` on a new meeting). Without
+// `canSchedule`, the group-meeting checkbox is hidden from personal entries.
 export function EntryForm({
   action,
   entry,
@@ -21,6 +23,8 @@ export function EntryForm({
   title,
   submitLabel,
   meetingOnly = false,
+  canSchedule = false,
+  defaultMeetingUrl,
   onDone,
   onCancel,
 }: {
@@ -30,6 +34,8 @@ export function EntryForm({
   title: string;
   submitLabel: string;
   meetingOnly?: boolean;
+  canSchedule?: boolean;
+  defaultMeetingUrl?: string | null;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -43,6 +49,26 @@ export function EntryForm({
   useEffect(() => {
     if (state.ok) onDone();
   }, [state, onDone]);
+
+  const urlField = (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={`${id}-url`} className="text-sm font-medium">
+        Enlace de la reunión{" "}
+        <span className="font-normal text-muted-foreground">(opcional)</span>
+      </label>
+      <input
+        id={`${id}-url`}
+        name="meeting_url"
+        type="url"
+        maxLength={ENTRY_MEETING_URL_MAX}
+        defaultValue={entry ? (entry.meeting_url ?? "") : (defaultMeetingUrl ?? "")}
+        placeholder="https://meet.google.com/…"
+        aria-invalid={!!errors("meeting_url")}
+        className={fieldClass}
+      />
+      <FieldErrors errors={errors("meeting_url")} />
+    </div>
+  );
 
   return (
     <form
@@ -134,6 +160,7 @@ export function EntryForm({
       </div>
       {meetingOnly ? (
         <>
+          {urlField}
           <input type="hidden" name="is_group_meeting" value="on" />
           <input type="hidden" name="visibility" value="details" />
           <p className="text-xs text-muted-foreground">
@@ -143,6 +170,7 @@ export function EntryForm({
         </>
       ) : (
         <>
+      {(canSchedule || entry?.is_group_meeting) && (
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"
@@ -156,6 +184,8 @@ export function EntryForm({
           <span className="text-muted-foreground">(aparece en el calendario compartido)</span>
         </span>
       </label>
+      )}
+      {groupMeeting && urlField}
       <fieldset className="flex flex-col gap-1.5" disabled={groupMeeting}>
         <legend className="mb-1 text-sm font-medium">¿Qué ven los demás?</legend>
         <label className="flex items-center gap-2 text-sm">
